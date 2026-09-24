@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stall – buy and sell on campus</title>
+<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#5A2A0E"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Stall"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:#FFFBF3;--bg2:#F6EEDD;--ink:#2A1408;--muted:#7A6455;--line:#E6D8C3;--blue:#5A2A0E;--on:#fff;--green:#1F9D55;--nav:rgba(255,251,243,.75);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1A0D06;--bg2:#2A1810;--ink:#FBEFD9;--muted:#C4A98F;--line:#4A3020;--blue:#F0A85A;--on:#2A1408;--nav:rgba(26,13,6,.75)}}
+:root[data-theme="dark"]{--bg:#1A0D06;--bg2:#2A1810;--ink:#FBEFD9;--muted:#C4A98F;--line:#4A3020;--blue:#F0A85A;--on:#2A1408;--nav:rgba(26,13,6,.75)}
+html{scroll-padding-top:60px;scroll-behavior:smooth}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.47 -apple-system,"SF Pro Text",Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+h1,h2,h3,p{margin:0}
+[hidden]{display:none!important}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;height:52px;background:var(--nav);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--line)}
+.nav{max-width:1080px;margin:0 auto;height:100%;padding:0 18px;display:flex;align-items:center;gap:6px}
+.logo{font-weight:700;font-size:21px;letter-spacing:-.03em;margin-right:auto;background:none;border:0;padding:0}
+.nl{background:none;border:0;padding:8px 10px;font-size:14px;border-radius:8px;color:var(--ink)}
+.nl:hover{background:var(--bg2)}
+.bag{position:relative;display:grid;place-items:center;width:38px;height:38px}
+.bag b{position:absolute;top:2px;right:0;min-width:18px;height:18px;border-radius:9px;background:var(--blue);color:var(--on);font-size:11px;display:grid;place-items:center;padding:0 4px}
+.bump{animation:bump .35s}
+@keyframes bump{40%{transform:scale(1.3)}}
+.pill{border:0;border-radius:980px;background:var(--blue);color:var(--on);padding:11px 22px;font-weight:500;transition:transform .15s,filter .15s}
+.pill:hover{filter:brightness(1.1)}.pill:active{transform:scale(.97)}
+.pill.sm{padding:7px 14px;font-size:14px}
+.pill.alt{background:var(--bg2);color:var(--ink)}
+.pill.red{background:transparent;color:#E5484D;border:1px solid currentColor}
+.pill[disabled]{opacity:.45;pointer-events:none}
+.link{color:var(--blue);background:none;border:0;padding:0}
+.link:hover{text-decoration:underline}
+.hero{text-align:center;padding:72px 20px 40px;max-width:820px;margin:0 auto}
+.hero h1{font-size:clamp(40px,8vw,80px);line-height:1.05;font-weight:700;letter-spacing:-.04em}
+.hero p{font-size:clamp(19px,2.6vw,26px);color:var(--muted);margin:16px auto 28px;max-width:600px;line-height:1.3}
+.hero .row{display:flex;gap:22px;justify-content:center;align-items:center;flex-wrap:wrap}
+.wrap{max-width:1080px;margin:0 auto;padding:0 18px 60px}
+.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:24px 0 8px}
+.search{flex:1 1 260px;padding:12px 18px;border-radius:980px;border:1px solid var(--line);background:var(--bg2);outline-offset:0}
+select.sort{padding:11px 14px;border-radius:980px;border:1px solid var(--line);background:var(--bg2)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:6px 0 14px;scrollbar-width:none}
+.chip{flex:none;border:0;background:var(--bg2);border-radius:980px;padding:8px 16px;font-size:15px;transition:background .2s,color .2s}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.card{background:var(--bg2);border-radius:24px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s;opacity:0;transform:translateY(14px)}
+.card.in{opacity:1;transform:none;transition:opacity .5s,transform .5s cubic-bezier(.2,.8,.2,1),box-shadow .35s}
+.card.in:hover{transform:translateY(-4px) scale(1.01);box-shadow:0 14px 36px rgba(0,0,0,.14)}
+.tile{height:170px;display:grid;place-items:center;font-size:72px;position:relative}
+.tag{position:absolute;top:12px;left:12px;font-size:12px;font-weight:600;background:rgba(255,255,255,.85);color:#1D1D1F;border-radius:980px;padding:3px 10px}
+.cb{padding:16px 18px 18px;display:flex;flex-direction:column;flex:1}
+.card h3{font-size:19px;font-weight:600;letter-spacing:-.01em;line-height:1.25}
+.meta{color:var(--muted);font-size:14px;margin-top:4px}
+.cf{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:14px}
+.price{font-size:19px;font-weight:600}
+.empty{grid-column:1/-1;text-align:center;padding:60px 10px;color:var(--muted)}
+.empty h3{color:var(--ink);font-size:24px;margin-bottom:6px}
+footer{border-top:1px solid var(--line);padding:24px 18px;text-align:center;color:var(--muted);font-size:13px}
+dialog{border:0;border-radius:24px;padding:0;background:var(--bg);color:var(--ink);width:min(540px,calc(100% - 20px));max-height:calc(100% - 20px);box-shadow:0 30px 80px rgba(0,0,0,.35);overflow:auto}
+dialog::backdrop{background:rgba(0,0,0,.4);backdrop-filter:blur(8px)}
+dialog[open]{animation:pop .3s cubic-bezier(.2,.8,.2,1)}
+@keyframes pop{from{transform:translateY(18px) scale(.98);opacity:0}}
+dialog.drawer{margin:0 0 0 auto;height:100%;max-height:none;width:min(430px,100%);border-radius:24px 0 0 24px}
+dialog.drawer[open]{animation:slide .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes slide{from{transform:translateX(60px);opacity:0}}
+.pad{padding:24px}
+.pad h2{font-size:28px;letter-spacing:-.03em;font-weight:700;margin-bottom:14px}
+.dtile{height:190px;display:grid;place-items:center;font-size:96px}
+.line{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.line .mini{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;font-size:26px;flex:none}
+.line .t{flex:1;min-width:0}.line .t b{display:block;font-weight:600;line-height:1.25}
+.sum{display:flex;justify-content:space-between;padding:14px 0;font-size:19px;font-weight:600}
+.acts{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.acts .pill{flex:1 1 auto}
+label{display:block;font-size:14px;font-weight:600;margin-top:14px}
+label input,label select,label textarea{display:block;width:100%;margin-top:5px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);font-weight:400}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:8px;font-weight:500;cursor:pointer}
+.opt input{width:auto;margin:0}
+.opt:has(input:checked){border-color:var(--blue);box-shadow:0 0 0 1px var(--blue)}
+.opt small{display:block;color:var(--muted);font-weight:400}
+.ok{width:72px;height:72px;margin:0 auto 10px;display:block}
+.ok circle{fill:none;stroke:var(--green);stroke-width:4;stroke-dasharray:190;stroke-dashoffset:190;animation:dr .6s .1s forwards}
+.ok path{fill:none;stroke:var(--green);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:50;stroke-dashoffset:50;animation:dr .4s .55s forwards}
+@keyframes dr{to{stroke-dashoffset:0}}
+.order{background:var(--bg2);border-radius:20px;padding:18px;margin-bottom:12px}
+.order .top{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:6px}
+.status{font-size:12px;font-weight:600;padding:3px 10px;border-radius:980px;background:var(--bg);border:1px solid var(--line)}
+.status.done{color:var(--green);border-color:var(--green)}
+.toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 20px;border-radius:980px;font-size:15px;z-index:30;animation:pop .3s}
+#gate{position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto;display:flex;padding:calc(20px + env(safe-area-inset-top,0px)) 20px calc(20px + env(safe-area-inset-bottom,0px))}
+.gin{margin:auto;width:min(440px,100%);text-align:center;animation:pop .45s cubic-bezier(.2,.8,.2,1)}
+.gt{height:220px;border-radius:32px;display:grid;place-items:center;font-size:100px;margin-bottom:28px}
+.gin h1{font-size:clamp(32px,7vw,44px);letter-spacing:-.035em;line-height:1.08;font-weight:700}
+.gin>p{color:var(--muted);font-size:19px;line-height:1.35;margin:12px 0 22px}
+.dots{display:flex;gap:8px;justify-content:center;margin-bottom:22px}
+.dots i{width:8px;height:8px;border-radius:4px;background:var(--line);transition:width .3s,background .3s}
+.dots i.on{width:26px;background:var(--ink)}
+.gin form{text-align:left}
+.err{color:#E5484D;font-size:13px;font-weight:400;margin-top:4px;display:block}
+.chk{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:14px;color:var(--muted)}
+.chk input{width:auto;margin:3px 0 0}
+.step{display:inline-flex;align-items:center;gap:10px;background:var(--bg2);border-radius:980px;padding:4px}
+.step button{width:30px;height:30px;border-radius:50%;border:0;background:var(--bg);font-size:18px;line-height:1}
+.shead{display:flex;gap:16px;align-items:center;margin:18px 0}
+.sem{width:84px;height:84px;border-radius:24px;display:grid;place-items:center;font-size:44px;flex:none}
+.bar2{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.opt.sel{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue);cursor:default}
+.lb{font-size:14px;font-weight:600;margin:14px 0 0}
+.pk{margin-top:6px}
+.thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.thumbs div{position:relative;aspect-ratio:1;border-radius:12px;background-size:cover;background-position:center}
+.thumbs button{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;line-height:1;font-size:14px}
+#gmain{width:100%;height:260px;object-fit:cover;display:block}
+.gth{display:flex;gap:8px;padding:10px 24px 0;overflow-x:auto}
+.gth img{width:56px;height:56px;object-fit:cover;border-radius:10px;opacity:.55;cursor:pointer;flex:none;border:2px solid transparent}
+.gth img.on{opacity:1;border-color:var(--blue)}
+.note{color:var(--muted);font-size:13px;margin:6px 0 0}
+.seg{display:flex;background:var(--bg2);border-radius:980px;padding:4px;margin:10px 0 0}
+.seg button{flex:1;border:0;background:transparent;padding:9px;border-radius:980px;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--bg);box-shadow:0 1px 4px rgba(0,0,0,.18)}
+@media (max-width:560px){.hero{padding-top:48px}.grid{grid-template-columns:1fr 1fr;gap:10px}.tile{height:120px;font-size:52px}.cb{padding:12px}.card h3{font-size:16px}.cf{flex-direction:column;align-items:stretch;gap:8px}.cf .pill{width:100%}dialog.drawer{border-radius:0}.nl.hide{display:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.card{opacity:1;transform:none}.ok circle,.ok path{stroke-dashoffset:0}}
+.hero{max-width:none;margin:0;text-align:left;padding:clamp(56px,9vw,110px) max(18px,calc((100% - 1080px)/2 + 18px)) 44px;color:#FFF1DC;background:radial-gradient(120% 90% at 88% 18%,#EBA55E 0,#B5622B 36%,#5A2A0E 70%,#3A1808 100%);border-radius:0 0 32px 32px}
+.hero h1{max-width:11ch}.hero p{color:#F3D9B8;margin:16px 0 28px;max-width:30ch}
+.hero .row{justify-content:flex-start}.hero .pill{background:#FFF1DC;color:#3A1808}.hero .link{color:#FFF1DC}
+.glass,.trust div{background:rgba(255,241,220,.12);border:1px solid rgba(255,241,220,.28);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-radius:18px}
+.glass{margin-top:44px;padding:16px;max-width:460px;font-size:15px}.glass .hs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.hc{border:1px solid rgba(255,241,220,.3);background:rgba(255,241,220,.1);color:#FFF1DC;border-radius:980px;padding:7px 14px;font-size:14px}.hc:hover{background:rgba(255,241,220,.24)}
+.trust{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.trust div{padding:10px 14px;font-size:14px;font-weight:600}.trust small{display:block;font-weight:400;font-size:12px;color:#F3D9B8}
+#browse{padding-top:12px}
+</style>
+</head>
+<body>
+<nav><div class="nav">
+  <button class="logo" id="home">Stall</button>
+  <button class="nl" id="navShop">Shop</button>
+  <button class="nl" id="navStores">Stores</button>
+  <button class="nl" id="navOrders">Orders</button>
+  <button class="nl hide" id="sellBtn">Sell</button>
+  <button class="nl bag" id="bagBtn" aria-label="Open bag"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8V6a3 3 0 016 0v2"/></svg><b id="badge" hidden>0</b></button>
+</div></nav>
+
+<section id="shop">
+  <div class="hero">
+    <h1>Everything you need. Right on campus.</h1>
+    <p>Shop textbooks, gadgets, meals and hostel essentials from fellow students and campus stores.</p>
+    <div class="row"><button class="pill" id="shopNow">Shop now</button><button class="link" id="toStores">Browse stores</button><button class="link" id="sellHero">Sell something</button></div>
+    <div class="glass"><b>What are you looking for?</b><div class="hs" id="hchips"></div></div>
+    <div class="trust"><div>ACU only<small>Verified students and shops</small></div><div>Pay online<small>Card, transfer or USSD</small></div><div>Collect on campus<small>Or ask for hostel delivery</small></div></div>
+  </div>
+  <div class="wrap" id="browse">
+    <div class="tools"><input class="search" id="q" type="search" placeholder="Search listings" aria-label="Search listings">
+      <select class="sort" id="sort" aria-label="Sort"><option value="new">Newest</option><option value="lo">Price: low to high</option><option value="hi">Price: high to low</option></select></div>
+    <div class="chips" id="chips"></div>
+    <div class="grid" id="grid"></div>
+  </div>
+</section>
+
+<section id="stores" hidden><div class="wrap" style="padding-top:36px"><div class="bar2"><h2 style="font-size:40px;letter-spacing:-.035em">Campus stores</h2><button class="pill sm" id="openStore">Open your store</button></div><div class="grid" id="storeGrid"></div></div></section>
+<section id="store" hidden></section>
+<section id="orders" hidden><div class="wrap" style="padding-top:36px;max-width:720px"><h2 style="font-size:40px;letter-spacing:-.035em;margin-bottom:18px">Your orders</h2><div id="orderList"></div></div></section>
+<footer><span id="who"></span> <button class="link" id="signOut" hidden>Sign out</button><br>Stall connects ACU students and campus shops. All payments are made online through Paystack. Cash and payment at handover are not accepted, so never pay a seller outside Stall. Check your item at collection, then tap I received it.</footer>
+
+<dialog id="itemDlg"><div class="pad"><h2>Add item</h2><form id="itemForm" method="dialog">
+ <label>Item name<input name="title" required maxlength="60" placeholder="e.g. Jollof rice and chicken"></label>
+ <label>Price (₦)<input name="price" type="number" min="100" step="50" required inputmode="numeric"></label>
+ <label>Description<input name="desc" maxlength="80" placeholder="What comes with it"></label>
+ <p class="lb">Photos (1 to 8)</p><div class="pk" id="pkItem"><input type="file" accept="image/*" multiple hidden><button type="button" class="pill sm alt" data-pick>Add photos</button> <span class="meta pkc"></span><div class="thumbs"></div><span class="err"></span></div>
+ <p class="note fh">Free to list. Stall keeps ₦10 per item from ₦100 to ₦999, and ₦100 per item from ₦1,000.</p>
+ <div class="acts"><button class="pill" type="submit">Add to store</button><button class="pill alt" type="button" data-close>Cancel</button></div></form></div></dialog>
+<dialog id="storeDlg"><div class="pad"><h2>Open your store</h2><form id="storeForm" method="dialog">
+ <label>Store name<input name="name" required maxlength="40" placeholder="e.g. Iya Debo's Canteen"></label>
+ <div class="two"><label>Category<select name="cat" id="storeCat"></select></label><label>Icon<select name="emoji"><option>🍲</option><option>🍚</option><option>🍞</option><option>🥤</option><option>📚</option><option>👗</option><option>💻</option><option>✂️</option><option>🛍️</option></select></label></div>
+ <label>About your store<textarea name="desc" rows="2" maxlength="120" placeholder="What you sell and when you are open"></textarea></label>
+ <div class="two"><label>Pickup spot<input name="spot" required maxlength="40" placeholder="e.g. Cafeteria, Stall 4"></label><label>WhatsApp number<input name="phone" required inputmode="tel"></label></div>
+ <div class="opt sel" style="margin-top:14px"><span>One-time store fee: ₦5,000<small>Paid online when you open your store. Listing single items stays free.</small></span></div>
+ <div class="two"><label>Payout bank<select name="bank"><option>Access Bank</option><option>Fidelity Bank</option><option>First Bank</option><option>FCMB</option><option>GTBank</option><option>Kuda</option><option>Moniepoint</option><option>OPay</option><option>PalmPay</option><option>Stanbic IBTC</option><option>Sterling Bank</option><option>UBA</option><option>Union Bank</option><option>Wema Bank</option><option>Zenith Bank</option></select></label><label>Account number<input name="acct" required inputmode="numeric" pattern="\d{10}" maxlength="10" placeholder="10 digits"></label></div>
+  <p class="note">Your sales are paid to this account.</p>
+ <p class="note">Stall keeps ₦10 or ₦100 from each item you sell.</p>
+ <div class="acts"><button class="pill" type="submit">Pay ₦5,000 and open store</button><button class="pill alt" type="button" data-close>Cancel</button></div></form></div></dialog>
+<div id="gate" hidden></div>
+<dialog id="detail"></dialog>
+<dialog id="cart" class="drawer"></dialog>
+<dialog id="checkout"></dialog>
+<dialog id="done"></dialog>
+<dialog id="sell"><div class="pad"><h2>Sell an item</h2>
+ <form id="form" method="dialog">
+  <label>What are you selling?<input name="title" required maxlength="60" placeholder="e.g. Engineering Mathematics textbook"></label>
+  <div class="two"><label>Price (₦)<input name="price" type="number" min="100" step="50" required inputmode="numeric"></label><label>Category<select name="cat" id="catSel"></select></label></div>
+  <div class="two"><label>Condition<select name="cond"><option>New</option><option selected>Like new</option><option>Used</option></select></label><label>Meet-up spot<input name="spot" required maxlength="40" placeholder="e.g. Library steps"></label></div>
+  <label>Details<textarea name="desc" rows="3" maxlength="240" placeholder="Edition, size, defects"></textarea></label>
+  <p class="lb">Photos (1 to 8)</p><div class="pk" id="pkSell"><input type="file" accept="image/*" multiple hidden><button type="button" class="pill sm alt" data-pick>Add photos</button> <span class="meta pkc"></span><div class="thumbs"></div><span class="err"></span></div>
+  <div class="two"><label>Your name<input name="seller" required maxlength="30"></label><label>WhatsApp number<input name="phone" required inputmode="tel" placeholder="080..."></label></div>
+  <p class="note fh">Free to list. Stall keeps ₦10 per item from ₦100 to ₦999, and ₦100 per item from ₦1,000.</p>
+  <div class="two"><label>Payout bank<select name="bank"><option>Access Bank</option><option>Fidelity Bank</option><option>First Bank</option><option>FCMB</option><option>GTBank</option><option>Kuda</option><option>Moniepoint</option><option>OPay</option><option>PalmPay</option><option>Stanbic IBTC</option><option>Sterling Bank</option><option>UBA</option><option>Union Bank</option><option>Wema Bank</option><option>Zenith Bank</option></select></label><label>Account number<input name="acct" required inputmode="numeric" pattern="\d{10}" maxlength="10" placeholder="10 digits"></label></div>
+  <p class="note">Your sales are paid to this account.</p>
+  <div class="acts"><button class="pill" type="submit">Post listing</button><button class="pill alt" type="button" data-close>Cancel</button></div>
+ </form></div></dialog>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const CATS=[
+ {id:'books',name:'Books',e:'📚',c:'linear-gradient(135deg,#FFE3BD,#FFC98A)'},{id:'tech',name:'Electronics',e:'🎧',c:'linear-gradient(135deg,#CFE4FF,#9EC5FF)'},
+ {id:'fashion',name:'Fashion',e:'👟',c:'linear-gradient(135deg,#FFD3E0,#FFA9C2)'},{id:'hostel',name:'Hostel gear',e:'🛏️',c:'linear-gradient(135deg,#D5F5DC,#A5E6B5)'},
+ {id:'food',name:'Food',e:'🍿',c:'linear-gradient(135deg,#FFF0B0,#FFE070)'},{id:'services',name:'Services',e:'✂️',c:'linear-gradient(135deg,#E3D9FF,#C4B0FF)'}];
+const H=36e5,now=Date.now();
+const SEED=[
+ {id:'s1',title:'Engineering Mathematics (Stroud), 6th ed.',price:6500,cat:'books',cond:'Used',spot:'Library steps',desc:'Clean pages, light highlighting in the first three chapters.',seller:'Tunde',t:now-2*H},
+ {id:'s2',title:'Rechargeable standing fan',price:18000,cat:'hostel',cond:'Like new',spot:'Hostel gate',desc:'Lasts a full night on one charge. Comes with charger.',seller:'Amara',t:now-5*H},
+ {id:'s3',title:'Casio fx-991 scientific calculator',price:9500,cat:'tech',cond:'Used',spot:'Faculty of Engineering',desc:'Works perfectly. Cover included.',seller:'Ife',t:now-9*H},
+ {id:'s4',title:'Air Force style sneakers, size 43',price:22000,cat:'fashion',cond:'Like new',spot:'Main gate',desc:'Worn twice. Original box.',seller:'Kelechi',t:now-20*H},
+ {id:'s5',title:'Homemade chin chin, 1 litre',price:2500,cat:'food',cond:'New',spot:'Cafeteria',desc:'Fresh batch every Friday. Order a day ahead.',seller:'Bisi',t:now-26*H},
+ {id:'s6',title:'Barbing at your hostel room',price:2000,cat:'services',cond:'New',spot:'Your room',desc:'Clean cuts, own clippers. Evenings and weekends.',seller:'Dami',t:now-30*H},
+ {id:'s7',title:'Bluetooth headphones',price:14000,cat:'tech',cond:'Used',spot:'Library steps',desc:'Good battery, small scratch on the left cup.',seller:'Chuka',t:now-48*H},
+ {id:'s8',title:'Anatomy notes and past questions bundle',price:3000,cat:'books',cond:'Used',spot:'Faculty of Science',desc:'Three sessions of past questions, printed and bound.',seller:'Zainab',t:now-70*H}];
+let S={mine:[],cart:[],orders:[],st:{},me:{},user:null,stores:[]},cat='all',q='',sort='new';
+const $=s=>document.querySelector(s);
+try{Object.assign(S,JSON.parse(localStorage.getItem('stall:v2')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('stall:v2',JSON.stringify(S))}catch(e){toast('Storage is full. Remove some photos.')}};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const naira=n=>'₦'+Number(n).toLocaleString('en-NG');
+const ci=id=>CATS.find(c=>c.id===id)||CATS[0];
+const items=()=>[...S.mine,...SEED],get=id=>items().find(i=>i.id===id)||sItems().find(i=>i.id===id);
+const stat=i=>S.st[i.id]||'';
+const ago=t=>{const h=Math.round((Date.now()-t)/H);return h<1?'Just now':h<24?h+'h ago':Math.round(h/24)+'d ago'};
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;t.style.animation='none';t.offsetWidth;t.style.animation='';clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2200)}
+const io='IntersectionObserver'in window?new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.08}):null;
+
+function badge(){const n=S.cart.length,b=$('#badge');b.hidden=!n;b.textContent=n;b.classList.remove('bump');b.offsetWidth;b.classList.add('bump')}
+function renderChips(){$('#chips').innerHTML=[{id:'all',name:'All'},...CATS].map(c=>`<button class="chip" data-c="${c.id}" aria-pressed="${cat===c.id}">${esc(c.name)}</button>`).join('')}
+function render(){
+  renderChips();
+  let l=items().filter(i=>(cat==='all'||i.cat===cat)&&(!q||(i.title+' '+i.desc+' '+i.spot).toLowerCase().includes(q)));
+  l.sort((a,b)=>sort==='lo'?a.price-b.price:sort==='hi'?b.price-a.price:b.t-a.t);
+  $('#grid').innerHTML=l.length?l.map(i=>{const c=ci(i.cat),s=stat(i),inC=S.cart.includes(i.id);return `
+   <article class="card" data-id="${i.id}"><div class="tile" style="${cv(i)}">${ic(i)}${s?`<span class="tag">${s==='sold'?'Sold':'Reserved'}</span>`:''}</div>
+   <div class="cb"><h3>${esc(i.title)}</h3><div class="meta">${esc(i.cond)} · ${esc(i.spot)} · ${ago(i.t)}</div>
+   <div class="cf"><span class="price">${naira(i.price)}</span><button class="pill sm ${inC?'alt':''}" data-add="${i.id}" ${s?'disabled':''}>${inC?'In bag':'Add to bag'}</button></div></div></article>`}).join('')
+   :`<div class="empty"><h3>Nothing found</h3><p>Try a different word, or list the item yourself.</p></div>`;
+  document.querySelectorAll('.card').forEach(c=>io?io.observe(c):c.classList.add('in'));
+  document.querySelectorAll('.empty').forEach(()=>{});
+}
+function add(id){const i=get(id);if(!i||stat(i))return toast('No longer available');
+  if(S.cart.includes(id)){openCart();return}
+  S.cart.push(id);save();badge();render();toast('Added to bag')}
+const FEE_STORE=5000,comm=p=>p>=1000?100:p>=100?10:0;
+const cv=i=>i.imgs&&i.imgs.length?`background:url("${i.imgs[0]}") center/cover`:`background:${ci(i.cat).c}`;
+const ic=i=>i.imgs&&i.imgs.length?'':em(i);
+const gal=i=>i.imgs&&i.imgs.length?`<div class="gal"><img id="gmain" src="${i.imgs[0]}" alt="${esc(i.title)}">${i.imgs.length>1?`<div class="gth">${i.imgs.map((m,k)=>`<img src="${m}" data-gi="1" class="${k?'':'on'}" alt="Photo ${k+1}">`).join('')}</div>`:''}</div>`:`<div class="dtile" style="background:${ci(i.cat).c}">${em(i)}</div>`;
+function shrink(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,720/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.65))};im.onerror=rej;im.src=r.result};r.onerror=rej;r.readAsDataURL(file)})}
+function mkPicker(root){
+  let a=[];const inp=root.querySelector('input'),th=root.querySelector('.thumbs'),cnt=root.querySelector('.pkc'),er=root.querySelector('.err');
+  const draw=()=>{th.innerHTML=a.map((m,k)=>`<div style="background-image:url('${m}')"><button type="button" data-x="${k}" aria-label="Remove photo">×</button></div>`).join('');cnt.textContent=a.length+' of 8'};
+  root.querySelector('[data-pick]').onclick=()=>inp.click();
+  inp.onchange=async()=>{er.textContent='';const fs=[...inp.files].slice(0,8-a.length);if(inp.files.length>fs.length)er.textContent='You can add up to 8 photos.';
+    for(const f of fs){try{a.push(await shrink(f))}catch(x){er.textContent='One photo could not be read.'}}inp.value='';draw()};
+  th.onclick=e=>{const b=e.target.closest('[data-x]');if(b){a.splice(+b.dataset.x,1);draw()}};
+  draw();return{get:()=>a.slice(),clear:()=>{a=[];draw()},err:m=>{er.textContent=m}};
+}
+const pf=f=>{const p=S.user.payout||{};if(p.bank)f.bank.value=p.bank;if(p.acct)f.acct.value=p.acct};
+const TEST_MODE=false;
+const lines=()=>{const m=new Map();S.cart.forEach(id=>m.set(id,(m.get(id)||0)+1));return[...m].map(([id,q])=>({i:get(id),q})).filter(x=>x.i)};
+const tot=L=>L.reduce((a,x)=>a+x.i.price*x.q,0),em=i=>i.se||ci(i.cat).e;
+function openCart(){
+  const L=lines(),d=$('#cart');
+  d.innerHTML=`<div class="pad"><h2>Bag</h2>${L.length?L.map(({i,q})=>`<div class="line"><div class="mini" style="${cv(i)}">${ic(i)}</div><div class="t"><b>${esc(i.title)}</b><span class="meta">${esc(i.seller)} · ${esc(i.spot)}</span></div><div style="text-align:right"><b>${naira(i.price*q)}</b><br>${i.multi?`<span class="step"><button data-dec="${i.id}" aria-label="Remove one">−</button><b>${q}</b><button data-inc="${i.id}" aria-label="Add one">+</button></span>`:`<button class="link" data-rm="${i.id}" style="font-size:14px">Remove</button>`}</div></div>`).join('')
+   +`<div class="sum"><span>Total</span><span>${naira(tot(L))}</span></div><p class="meta">You pay online, then collect your items from the seller.</p>
+   <div class="acts"><button class="pill" id="goCheckout">Check out</button><button class="pill alt" data-close>Keep shopping</button></div>`
+   :`<p class="meta" style="margin:20px 0">Your bag is empty. Add something from the shop or a store.</p><div class="acts"><button class="pill" data-close>Browse</button></div>`}</div>`;
+  if(!d.open)d.showModal();
+}
+function openDetail(id){
+  const i=get(id);if(!i)return;const c=ci(i.cat),s=stat(i),own=S.mine.some(m=>m.id===id),d=$('#detail');
+  d.innerHTML=`${gal(i)}<div class="pad"><h2 style="margin-bottom:4px">${esc(i.title)}</h2>
+   <p class="price" style="font-size:24px;margin:6px 0 12px">${naira(i.price)}</p><p>${esc(i.desc||'No extra details.')}</p>
+   <p class="meta" style="margin-top:12px">${esc(i.cond)} · Meet at ${esc(i.spot)} · Sold by ${esc(i.seller)}, ${esc(SCHOOL.short)} student · ${ago(i.t)}</p>
+   <div class="acts"><button class="pill" data-buy="${id}" ${s?'disabled':''}>${s?(s==='sold'?'Sold':'Reserved'):'Buy now'}</button><button class="pill alt" data-add="${id}" ${s?'disabled':''}>Add to bag</button></div>
+   ${own?`<div class="acts"><button class="pill alt" data-sold="${id}">${s==='sold'?'Mark available':'Mark as sold'}</button><button class="pill red" data-del="${id}">Delete</button></div>`:''}
+   <div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;
+  d.showModal();
+}
+function openCheckout(){
+  const L=lines();if(!L.length)return toast('Your bag is empty');
+  const T=tot(L),m=S.me,d=$('#checkout');
+  d.innerHTML=`<div class="pad"><h2>Check out</h2>
+  ${L.map(({i,q})=>`<div class="line"><div class="mini" style="${cv(i)}">${ic(i)}</div><div class="t"><b>${q>1?q+' × ':''}${esc(i.title)}</b></div><b>${naira(i.price*q)}</b></div>`).join('')}
+  <div class="sum"><span>Total</span><span>${naira(T)}</span></div>
+  <form id="cf" method="dialog">
+   <div class="two"><label>Your name<input name="name" required maxlength="40" value="${esc(m.name||'')}"></label><label>WhatsApp number<input name="phone" required inputmode="tel" value="${esc(m.phone||'')}"></label></div>
+   <label>How do you want to get it?</label>
+   <label class="opt"><input type="radio" name="how" value="meet" checked><span>Collect it<small>At the spot listed for each seller</small></span></label>
+   <label class="opt"><input type="radio" name="how" value="deliver"><span>Ask for delivery<small>Seller brings it to your hostel</small></span></label>
+   <label id="whereL" hidden>Hostel and room<input name="where" maxlength="60" placeholder="e.g. Block B, Room 12"></label>
+   <label>Payment</label>
+   <div class="opt sel"><span>Pay online<small>Card, bank transfer or USSD through Paystack</small></span></div>
+   ${TEST_MODE?'<p class="meta" style="margin-top:8px">Test mode: no real money moves until Paystack is connected.</p>':''}
+   <div class="acts"><button class="pill" type="submit">Pay ${naira(T)}</button><button class="pill alt" type="button" data-close>Back</button></div></form></div>`;
+  $('#cart').close();d.showModal();
+  d.querySelectorAll('[name=how]').forEach(r=>r.onchange=()=>{const dl=d.querySelector('[name=how]:checked').value==='deliver';$('#whereL').hidden=!dl;$('#whereL input').required=dl});
+  $('#cf').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);S.me={name:f.get('name').trim(),phone:f.get('phone').trim()};pay(f,L)};
+}
+const fetchJ=(u,o)=>fetch(u,o).then(r=>r.json());
+const payEmail=()=>S.user.email||('buyer'+String(S.user.phone||'0').replace(/\D/g,'')+'@stall.app');
+async function startPay(body,pending,b,label){
+  b.disabled=true;b.textContent='Opening secure payment…';
+  try{const r=await fetchJ('/api/checkout',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...body,email:payEmail()})});
+    if(!r.url)throw 0;sessionStorage.setItem('stall:pending',JSON.stringify(pending));location.href=r.url}
+  catch(e){b.disabled=false;b.textContent=label;toast('Could not start payment. Check your connection and try again.')}}
+function pay(f,L){startPay({kind:'order',items:L.map(x=>({price:x.i.price,q:x.q}))},{kind:'order',f:Object.fromEntries(f),ids:L.map(x=>[x.i.id,x.q]),amt:tot(L)},$('#cf button[type=submit]'),'Pay '+naira(tot(L)))}
+const waLink=o=>{const n=(o.phone||'').replace(/\D/g,'').replace(/^0/,'234');if(!n)return '';
+  const t=`Hi ${o.seller}, I've paid for this order on Stall:\n${o.items.map(i=>'• '+(i.q>1?i.q+' × ':'')+i.title).join('\n')}\nTotal: ${naira(o.total)}\n${o.how==='deliver'?'Deliver to: '+o.where:'I will collect it'}\nName: ${o.buyer}, ${o.bphone}\nOrder ${o.id}`;
+  return `https://wa.me/${n}?text=${encodeURIComponent(t)}`};
+function place(f,L){
+  const g={};L.forEach(x=>{const k=x.i.seller+'|'+(x.i.phone||'');(g[k]=g[k]||[]).push(x)});
+  const made=Object.values(g).map(a=>({id:'ORD-'+Math.random().toString(36).slice(2,6).toUpperCase(),seller:a[0].i.seller,phone:a[0].i.phone||'',
+    items:a.map(x=>({id:x.i.id,title:x.i.title,price:x.i.price,q:x.q})),total:a.reduce((s,x)=>s+x.i.price*x.q,0),fee:a.reduce((s,x)=>s+comm(x.i.price)*x.q,0),buyer:S.me.name,bphone:S.me.phone,
+    how:f.get('how'),where:(f.get('where')||'').trim(),status:'Paid',test:TEST_MODE,t:Date.now()}));
+  made.forEach(o=>o.items.forEach(i=>{if(!(get(i.id)||{}).multi)S.st[i.id]='reserved'}));
+  S.orders.unshift(...made);S.cart=[];save();badge();refresh();renderOrders();
+  $('#checkout').close();
+  $('#done').innerHTML=`<div class="pad" style="text-align:center"><svg class="ok" viewBox="0 0 72 72"><circle cx="36" cy="36" r="30"/><path d="M23 37l9 9 18-20"/></svg>
+   <h2>${TEST_MODE?'Test payment complete':'Payment received'}</h2><p class="meta" style="margin-bottom:16px">Message the seller so they can prepare your order and arrange the handover.</p>
+   ${made.map(o=>`<div class="order" style="text-align:left"><b>${esc(o.seller)}</b> · ${naira(o.total)}<div class="meta">${o.items.map(i=>(i.q>1?i.q+' × ':'')+esc(i.title)).join(', ')}</div>
+    <div class="acts">${waLink(o)?`<a class="pill sm" href="${waLink(o)}" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">Message seller on WhatsApp</a>`:`<span class="meta">Sample seller, no WhatsApp number.</span>`}</div></div>`).join('')}
+   <div class="acts"><button class="pill alt" id="viewOrders">View my orders</button></div></div>`;
+  $('#done').showModal();
+}
+function renderOrders(){
+  $('#orderList').innerHTML=S.orders.length?S.orders.map(o=>`<div class="order"><div class="top"><b>${esc(o.id)} · ${esc(o.seller)}</b><span class="status ${o.status==='Completed'?'done':''}">${o.status}</span></div>
+   ${o.items.map(i=>`<div class="line" style="border:0;padding:4px 0"><div class="t">${i.q>1?i.q+' × ':''}${esc(i.title)}</div><span>${naira(i.price*(i.q||1))}</span></div>`).join('')}
+   <div class="meta">${naira(o.total)} · Paid online${o.test?' (test)':''} · Seller gets ${naira(o.total-(o.fee||0))} after a ${naira(o.fee||0)} Stall fee · ${o.how==='deliver'?'Delivery to '+esc(o.where):'Collect from seller'} · ${ago(o.t)}</div>
+   ${o.status==='Paid'?`<div class="acts">${waLink(o)?`<a class="pill sm alt" href="${waLink(o)}" target="_blank" rel="noopener" style="text-decoration:none;text-align:center">Message seller</a>`:''}<button class="pill sm" data-recv="${o.id}">I received it</button></div>`:''}</div>`).join('')
+   :`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>When you buy something, it shows up here.</p><div class="acts" style="justify-content:center"><button class="pill" id="toShop">Start shopping</button></div></div>`;
+}
+function view(v){['shop','stores','store','orders'].forEach(x=>$('#'+x).hidden=x!==v);scrollTo({top:0});if(v==='orders')renderOrders();if(v==='stores')renderStores()}
+document.addEventListener('click',e=>{
+  const t=e.target,c=s=>t.closest(s);
+  if(c('[data-close]')){c('dialog').close();return}
+  if(t.tagName==='DIALOG'){t.close();return}
+  let b;
+  if(b=c('[data-add]')){e.stopPropagation();add(b.dataset.add);if(c('#detail'))$('#detail').close();return}
+  if(b=c('[data-buy]')){const id=b.dataset.buy;if(!S.cart.includes(id)){S.cart.push(id);save();badge();render()}$('#detail').close();openCheckout();return}
+  if(b=c('[data-rm]')){S.cart=S.cart.filter(x=>x!==b.dataset.rm);save();badge();render();openCart();return}
+  if(b=c('[data-sold]')){const id=b.dataset.sold;S.st[id]==='sold'?delete S.st[id]:S.st[id]='sold';save();render();$('#detail').close();return}
+  if(b=c('[data-del]')){const id=b.dataset.del;S.mine=S.mine.filter(m=>m.id!==id);S.cart=S.cart.filter(x=>x!==id);save();badge();render();$('#detail').close();toast('Listing deleted');return}
+  if(b=c('[data-recv]')){const o=S.orders.find(x=>x.id===b.dataset.recv);o.status='Completed';o.items.forEach(i=>{if(!(get(i.id)||{}).multi)S.st[i.id]='sold'});save();render();renderOrders();toast('Order completed');return}
+  if(b=c('[data-gi]')){$('#gmain').src=b.src;b.parentNode.querySelectorAll('img').forEach(x=>x.classList.toggle('on',x===b));return}
+  if(b=c('[data-item]')){openItem(b.dataset.item);return}
+  if(b=c('[data-inc]')){S.cart.push(b.dataset.inc);save();badge();refresh();if(c('#detail'))$('#detail').close();return}
+  if(b=c('[data-dec]')){const k=S.cart.indexOf(b.dataset.dec);if(k>-1)S.cart.splice(k,1);save();badge();refresh();return}
+  if(b=c('[data-store]')){storePage(b.dataset.store);return}
+  if(b=c('[data-toggle]')){const s=myStore();s.open=!s.open;save();refresh();return}
+  if(b=c('[data-avail]')){const it=myStore().items.find(x=>x.id===b.dataset.avail);it.avail=!it.avail;save();refresh();return}
+  if(b=c('[data-delitem]')){const s=myStore(),id=b.dataset.delitem;s.items=s.items.filter(x=>x.id!==id);S.cart=S.cart.filter(x=>x!==id);save();badge();refresh();return}
+  if(b=c('[data-delstore]')){const s=myStore(),ids=s.items.map(x=>x.id);S.stores=S.stores.filter(x=>x!==s);S.cart=S.cart.filter(x=>!ids.includes(x));save();badge();view('stores');toast('Store deleted');return}
+  if(b=c('.chip')){cat=b.dataset.c;render();return}
+  if(b=c('.card')){openDetail(b.dataset.id);return}
+  const id=t.id||(c('button')||{}).id;
+  if(id==='bagBtn')openCart();
+  if(id==='goCheckout')openCheckout();
+  if(id==='sellBtn'||id==='sellHero'){const f=$('#form').elements;f.seller.value=S.user.name;f.phone.value=S.user.phone;pf(f);$('#sell').showModal()}
+  if(id==='gNext'){si++;gate()}
+  if(id==='toIn'){authMode='in';gate()}
+  if(id==='toUp'){authMode='up';gate()}
+  if(id==='rtStudent'){rt='student';gate()}
+  if(id==='rtVendor'){rt='vendor';gate()}
+  if(id==='gSkip'){si=SL.length;gate()}
+  if(id==='signOut'){apiPost('logout',{});authMode='in';S.user=null;S.me={};save();si=SL.length;$('#store').innerHTML='';gate()}
+  if(id==='navOrders'||id==='viewOrders'){$('#done').close();view('orders')}
+  if(id==='navShop'||id==='home'||id==='toShop')view('shop');
+  if(id==='navStores'||id==='toStores'||id==='backStores')view('stores');
+  if(id==='openStore'){const s=myStore();if(s)storePage(s.id);else{const f=$('#storeForm').elements;f.phone.value=S.user.phone;pf(f);if(S.user.biz){f.name.value=S.user.biz;f.spot.value=S.user.where;f.cat.value=S.user.cat}$('#storeDlg').showModal()}}
+  if(id==='addItem')$('#itemDlg').showModal();
+  if(id==='shopNow'){$('#browse').scrollIntoView()}
+});
+$('#q').oninput=e=>{q=e.target.value.trim().toLowerCase();render()};
+$('#sort').onchange=e=>{sort=e.target.value;render()};
+$('#catSel').innerHTML=CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+$('#form').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target),imgs=pk1.get();
+  if(!imgs.length)return pk1.err('Add at least one photo.');
+  S.user.payout={bank:f.get('bank'),acct:f.get('acct')};
+  S.mine.unshift({id:'m'+Date.now(),title:f.get('title').trim(),price:+f.get('price'),cat:f.get('cat'),cond:f.get('cond'),spot:f.get('spot').trim(),desc:f.get('desc').trim(),seller:f.get('seller').trim(),phone:f.get('phone').trim(),imgs,t:Date.now()});
+  save();e.target.reset();pk1.clear();$('#sell').close();cat='all';render();toast('Listing posted')};
+const SEED_STORES=[
+ {id:'z1',owner:'',name:"Iya Debo's Canteen",emoji:'🍲',cat:'food',desc:'Home-style meals, cooked fresh every day.',spot:'Cafeteria, Stall 4',phone:'',open:true,vendor:true,items:[
+  {id:'z1a',title:'Jollof rice and chicken',price:2500,desc:'Party jollof, fried chicken and plantain.',avail:true},
+  {id:'z1b',title:'Amala, ewedu and gbegiri',price:2000,desc:'Two wraps with assorted meat.',avail:true},
+  {id:'z1c',title:'Fried rice and turkey',price:3000,desc:'Served with coleslaw.',avail:true},
+  {id:'z1d',title:'Zobo, 50cl',price:500,desc:'Chilled.',avail:false}]},
+ {id:'z2',owner:'',name:'Bookworm Corner',emoji:'📚',cat:'books',desc:'Notebooks, pens and course stationery.',spot:'Faculty of Science foyer',phone:'',open:true,vendor:true,items:[
+  {id:'z2a',title:'A4 notebook, 80 leaves',price:900,desc:'Hardcover.',avail:true},
+  {id:'z2b',title:'Pen pack (10)',price:1200,desc:'Blue ink.',avail:true}]}];
+const allStores=()=>[...S.stores,...SEED_STORES];
+const sItems=()=>allStores().flatMap(s=>s.items.map(it=>({...it,cat:s.cat,spot:s.spot,seller:s.name,phone:s.phone||'',multi:true,se:s.emoji,cond:'',t:0})));
+const uid=()=>S.user?(S.user.id||S.user.matric):'';
+const myStore=()=>S.stores.find(s=>s.owner===uid());
+let cur='';
+function refresh(){render();if(!$('#store').hidden)storePage(cur);if($('#cart').open)openCart()}
+function renderStores(){
+  $('#openStore').textContent=myStore()?'Manage my store':'Open your store';
+  $('#storeGrid').innerHTML=allStores().map(s=>`<article class="card in" data-store="${s.id}"><div class="tile" style="background:${ci(s.cat).c}">${s.emoji}<span class="tag">${s.open?'Open':'Closed'}</span></div>
+   <div class="cb"><h3>${esc(s.name)}</h3><div class="meta">${esc(ci(s.cat).name)} · ${esc(s.spot)}${s.vendor?' · Campus vendor':''}</div><div class="meta">${s.items.filter(i=>i.avail).length} available now</div></div></article>`).join('');
+}
+function storePage(id){
+  cur=id;const s=allStores().find(x=>x.id===id);if(!s)return view('stores');
+  const own=!!s.owner&&s.owner===uid(),qty=k=>S.cart.filter(x=>x===k).length;
+  $('#store').innerHTML=`<div class="wrap" style="padding-top:28px;max-width:760px"><button class="link" id="backStores">← All stores</button>
+   <div class="shead"><div class="sem" style="background:${ci(s.cat).c}">${s.emoji}</div><div><h2 style="font-size:34px;letter-spacing:-.03em">${esc(s.name)}</h2><p class="meta">${esc(s.desc)}</p><p class="meta">${esc(s.spot)} · <b style="color:${s.open?'var(--green)':'#E5484D'}">${s.open?'Open now':'Closed'}</b>${s.vendor?' · Campus vendor':''}</p></div></div>
+   ${own?`<div class="acts"><button class="pill sm" id="addItem">Add item</button><button class="pill sm alt" data-toggle="1">${s.open?'Close store':'Open store'}</button><button class="pill sm red" data-delstore="1">Delete store</button></div>`:''}
+   <div style="margin-top:14px">${s.items.length?s.items.map(it=>{const q=qty(it.id),ok=s.open&&it.avail,t2={...it,cat:s.cat,se:s.emoji};return `<div class="line"><div class="mini" data-item="${it.id}" style="${cv(t2)};cursor:pointer">${ic(t2)}</div><div class="t"><b>${esc(it.title)}</b><span class="meta">${esc(it.desc||'')}</span><span class="price" style="font-size:17px">${naira(it.price)}</span></div>
+    ${ok?(q?`<span class="step"><button data-dec="${it.id}" aria-label="Remove one">−</button><b>${q}</b><button data-inc="${it.id}" aria-label="Add one">+</button></span>`:`<button class="pill sm" data-inc="${it.id}">Add</button>`):`<span class="meta">${s.open?'Sold out':'Closed'}</span>`}
+    ${own?`<span style="display:flex;flex-direction:column;gap:2px;align-items:flex-start"><button class="link" data-avail="${it.id}" style="font-size:13px">${it.avail?'Mark sold out':'Mark available'}</button><button class="link" data-delitem="${it.id}" style="font-size:13px;color:#E5484D">Delete</button></span>`:''}</div>`}).join('')
+    :`<div class="empty"><h3>No items yet</h3><p>${own?'Add what you sell so students can order.':'Check back soon.'}</p></div>`}</div></div>`;
+  if($('#store').hidden)view('store');
+}
+$('#storeCat').innerHTML=CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+function makeStore(d,feeRef){const id='u'+Date.now();S.user.payout={bank:d.bank,acct:d.acct};
+  S.stores.push({id,owner:uid(),name:d.name,emoji:d.emoji,cat:d.cat,desc:d.desc,spot:d.spot,phone:d.phone,open:true,paid:true,vendor:S.user.role==='vendor',feeRef,items:[]});
+  save();renderStores();storePage(id);toast('Store fee paid. Your store is open')}
+$('#storeForm').onsubmit=e=>{e.preventDefault();const E=e.target.elements,d={name:E.name.value.trim(),emoji:E.emoji.value,cat:E.cat.value,desc:E.desc.value.trim(),spot:E.spot.value.trim(),phone:E.phone.value.trim(),bank:E.bank.value,acct:E.acct.value.trim()};
+  startPay({kind:'store'},{kind:'store',d},e.target.querySelector('[type=submit]'),'Pay '+naira(FEE_STORE)+' and open store')};
+$('#itemForm').onsubmit=e=>{e.preventDefault();const f=e.target,E=f.elements,s=myStore(),imgs=pk2.get();
+  if(!imgs.length)return pk2.err('Add at least one photo.');
+  s.items.unshift({id:'i'+Date.now(),title:E.title.value.trim(),price:+E.price.value,desc:E.desc.value.trim(),imgs,avail:true});
+  save();f.reset();pk2.clear();$('#itemDlg').close();storePage(s.id);toast('Item added')};
+function openItem(id){const i=get(id);if(!i)return;const st=allStores().find(x=>x.id===cur),ok=st&&st.open&&i.avail,d=$('#detail');
+  d.innerHTML=`${gal(i)}<div class="pad"><h2 style="margin-bottom:4px">${esc(i.title)}</h2><p class="price" style="font-size:24px;margin:6px 0 12px">${naira(i.price)}</p><p>${esc(i.desc||'')}</p><p class="meta" style="margin-top:12px">${esc(i.seller)} · ${esc(i.spot)}</p>
+   <div class="acts">${ok?`<button class="pill" data-inc="${id}">Add to bag</button>`:'<button class="pill" disabled>Unavailable</button>'}<button class="pill alt" data-close>Close</button></div></div>`;d.showModal()}
+const pk1=mkPicker($('#pkSell')),pk2=mkPicker($('#pkItem'));
+document.querySelectorAll('[name=price]').forEach(inp=>inp.addEventListener('input',()=>{const n=inp.closest('form').querySelector('.fh'),p=+inp.value;if(n)n.textContent=p>=100?`You receive ${naira(p-comm(p))} per sale after a ${naira(comm(p))} Stall fee.`:'The minimum price is ₦100.'}));
+const SCHOOL={name:'Ajayi Crowther University',short:'ACU',matric:/^[A-Za-z0-9\/-]{6,16}$/};
+const SL=[
+ {e:'🎓',c:CATS[1].c,h:'Your campus marketplace',p:`Buy and sell with other ${SCHOOL.short} students and shops on campus. Only ${SCHOOL.short} students and campus shops can join.`},
+ {e:'📚',c:CATS[0].c,h:'Find what you need',p:'Textbooks, gadgets, hostel gear and meals from students and campus stores.'},
+ {e:'🤝',c:CATS[3].c,h:'Pay online, collect on campus',p:'Pay securely online, then meet the seller on campus to collect and check your item.'}];
+let si=S.user?SL.length:0,rt='student';
+let authMode='up';const apiPost=(p,b)=>fetch('/api/'+p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json()).catch(()=>({error:'Could not reach Stall. Check your connection.'}));
+const SEG=()=>`<div class="seg"><button type="button" id="rtStudent" aria-pressed="${rt==='student'}">I'm a student</button><button type="button" id="rtVendor" aria-pressed="${rt==='vendor'}">I run a shop</button></div>`;
+function vendorGate(g){
+  g.innerHTML=`<div class="gin" style="text-align:left"><h1 style="font-size:36px">Create your account</h1>
+   <p style="margin-bottom:6px">Only ${esc(SCHOOL.name)} students and campus shops can join Stall.</p>${SEG()}
+   <form id="reg" novalidate>
+    <label>Business name<input name="biz" maxlength="40"><span class="err" data-e="biz"></span></label>
+    <label>Owner's full name<input name="name" autocomplete="name" maxlength="50"><span class="err" data-e="name"></span></label>
+    <label>WhatsApp number<input name="phone" inputmode="tel" placeholder="080..."><span class="err" data-e="phone"></span></label>
+    <div class="two"><label>Shop location on campus<input name="where" maxlength="40" placeholder="e.g. Cafeteria, Stall 4"><span class="err" data-e="where"></span></label><label>What you sell<select name="cat">${CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></label></div>
+    <label>Vendor invite code<input name="code" autocapitalize="characters" maxlength="20" placeholder="From the Stall team"><span class="err" data-e="code"></span></label>
+    <label>Create a password<input name="pw" type="password" autocomplete="new-password" placeholder="At least 8 characters"><span class="err" data-e="pw"></span></label>
+    <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span>I run this shop on the ${esc(SCHOOL.short)} campus and these details are correct.</span></label><span class="err" data-e="ok"></span>
+    <div class="acts"><button class="pill" type="submit">Create account</button></div></form><p style="margin-top:14px"><button class="link" type="button" id="toIn">Already have an account? Sign in</button></p></div>`;
+  $('#reg').onsubmit=e=>{e.preventDefault();const f=e.target,v=n=>f.elements[n].value.trim(),er={},ph=v('phone').replace(/\D/g,'');
+    if(v('biz').length<2)er.biz='Enter your business name.';
+    if(v('name').length<3)er.name='Enter your full name.';
+    if(ph.length<10||ph.length>14)er.phone='Enter a valid WhatsApp number.';
+    if(v('where').length<3)er.where='Where on campus is your shop?';
+    if(!v('code'))er.code='Enter your vendor invite code.';if(f.elements.pw.value.length<8)er.pw='Use at least 8 characters.';
+    if(!f.elements.ok.checked)er.ok='Please confirm to continue.';
+    f.querySelectorAll('[data-e]').forEach(x=>x.textContent=er[x.dataset.e]||'');
+    if(Object.keys(er).length)return;
+    regSend(f,{role:'vendor',name:v('name'),biz:v('biz'),phone:v('phone'),where:v('where'),cat:f.elements.cat.value,code:v('code'),password:f.elements.pw.value})};
+}
+async function regSend(f,body){const b=f.querySelector('[type=submit]');b.disabled=true;const r=await apiPost('register',body);b.disabled=false;
+  if(r.error){f.querySelectorAll('[data-e]').forEach(x=>x.textContent='');(f.querySelector('[data-e="'+r.field+'"]')||f.querySelector('[data-e="ok"]')).textContent=r.error;return}
+  S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();view('shop');toast('Welcome to Stall, '+(S.user.biz||S.user.name.split(' ')[0]))}
+function loginGate(g){g.innerHTML=`<div class="gin" style="text-align:left"><h1 style="font-size:36px">Sign in</h1><p style="margin-bottom:6px">Use your matric number or phone number.</p>
+   <form id="lg" novalidate><label>Matric number or phone<input name="id" autocapitalize="characters" autocomplete="username"></label>
+    <label>Password<input name="pw" type="password" autocomplete="current-password"><span class="err" data-e="id"></span></label>
+    <div class="acts"><button class="pill" type="submit">Sign in</button></div></form>
+   <p style="margin-top:14px"><button class="link" type="button" id="toUp">New here? Create an account</button></p></div>`;
+  $('#lg').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('[type=submit]');b.disabled=true;const r=await apiPost('login',{id:f.elements.id.value,password:f.elements.pw.value});b.disabled=false;
+    if(r.error){f.querySelector('[data-e=id]').textContent=r.error;return}
+    S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();view('shop');toast('Welcome back, '+(S.user.biz||S.user.name.split(' ')[0]))}}
+function gate(){
+  const g=$('#gate');$('#who').textContent=S.user?`Signed in as ${S.user.name} (${S.user.role==='vendor'?'campus vendor':S.user.matric}).`:'';$('#signOut').hidden=!S.user;
+  const isV=!!S.user&&S.user.role==='vendor';$('#sellBtn').hidden=isV;$('#sellHero').hidden=isV;
+  if(S.user){g.hidden=true;return}
+  g.hidden=false;g.scrollTo(0,0);
+  if(authMode==='in'){loginGate(g);return}
+  if(si<SL.length){const s=SL[si];
+    g.innerHTML=`<div class="gin" key="${si}"><div class="gt" style="background:${s.c}">${s.e}</div><h1>${s.h}</h1><p>${s.p}</p>
+    <div class="dots">${SL.map((_,k)=>`<i class="${k===si?'on':''}"></i>`).join('')}</div>
+    <div class="acts"><button class="pill" id="gNext">${si<SL.length-1?'Continue':'Get started'}</button></div><p style="margin-top:14px"><button class="link" id="gSkip">Skip</button></p></div>`;return}
+  if(rt==='vendor'){vendorGate(g);return}
+  g.innerHTML=`<div class="gin" style="text-align:left"><h1 style="font-size:36px">Create your account</h1>
+   <p style="margin-bottom:6px">Only ${esc(SCHOOL.name)} students and campus shops can join Stall.</p>${SEG()}
+   <form id="reg" novalidate>
+    <label>Full name<input name="name" autocomplete="name" maxlength="50"><span class="err" data-e="name"></span></label>
+    <label>Matric number<input name="matric" autocapitalize="characters" maxlength="16"><span class="err" data-e="matric"></span></label>
+    <label>Email address<input name="email" type="email" autocomplete="email" placeholder="you@gmail.com"><span class="err" data-e="email"></span></label>
+    <label>WhatsApp number<input name="phone" inputmode="tel" placeholder="080..."><span class="err" data-e="phone"></span></label>
+    <label>Create a password<input name="pw" type="password" autocomplete="new-password" placeholder="At least 8 characters"><span class="err" data-e="pw"></span></label>
+    <label>Hostel or where you stay (optional)<input name="where" maxlength="40"></label>
+    <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span>I am a current ${esc(SCHOOL.short)} student. I will meet in safe, public campus spots.</span></label><span class="err" data-e="ok"></span>
+    <div class="acts"><button class="pill" type="submit">Create account</button></div></form><p style="margin-top:14px"><button class="link" type="button" id="toIn">Already have an account? Sign in</button></p></div>`;
+  $('#reg').onsubmit=e=>{e.preventDefault();const f=e.target,v=n=>f.elements[n].value.trim(),er={};
+    const dom=(v('email').split('@')[1]||'').toLowerCase(),ph=v('phone').replace(/\D/g,'');
+    if(v('name').length<3)er.name='Enter your full name.';
+    if(!SCHOOL.matric.test(v('matric')))er.matric='Enter your matric number as it appears on your student ID.';
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(v('email')))er.email='Enter a valid email address.';
+    if(ph.length<10||ph.length>14)er.phone='Enter a valid WhatsApp number.';
+    if(f.elements.pw.value.length<8)er.pw='Use at least 8 characters.';
+    if(!f.elements.ok.checked)er.ok='Please confirm to continue.';
+    f.querySelectorAll('[data-e]').forEach(x=>x.textContent=er[x.dataset.e]||'');
+    if(Object.keys(er).length)return;
+    regSend(f,{role:'student',name:v('name'),matric:v('matric'),email:v('email'),phone:v('phone'),where:v('where'),password:f.elements.pw.value})};
+}
+S.cart=S.cart.filter(id=>get(id));render();badge();$('#badge').classList.remove('bump');gate();
+fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate()}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{});
+$('#hchips').innerHTML=CATS.map(c=>`<button class="hc" data-hc="${c.id}">${c.e} ${c.name}</button>`).join('');
+document.addEventListener('click',e=>{const b=e.target.closest('[data-hc]');if(b){cat=b.dataset.hc;render();$('#browse').scrollIntoView()}});
+(async()=>{const ref=new URLSearchParams(location.search).get('reference');if(!ref)return;history.replaceState(null,'','/');
+  const p=JSON.parse(sessionStorage.getItem('stall:pending')||'null');sessionStorage.removeItem('stall:pending');
+  S.refs=S.refs||[];if(S.refs.includes(ref))return;
+  try{const r=await fetchJ('/api/verify?ref='+encodeURIComponent(ref));
+    if(!r.paid||!p)return toast('Payment not completed. You were not charged.');
+    const L=p.kind==='order'?p.ids.map(([id,q])=>({i:get(id),q})).filter(x=>x.i):[];
+    if(p.kind==='order'&&(!L.length||r.amount!==tot(L)))return toast('Payment received but the order could not be matched. Contact Stall support with reference '+ref);
+    S.refs.push(ref);save();
+    p.kind==='store'?makeStore(p.d,'FEE-'+ref.slice(-6).toUpperCase()):place({get:k=>p.f[k]},L)}
+  catch(e){toast('Could not confirm payment. If you were charged, contact Stall support.')}})();
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+</script>
+</body>
+</html>
