@@ -226,7 +226,7 @@ const save=()=>{try{localStorage.setItem('stall:v2',JSON.stringify(S))}catch(e){
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const naira=n=>'₦'+Number(n).toLocaleString('en-NG');
 const ci=id=>CATS.find(c=>c.id===id)||CATS[0];
-const items=()=>[...S.mine,...SEED],get=id=>items().find(i=>i.id===id)||sItems().find(i=>i.id===id);
+let PUB=[];const items=()=>[...PUB,...SEED],get=id=>items().find(i=>i.id===id)||sItems().find(i=>i.id===id);
 const stat=i=>S.st[i.id]||'';
 const ago=t=>{const h=Math.round((Date.now()-t)/H);return h<1?'Just now':h<24?h+'h ago':Math.round(h/24)+'d ago'};
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;t.style.animation='none';t.offsetWidth;t.style.animation='';clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2200)}
@@ -276,7 +276,7 @@ function openCart(){
   if(!d.open)d.showModal();
 }
 function openDetail(id){
-  const i=get(id);if(!i)return;const c=ci(i.cat),s=stat(i),own=S.mine.some(m=>m.id===id),d=$('#detail');
+  const i=get(id);if(!i)return;const c=ci(i.cat),s=stat(i),own=PUB.some(m=>m.id===id&&m.mine),d=$('#detail');
   d.innerHTML=`${gal(i)}<div class="pad"><h2 style="margin-bottom:4px">${esc(i.title)}</h2>
    <p class="price" style="font-size:24px;margin:6px 0 12px">${naira(i.price)}</p><p>${esc(i.desc||'No extra details.')}</p>
    <p class="meta" style="margin-top:12px">${esc(i.cond)} · Meet at ${esc(i.spot)} · Sold by ${esc(i.seller)}, ${esc(SCHOOL.short)} student · ${ago(i.t)}</p>
@@ -348,7 +348,7 @@ document.addEventListener('click',e=>{
   if(b=c('[data-buy]')){const id=b.dataset.buy;if(!S.cart.includes(id)){S.cart.push(id);save();badge();render()}$('#detail').close();openCheckout();return}
   if(b=c('[data-rm]')){S.cart=S.cart.filter(x=>x!==b.dataset.rm);save();badge();render();openCart();return}
   if(b=c('[data-sold]')){const id=b.dataset.sold;S.st[id]==='sold'?delete S.st[id]:S.st[id]='sold';save();render();$('#detail').close();return}
-  if(b=c('[data-del]')){const id=b.dataset.del;S.mine=S.mine.filter(m=>m.id!==id);S.cart=S.cart.filter(x=>x!==id);save();badge();render();$('#detail').close();toast('Listing deleted');return}
+  if(b=c('[data-del]')){const id=b.dataset.del;apiPost('listings/delete',{id}).then(loadPub);PUB=PUB.filter(m=>m.id!==id);S.cart=S.cart.filter(x=>x!==id);save();badge();render();$('#detail').close();toast('Listing deleted');return}
   if(b=c('[data-recv]')){const o=S.orders.find(x=>x.id===b.dataset.recv);o.status='Completed';o.items.forEach(i=>{if(!(get(i.id)||{}).multi)S.st[i.id]='sold'});save();render();renderOrders();toast('Order completed');return}
   if(b=c('[data-gi]')){$('#gmain').src=b.src;b.parentNode.querySelectorAll('img').forEach(x=>x.classList.toggle('on',x===b));return}
   if(b=c('[data-item]')){openItem(b.dataset.item);return}
@@ -384,11 +384,12 @@ document.addEventListener('click',e=>{
 $('#q').oninput=e=>{q=e.target.value.trim().toLowerCase();render()};
 $('#sort').onchange=e=>{sort=e.target.value;render()};
 $('#catSel').innerHTML=CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-$('#form').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target),imgs=pk1.get();
+$('#form').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),imgs=pk1.get();
   if(!imgs.length)return pk1.err('Add at least one photo.');
   S.user.payout={bank:f.get('bank'),acct:f.get('acct')};
-  S.mine.unshift({id:'m'+Date.now(),title:f.get('title').trim(),price:+f.get('price'),cat:f.get('cat'),cond:f.get('cond'),spot:f.get('spot').trim(),desc:f.get('desc').trim(),seller:f.get('seller').trim(),phone:f.get('phone').trim(),imgs,t:Date.now()});
-  save();e.target.reset();pk1.clear();$('#sell').close();cat='all';render();toast('Listing posted')};
+  const sb=e.target.querySelector('[type=submit]');sb.disabled=true;const r=await apiPost('listings',{title:f.get('title'),price:f.get('price'),cat:f.get('cat'),cond:f.get('cond'),spot:f.get('spot'),desc:f.get('desc'),seller:f.get('seller'),phone:f.get('phone'),imgs});sb.disabled=false;
+  if(r.error)return toast(r.error);
+  save();e.target.reset();pk1.clear();$('#sell').close();cat='all';await loadPub();toast('Listing posted')};
 const SEED_STORES=[
  {id:'z1',owner:'',name:"Iya Debo's Canteen",emoji:'🍲',cat:'food',desc:'Home-style meals, cooked fresh every day.',spot:'Cafeteria, Stall 4',phone:'',open:true,vendor:true,items:[
   {id:'z1a',title:'Jollof rice and chicken',price:2500,desc:'Party jollof, fried chicken and plantain.',avail:true},
@@ -467,7 +468,8 @@ function vendorGate(g){
     if(Object.keys(er).length)return;
     regSend(f,{role:'vendor',name:v('name'),biz:v('biz'),phone:v('phone'),where:v('where'),cat:f.elements.cat.value,code:v('code'),password:f.elements.pw.value})};
 }
-function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate()}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
+async function loadPub(){if(!S.user)return;const r=await fetchJ('/api/listings').catch(()=>null);if(r&&r.listings){PUB=r.listings;refresh()}}
+function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub()}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
 async function openAdmin(){const d=$('#adminDlg');d.innerHTML='<div class="pad"><h2>Admin</h2><p class="meta">Loading...</p></div>';d.showModal();
   d.onclick=async e=>{const b=e.target.closest('[data-off],[data-vs]');if(!b)return;if(b.dataset.off)await apiPost('admin/code-off',{code:b.dataset.off});else await apiPost('admin/status',{id:+b.dataset.vs,status:b.dataset.to});adminDraw()};
   adminDraw()}
@@ -483,7 +485,7 @@ async function adminDraw(){const d=$('#adminDlg'),c=await fetchJ('/api/admin/cod
     await adminDraw();$('#codeOut').innerHTML=`<p class="meta" style="margin-top:12px">Code for ${esc(r.label)}:</p><p style="font-size:26px;font-weight:700;letter-spacing:1px">${esc(r.code)}</p><a class="pill sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Your Stall vendor code is '+r.code+'. Sign up as a shop at '+location.origin)}">Send on WhatsApp</a>`}}
 async function regSend(f,body){const b=f.querySelector('[type=submit]');b.disabled=true;const r=await apiPost('register',body);b.disabled=false;
   if(r.error){f.querySelectorAll('[data-e]').forEach(x=>x.textContent='');(f.querySelector('[data-e="'+r.field+'"]')||f.querySelector('[data-e="ok"]')).textContent=r.error;return}
-  S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();view('shop');toast('Welcome to Stall, '+(S.user.biz||S.user.name.split(' ')[0]))}
+  S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();loadPub();view('shop');toast('Welcome to Stall, '+(S.user.biz||S.user.name.split(' ')[0]))}
 function loginGate(g){g.innerHTML=`<div class="gin" style="text-align:left"><h1 style="font-size:36px">Sign in</h1><p style="margin-bottom:6px">Use your matric number or phone number.</p>
    <form id="lg" novalidate><label>Matric number or phone<input name="id" autocapitalize="characters" autocomplete="username"></label>
     <label>Password<input name="pw" type="password" autocomplete="current-password"><span class="err" data-e="id"></span></label>
@@ -491,7 +493,7 @@ function loginGate(g){g.innerHTML=`<div class="gin" style="text-align:left"><h1 
    <p style="margin-top:14px"><button class="link" type="button" id="toUp">New here? Create an account</button></p></div>`;
   $('#lg').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('[type=submit]');b.disabled=true;const r=await apiPost('login',{id:f.elements.id.value,password:f.elements.pw.value});b.disabled=false;
     if(r.error){f.querySelector('[data-e=id]').textContent=r.error;return}
-    S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();view('shop');toast('Welcome back, '+(S.user.biz||S.user.name.split(' ')[0]))}}
+    S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();loadPub();view('shop');toast('Welcome back, '+(S.user.biz||S.user.name.split(' ')[0]))}}
 function gate(){
   const g=$('#gate');$('#who').textContent=S.user?`Signed in as ${S.user.name} (${S.user.role==='vendor'?'campus vendor':S.user.matric}).`:'';$('#signOut').hidden=!S.user;$('#adminBtn').hidden=!(S.user&&S.user.admin);
   const isV=!!S.user&&S.user.role==='vendor';$('#sellBtn').hidden=isV;$('#sellHero').hidden=isV;
@@ -529,7 +531,7 @@ function gate(){
     regSend(f,{role:'student',name:v('name'),matric:v('matric'),email:v('email'),phone:v('phone'),where:v('where'),password:f.elements.pw.value})};
 }
 S.cart=S.cart.filter(id=>get(id));render();badge();$('#badge').classList.remove('bump');gate();
-refreshMe();
+refreshMe();setInterval(loadPub,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadPub()});
 $('#hchips').innerHTML=CATS.map(c=>`<button class="hc" data-hc="${c.id}">${c.e} ${c.name}</button>`).join('');
 document.addEventListener('click',e=>{const b=e.target.closest('[data-hc]');if(b){cat=b.dataset.hc;render();$('#browse').scrollIntoView()}});
 (async()=>{const ref=new URLSearchParams(location.search).get('reference');if(!ref)return;history.replaceState(null,'','/');
