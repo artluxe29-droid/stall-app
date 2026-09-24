@@ -6,13 +6,13 @@ const sha=async s=>hex(await crypto.subtle.digest('SHA-256',E.encode(s)));
 const pbk=async(pw,salt)=>{const k=await crypto.subtle.importKey('raw',E.encode(pw),'PBKDF2',false,['deriveBits']);return hex(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:E.encode(salt),iterations:100000},k,256))};
 const rnd=n=>hex(crypto.getRandomValues(new Uint8Array(n)));
 const phoneN=p=>{let d=String(p||'').replace(/\D/g,'');if(d.startsWith('234')&&d.length===13)d='0'+d.slice(3);return d};
-const pub=u=>u.role==='vendor'?{role:'vendor',id:'V-'+u.phone,name:u.name,biz:u.biz,phone:u.phone,where:u.place||'',cat:u.cat}:{role:'student',id:u.matric,name:u.name,matric:u.matric,email:u.email,phone:u.phone,where:u.place||''};
+const pub=u=>u.role==='vendor'?{role:'vendor',id:'V-'+u.phone,name:u.name,biz:u.biz,phone:u.phone,where:u.place||'',cat:u.cat,status:u.status,admin:!!u.is_admin}:{role:'student',id:u.matric,name:u.name,matric:u.matric,email:u.email,phone:u.phone,where:u.place||'',status:u.status,admin:!!u.is_admin};
 const cookie=(r,n)=>((r.headers.get('cookie')||'').match(new RegExp('(?:^|; )'+n+'=([^;]*)'))||[])[1];
 const me=async(env,r)=>{const t=cookie(r,'stall_s');return t?env.DB.prepare('SELECT u.* FROM sessions s JOIN users u ON u.id=s.uid WHERE s.h=? AND s.exp>?').bind(await sha(t),Date.now()).first():null};
 const start=async(env,uid)=>{const t=rnd(32);await env.DB.prepare('INSERT INTO sessions(h,uid,exp) VALUES(?,?,?)').bind(await sha(t),uid,Date.now()+2592e6).run();return 'stall_s='+t+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000'};
 export async function onRequest({request,env,params}){
   const path=[].concat(params.path||[]).join('/'),url=new URL(request.url);
-  if(!env.DB&&['register','login','logout','me'].includes(path))return J({error:'Accounts are not set up yet.'},500);
+  if(!env.DB&&(['register','login','logout','me'].includes(path)||path.startsWith('admin/')))return J({error:'Accounts are not set up yet.'},500);
   if(path==='register'&&request.method==='POST'){
     const b=await request.json().catch(()=>({})),t=k=>String(b[k]||'').trim(),bad=(field,error)=>J({error,field},400);
     const vendor=b.role==='vendor',phone=phoneN(b.phone),name=t('name'),pass=String(b.password||'');
@@ -22,12 +22,13 @@ export async function onRequest({request,env,params}){
     if(pass.length<8||pass.length>100)return bad('pw','Use at least 8 characters.');
     if(vendor){biz=t('biz');cat=t('cat').slice(0,20);
       if(biz.length<2||biz.length>40)return bad('biz','Enter your business name.');
-      if(!await env.DB.prepare('SELECT 1 FROM vendor_codes WHERE code=? AND active=1').bind(t('code').toUpperCase()).first())return bad('code','That invite code is not valid. Ask the Stall team for one.');
+      if(!await env.DB.prepare('SELECT 1 FROM vendor_codes WHERE code=? AND active=1 AND used_by IS NULL').bind(t('code').toUpperCase()).first())return bad('code','That invite code is not valid or was already used. Ask the Stall team for one.');
     }else{matric=t('matric').toUpperCase();email=t('email').toLowerCase();
       if(!/^[A-Z0-9\/\-]{4,16}$/.test(matric))return bad('matric','Enter your matric number as it appears on your student ID.');
       if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email))return bad('email','Enter a valid email address.');}
     const salt=rnd(16);
-    try{const r=await env.DB.prepare('INSERT INTO users(role,name,matric,email,phone,place,biz,cat,salt,pw,created) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(vendor?'vendor':'student',name,matric,email,phone,t('where').slice(0,40),biz,cat,salt,await pbk(pass,salt),Date.now()).run();
+    try{const r=await env.DB.prepare('INSERT INTO users(role,name,matric,email,phone,place,biz,cat,salt,pw,created,status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').bind(vendor?'vendor':'student',name,matric,email,phone,t('where').slice(0,40),biz,cat,salt,await pbk(pass,salt),Date.now(),vendor?'pending':'active').run();
+      if(vendor)await env.DB.prepare('UPDATE vendor_codes SET used_by=? WHERE code=?').bind(r.meta.last_row_id,t('code').toUpperCase()).run();
       const u=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(r.meta.last_row_id).first();
       return J({user:pub(u)},200,{'set-cookie':await start(env,u.id)});
     }catch(e){return /UNIQUE/i.test(String(e.message))?J({error:'An account with this '+(vendor?'phone number':'matric number or phone number')+' already exists. Try signing in.',field:vendor?'phone':'matric'},409):J({error:'Could not create account. Try again.'},500)}
@@ -42,6 +43,18 @@ export async function onRequest({request,env,params}){
   }
   if(path==='logout'){const t=cookie(request,'stall_s');if(t)await env.DB.prepare('DELETE FROM sessions WHERE h=?').bind(await sha(t)).run();return J({ok:true},200,{'set-cookie':'stall_s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'})}
   if(path==='me'){const u=await me(env,request);return u?J({user:pub(u)}):J({error:'Not signed in'},401)}
+  if(path.startsWith('admin/')){
+    const a=await me(env,request);if(!a||!a.is_admin)return J({error:'Not allowed'},403);
+    const b=request.method==='POST'?await request.json().catch(()=>({})):{};
+    if(path==='admin/codes'&&request.method==='GET')return J({codes:(await env.DB.prepare('SELECT c.code,c.label,c.active,u.biz FROM vendor_codes c LEFT JOIN users u ON u.id=c.used_by ORDER BY c.created DESC').all()).results});
+    if(path==='admin/codes'&&request.method==='POST'){const label=String(b.label||'').trim().slice(0,40);if(label.length<2)return J({error:'Enter the vendor or shop name.'},400);
+      const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',code='STALL-'+[...crypto.getRandomValues(new Uint8Array(6))].map(x=>A[x%32]).join('');
+      await env.DB.prepare('INSERT INTO vendor_codes(code,active,label,created) VALUES(?,1,?,?)').bind(code,label,Date.now()).run();return J({code,label})}
+    if(path==='admin/code-off'){await env.DB.prepare('UPDATE vendor_codes SET active=0 WHERE code=? AND used_by IS NULL').bind(String(b.code||'')).run();return J({ok:true})}
+    if(path==='admin/vendors')return J({vendors:(await env.DB.prepare("SELECT id,name,biz,phone,place,cat,status FROM users WHERE role='vendor' ORDER BY created DESC").all()).results});
+    if(path==='admin/status'&&['active','suspended'].includes(b.status)){await env.DB.prepare("UPDATE users SET status=? WHERE id=? AND role='vendor'").bind(b.status,+b.id).run();return J({ok:true})}
+    return J({error:'Not found'},404);
+  }
   if(path==='checkout'&&request.method==='POST'){
     const b=await request.json().catch(()=>({}));let amt=0;
     if(b.kind==='store')amt=5000;

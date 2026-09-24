@@ -164,7 +164,7 @@ label input,label select,label textarea{display:block;width:100%;margin-top:5px;
 <section id="stores" hidden><div class="wrap" style="padding-top:36px"><div class="bar2"><h2 style="font-size:40px;letter-spacing:-.035em">Campus stores</h2><button class="pill sm" id="openStore">Open your store</button></div><div class="grid" id="storeGrid"></div></div></section>
 <section id="store" hidden></section>
 <section id="orders" hidden><div class="wrap" style="padding-top:36px;max-width:720px"><h2 style="font-size:40px;letter-spacing:-.035em;margin-bottom:18px">Your orders</h2><div id="orderList"></div></div></section>
-<footer><span id="who"></span> <button class="link" id="signOut" hidden>Sign out</button><br>Stall connects ACU students and campus shops. All payments are made online through Paystack. Cash and payment at handover are not accepted, so never pay a seller outside Stall. Check your item at collection, then tap I received it.</footer>
+<footer><span id="who"></span> <button class="link" id="signOut" hidden>Sign out</button> <button class="link" id="adminBtn" hidden>Admin</button><br>Stall connects ACU students and campus shops. All payments are made online through Paystack. Cash and payment at handover are not accepted, so never pay a seller outside Stall. Check your item at collection, then tap I received it.</footer>
 
 <dialog id="itemDlg"><div class="pad"><h2>Add item</h2><form id="itemForm" method="dialog">
  <label>Item name<input name="title" required maxlength="60" placeholder="e.g. Jollof rice and chicken"></label>
@@ -187,6 +187,7 @@ label input,label select,label textarea{display:block;width:100%;margin-top:5px;
 <dialog id="detail"></dialog>
 <dialog id="cart" class="drawer"></dialog>
 <dialog id="checkout"></dialog>
+<dialog id="adminDlg"></dialog>
 <dialog id="done"></dialog>
 <dialog id="sell"><div class="pad"><h2>Sell an item</h2>
  <form id="form" method="dialog">
@@ -370,7 +371,9 @@ document.addEventListener('click',e=>{
   if(id==='rtStudent'){rt='student';gate()}
   if(id==='rtVendor'){rt='vendor';gate()}
   if(id==='gSkip'){si=SL.length;gate()}
-  if(id==='signOut'){apiPost('logout',{});authMode='in';S.user=null;S.me={};save();si=SL.length;$('#store').innerHTML='';gate()}
+  if(id==='pendRefresh')refreshMe();
+  if(id==='adminBtn')openAdmin();
+  if(id==='signOut'||id==='pendOut'){apiPost('logout',{});authMode='in';S.user=null;S.me={};save();si=SL.length;$('#store').innerHTML='';gate()}
   if(id==='navOrders'||id==='viewOrders'){$('#done').close();view('orders')}
   if(id==='navShop'||id==='home'||id==='toShop')view('shop');
   if(id==='navStores'||id==='toStores'||id==='backStores')view('stores');
@@ -464,6 +467,20 @@ function vendorGate(g){
     if(Object.keys(er).length)return;
     regSend(f,{role:'vendor',name:v('name'),biz:v('biz'),phone:v('phone'),where:v('where'),cat:f.elements.cat.value,code:v('code'),password:f.elements.pw.value})};
 }
+function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate()}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
+async function openAdmin(){const d=$('#adminDlg');d.innerHTML='<div class="pad"><h2>Admin</h2><p class="meta">Loading...</p></div>';d.showModal();
+  d.onclick=async e=>{const b=e.target.closest('[data-off],[data-vs]');if(!b)return;if(b.dataset.off)await apiPost('admin/code-off',{code:b.dataset.off});else await apiPost('admin/status',{id:+b.dataset.vs,status:b.dataset.to});adminDraw()};
+  adminDraw()}
+async function adminDraw(){const d=$('#adminDlg'),c=await fetchJ('/api/admin/codes').catch(()=>({})),v=await fetchJ('/api/admin/vendors').catch(()=>({}));
+  if(!c.codes||!v.vendors){d.innerHTML='<div class="pad"><h2>Admin</h2><p class="meta">Not allowed.</p><div class="acts"><button class="pill alt" data-close>Close</button></div></div>';return}
+  const st=x=>x.status==='active'?'Approved':x.status==='pending'?'Waiting for approval':'Suspended';
+  d.innerHTML=`<div class="pad"><h2>Admin</h2>
+   <form id="codeForm"><label>New vendor code for<input name="label" maxlength="40" placeholder="Shop or vendor name"></label><span class="err" id="codeErr"></span><div class="acts"><button class="pill" type="submit">Create code</button></div></form><div id="codeOut"></div>
+   <p class="lb" style="margin-top:20px">Vendors (${v.vendors.length})</p>${v.vendors.map(x=>`<div class="line"><div class="t"><b>${esc(x.biz)}</b> · ${st(x)}<br><small>${esc(x.name)} · ${esc(x.phone)} · ${esc(x.place||'')}</small></div>${x.status==='active'?`<button class="pill sm alt" data-vs="${x.id}" data-to="suspended">Suspend</button>`:`<button class="pill sm" data-vs="${x.id}" data-to="active">${x.status==='pending'?'Approve':'Reactivate'}</button>`}</div>`).join('')||'<p class="meta">No vendors yet.</p>'}
+   <p class="lb" style="margin-top:20px">Codes</p>${c.codes.map(x=>`<div class="line"><div class="t"><b>${esc(x.label||'Old code')}</b><br><small>${esc(x.code)} · ${x.biz?'Used by '+esc(x.biz):x.active?'Not used yet':'Turned off'}</small></div>${x.active&&!x.biz?`<button class="pill sm alt" data-off="${esc(x.code)}">Turn off</button>`:''}</div>`).join('')||'<p class="meta">No codes yet.</p>'}
+   <div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;
+  $('#codeForm').onsubmit=async e=>{e.preventDefault();const r=await apiPost('admin/codes',{label:e.target.elements.label.value});if(r.error){$('#codeErr').textContent=r.error;return}
+    await adminDraw();$('#codeOut').innerHTML=`<p class="meta" style="margin-top:12px">Code for ${esc(r.label)}:</p><p style="font-size:26px;font-weight:700;letter-spacing:1px">${esc(r.code)}</p><a class="pill sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Your Stall vendor code is '+r.code+'. Sign up as a shop at '+location.origin)}">Send on WhatsApp</a>`}}
 async function regSend(f,body){const b=f.querySelector('[type=submit]');b.disabled=true;const r=await apiPost('register',body);b.disabled=false;
   if(r.error){f.querySelectorAll('[data-e]').forEach(x=>x.textContent='');(f.querySelector('[data-e="'+r.field+'"]')||f.querySelector('[data-e="ok"]')).textContent=r.error;return}
   S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();view('shop');toast('Welcome to Stall, '+(S.user.biz||S.user.name.split(' ')[0]))}
@@ -476,8 +493,10 @@ function loginGate(g){g.innerHTML=`<div class="gin" style="text-align:left"><h1 
     if(r.error){f.querySelector('[data-e=id]').textContent=r.error;return}
     S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();view('shop');toast('Welcome back, '+(S.user.biz||S.user.name.split(' ')[0]))}}
 function gate(){
-  const g=$('#gate');$('#who').textContent=S.user?`Signed in as ${S.user.name} (${S.user.role==='vendor'?'campus vendor':S.user.matric}).`:'';$('#signOut').hidden=!S.user;
+  const g=$('#gate');$('#who').textContent=S.user?`Signed in as ${S.user.name} (${S.user.role==='vendor'?'campus vendor':S.user.matric}).`:'';$('#signOut').hidden=!S.user;$('#adminBtn').hidden=!(S.user&&S.user.admin);
   const isV=!!S.user&&S.user.role==='vendor';$('#sellBtn').hidden=isV;$('#sellHero').hidden=isV;
+  if(S.user&&S.user.role==='vendor'&&S.user.status&&S.user.status!=='active'){g.hidden=false;g.scrollTo(0,0);const sus=S.user.status==='suspended';
+    g.innerHTML=`<div class="gin"><h1>${sus?'Account suspended':'Waiting for approval'}</h1><p>${sus?'Your shop has been suspended. Message the Stall team to find out why.':'Thanks for signing up, '+esc(S.user.biz)+'. The Stall team will approve your shop shortly. Tap below to check again.'}</p><div class="acts"><button class="pill" id="pendRefresh">Check again</button></div><p style="margin-top:14px"><button class="link" id="pendOut">Sign out</button></p></div>`;return}
   if(S.user){g.hidden=true;return}
   g.hidden=false;g.scrollTo(0,0);
   if(authMode==='in'){loginGate(g);return}
@@ -510,7 +529,7 @@ function gate(){
     regSend(f,{role:'student',name:v('name'),matric:v('matric'),email:v('email'),phone:v('phone'),where:v('where'),password:f.elements.pw.value})};
 }
 S.cart=S.cart.filter(id=>get(id));render();badge();$('#badge').classList.remove('bump');gate();
-fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate()}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{});
+refreshMe();
 $('#hchips').innerHTML=CATS.map(c=>`<button class="hc" data-hc="${c.id}">${c.e} ${c.name}</button>`).join('');
 document.addEventListener('click',e=>{const b=e.target.closest('[data-hc]');if(b){cat=b.dataset.hc;render();$('#browse').scrollIntoView()}});
 (async()=>{const ref=new URLSearchParams(location.search).get('reference');if(!ref)return;history.replaceState(null,'','/');
