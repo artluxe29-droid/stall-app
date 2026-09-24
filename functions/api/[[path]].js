@@ -13,6 +13,7 @@ const start=async(env,uid)=>{const t=rnd(32);await env.DB.prepare('INSERT INTO s
 const tg=async(env,text)=>{if(!env.TELEGRAM_BOT_TOKEN||!env.TELEGRAM_CHAT_ID)return;try{await fetch('https://api.telegram.org/bot'+env.TELEGRAM_BOT_TOKEN+'/sendMessage',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:env.TELEGRAM_CHAT_ID,text})})}catch(e){}};
 export async function onRequest({request,env,params,waitUntil}){
   const path=[].concat(params.path||[]).join('/'),url=new URL(request.url);
+  const bump=()=>env.DB.prepare('UPDATE ver SET n=n+1 WHERE id=1').run();
   if(!env.DB&&(['register','login','logout','me'].includes(path)||path.startsWith('admin/')||path.startsWith('listings')||path.startsWith('photo/')))return J({error:'Accounts are not set up yet.'},500);
   if(path==='register'&&request.method==='POST'){
     const b=await request.json().catch(()=>({})),t=k=>String(b[k]||'').trim(),bad=(field,error)=>J({error,field},400);
@@ -47,7 +48,7 @@ export async function onRequest({request,env,params,waitUntil}){
   if(path==='me'){const u=await me(env,request);return u?J({user:pub(u)}):J({error:'Not signed in'},401)}
   if(path==='listings'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
     const rs=(await env.DB.prepare('SELECT * FROM listings ORDER BY created DESC LIMIT 300').all()).results;
-    return J({listings:rs.map(r=>({id:'L'+r.id,title:r.title,price:r.price,cat:r.cat,cond:r.cond,spot:r.spot,desc:r.descr,seller:r.seller,phone:r.phone,imgs:Array.from({length:r.n},(_,i)=>'/api/photo/'+r.id+'/'+i),t:r.created,mine:r.uid===u.id}))})}
+    return J({listings:rs.map(r=>({id:'L'+r.id,title:r.title,price:r.price,cat:r.cat,cond:r.cond,spot:r.spot,desc:r.descr,seller:r.seller,phone:r.phone,imgs:Array.from({length:r.n},(_,i)=>'/api/photo/'+r.id+'/'+i),t:r.created,sold:r.sold,mine:r.uid===u.id}))})}
   if(path==='listings'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);
     if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);
     const b=await request.json().catch(()=>({})),t=k=>String(b[k]||'').trim(),price=Math.round(+b.price),imgs=Array.isArray(b.imgs)?b.imgs:[];
@@ -57,11 +58,14 @@ export async function onRequest({request,env,params,waitUntil}){
     const r=await env.DB.prepare('INSERT INTO listings(uid,title,price,cat,cond,spot,descr,seller,phone,n,created) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(u.id,t('title'),price,t('cat').slice(0,20),t('cond').slice(0,20),t('spot').slice(0,60),t('desc').slice(0,500),t('seller').slice(0,50)||u.name,t('phone').slice(0,20)||u.phone,imgs.length,Date.now()).run();
     const id=r.meta.last_row_id;
     await env.DB.batch(imgs.map((x,i)=>env.DB.prepare('INSERT INTO photos(lid,n,data) VALUES(?,?,?)').bind(id,i,x)));
-    return J({ok:true,id:'L'+id})}
+    await bump();return J({ok:true,id:'L'+id})}
   if(path==='listings/delete'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);
     const b=await request.json().catch(()=>({})),id=+String(b.id||'').slice(1);
     const r=await env.DB.prepare('DELETE FROM listings WHERE id=? AND (uid=? OR ?=1)').bind(id,u.id,u.is_admin?1:0).run();
-    if(r.meta.changes)await env.DB.prepare('DELETE FROM photos WHERE lid=?').bind(id).run();return J({ok:true})}
+    if(r.meta.changes){await env.DB.prepare('DELETE FROM photos WHERE lid=?').bind(id).run();await bump()}return J({ok:true})}
+  if(path==='listings/sold'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);const b=await request.json().catch(()=>({})),id=+String(b.id||'').slice(1);
+    await env.DB.prepare('UPDATE listings SET sold=? WHERE id=? AND uid=?').bind(b.sold?1:0,id,u.id).run();await bump();return J({ok:true})}
+  if(path==='listings/ver')return J({v:((await env.DB.prepare('SELECT n FROM ver WHERE id=1').first())||{n:0}).n},200,{'cache-control':'no-store'});
   if(path.startsWith('photo/')){const [,l,n]=path.split('/'),r=await env.DB.prepare('SELECT data FROM photos WHERE lid=? AND n=?').bind(+l,+n).first();if(!r)return new Response('Not found',{status:404});
     const m=r.data.match(/^data:(image\/[a-z]+);base64,(.*)$/s);return new Response(Uint8Array.from(atob(m[2]),c=>c.charCodeAt(0)),{headers:{'content-type':m[1],'cache-control':'public, max-age=31536000, immutable'}})}
   if(path.startsWith('admin/')){

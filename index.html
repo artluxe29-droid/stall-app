@@ -227,7 +227,7 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const naira=n=>'₦'+Number(n).toLocaleString('en-NG');
 const ci=id=>CATS.find(c=>c.id===id)||CATS[0];
 let PUB=[];const items=()=>[...PUB,...SEED],get=id=>items().find(i=>i.id===id)||sItems().find(i=>i.id===id);
-const stat=i=>S.st[i.id]||'';
+const stat=i=>i.sold?'sold':(S.st[i.id]||'');
 const ago=t=>{const h=Math.round((Date.now()-t)/H);return h<1?'Just now':h<24?h+'h ago':Math.round(h/24)+'d ago'};
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;t.style.animation='none';t.offsetWidth;t.style.animation='';clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2200)}
 const io='IntersectionObserver'in window?new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.08}):null;
@@ -250,7 +250,7 @@ function add(id){const i=get(id);if(!i||stat(i))return toast('No longer availabl
   if(S.cart.includes(id)){openCart();return}
   S.cart.push(id);save();badge();render();toast('Added to bag')}
 const FEE_STORE=5000,comm=p=>p>=1000?100:p>=100?10:0;
-const cv=i=>i.imgs&&i.imgs.length?`background:url("${i.imgs[0]}") center/cover`:`background:${ci(i.cat).c}`;
+const cv=i=>i.imgs&&i.imgs.length?`background:url('${i.imgs[0]}') center/cover`:`background:${ci(i.cat).c}`;
 const ic=i=>i.imgs&&i.imgs.length?'':em(i);
 const gal=i=>i.imgs&&i.imgs.length?`<div class="gal"><img id="gmain" src="${i.imgs[0]}" alt="${esc(i.title)}">${i.imgs.length>1?`<div class="gth">${i.imgs.map((m,k)=>`<img src="${m}" data-gi="1" class="${k?'':'on'}" alt="Photo ${k+1}">`).join('')}</div>`:''}</div>`:`<div class="dtile" style="background:${ci(i.cat).c}">${em(i)}</div>`;
 function shrink(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,720/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.65))};im.onerror=rej;im.src=r.result};r.onerror=rej;r.readAsDataURL(file)})}
@@ -347,7 +347,7 @@ document.addEventListener('click',e=>{
   if(b=c('[data-add]')){e.stopPropagation();add(b.dataset.add);if(c('#detail'))$('#detail').close();return}
   if(b=c('[data-buy]')){const id=b.dataset.buy;if(!S.cart.includes(id)){S.cart.push(id);save();badge();render()}$('#detail').close();openCheckout();return}
   if(b=c('[data-rm]')){S.cart=S.cart.filter(x=>x!==b.dataset.rm);save();badge();render();openCart();return}
-  if(b=c('[data-sold]')){const id=b.dataset.sold;S.st[id]==='sold'?delete S.st[id]:S.st[id]='sold';save();render();$('#detail').close();return}
+  if(b=c('[data-sold]')){const id=b.dataset.sold;const pit=PUB.find(m=>m.id===id);if(pit){pit.sold=pit.sold?0:1;apiPost('listings/sold',{id,sold:pit.sold}).then(loadPub)}else S.st[id]==='sold'?delete S.st[id]:S.st[id]='sold';save();render();$('#detail').close();return}
   if(b=c('[data-del]')){const id=b.dataset.del;apiPost('listings/delete',{id}).then(loadPub);PUB=PUB.filter(m=>m.id!==id);S.cart=S.cart.filter(x=>x!==id);save();badge();render();$('#detail').close();toast('Listing deleted');return}
   if(b=c('[data-recv]')){const o=S.orders.find(x=>x.id===b.dataset.recv);o.status='Completed';o.items.forEach(i=>{if(!(get(i.id)||{}).multi)S.st[i.id]='sold'});save();render();renderOrders();toast('Order completed');return}
   if(b=c('[data-gi]')){$('#gmain').src=b.src;b.parentNode.querySelectorAll('img').forEach(x=>x.classList.toggle('on',x===b));return}
@@ -468,6 +468,8 @@ function vendorGate(g){
     if(Object.keys(er).length)return;
     regSend(f,{role:'vendor',name:v('name'),biz:v('biz'),phone:v('phone'),where:v('where'),cat:f.elements.cat.value,code:v('code'),password:f.elements.pw.value})};
 }
+let PV=-1;
+async function pollPub(){if(!S.user||document.hidden)return;const r=await fetchJ('/api/listings/ver').catch(()=>null);if(r&&typeof r.v==='number'&&r.v!==PV){PV=r.v;loadPub()}}
 async function loadPub(){if(!S.user)return;const r=await fetchJ('/api/listings').catch(()=>null);if(r&&r.listings){PUB=r.listings;refresh()}}
 function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub()}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
 async function openAdmin(){const d=$('#adminDlg');d.innerHTML='<div class="pad"><h2>Admin</h2><p class="meta">Loading...</p></div>';d.showModal();
@@ -531,7 +533,7 @@ function gate(){
     regSend(f,{role:'student',name:v('name'),matric:v('matric'),email:v('email'),phone:v('phone'),where:v('where'),password:f.elements.pw.value})};
 }
 S.cart=S.cart.filter(id=>get(id));render();badge();$('#badge').classList.remove('bump');gate();
-refreshMe();setInterval(loadPub,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadPub()});
+refreshMe();setInterval(pollPub,20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollPub()});
 $('#hchips').innerHTML=CATS.map(c=>`<button class="hc" data-hc="${c.id}">${c.e} ${c.name}</button>`).join('');
 document.addEventListener('click',e=>{const b=e.target.closest('[data-hc]');if(b){cat=b.dataset.hc;render();$('#browse').scrollIntoView()}});
 (async()=>{const ref=new URLSearchParams(location.search).get('reference');if(!ref)return;history.replaceState(null,'','/');
