@@ -365,10 +365,12 @@ document.addEventListener('click',e=>{
   if(id==='goCheckout')openCheckout();
   if(id==='sellBtn'||id==='sellHero'){const f=$('#form').elements;f.seller.value=S.user.name;f.phone.value=S.user.phone;pf(f);$('#sell').showModal()}
   if(id==='gNext'){si++;gate()}
+  if(id==='toIn'){authMode='in';gate()}
+  if(id==='toUp'){authMode='up';gate()}
   if(id==='rtStudent'){rt='student';gate()}
   if(id==='rtVendor'){rt='vendor';gate()}
   if(id==='gSkip'){si=SL.length;gate()}
-  if(id==='signOut'){S.user=null;S.me={};save();si=SL.length;$('#store').innerHTML='';gate()}
+  if(id==='signOut'){apiPost('logout',{});authMode='in';S.user=null;S.me={};save();si=SL.length;$('#store').innerHTML='';gate()}
   if(id==='navOrders'||id==='viewOrders'){$('#done').close();view('orders')}
   if(id==='navShop'||id==='home'||id==='toShop')view('shop');
   if(id==='navStores'||id==='toStores'||id==='backStores')view('stores');
@@ -437,7 +439,7 @@ const SL=[
  {e:'📚',c:CATS[0].c,h:'Find what you need',p:'Textbooks, gadgets, hostel gear and meals from students and campus stores.'},
  {e:'🤝',c:CATS[3].c,h:'Pay online, collect on campus',p:'Pay securely online, then meet the seller on campus to collect and check your item.'}];
 let si=S.user?SL.length:0,rt='student';
-const VENDOR_CODES=['ACUSHOP'];
+let authMode='up';const apiPost=(p,b)=>fetch('/api/'+p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json()).catch(()=>({error:'Could not reach Stall. Check your connection.'}));
 const SEG=()=>`<div class="seg"><button type="button" id="rtStudent" aria-pressed="${rt==='student'}">I'm a student</button><button type="button" id="rtVendor" aria-pressed="${rt==='vendor'}">I run a shop</button></div>`;
 function vendorGate(g){
   g.innerHTML=`<div class="gin" style="text-align:left"><h1 style="font-size:36px">Create your account</h1>
@@ -448,25 +450,37 @@ function vendorGate(g){
     <label>WhatsApp number<input name="phone" inputmode="tel" placeholder="080..."><span class="err" data-e="phone"></span></label>
     <div class="two"><label>Shop location on campus<input name="where" maxlength="40" placeholder="e.g. Cafeteria, Stall 4"><span class="err" data-e="where"></span></label><label>What you sell<select name="cat">${CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></label></div>
     <label>Vendor invite code<input name="code" autocapitalize="characters" maxlength="20" placeholder="From the Stall team"><span class="err" data-e="code"></span></label>
+    <label>Create a password<input name="pw" type="password" autocomplete="new-password" placeholder="At least 8 characters"><span class="err" data-e="pw"></span></label>
     <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span>I run this shop on the ${esc(SCHOOL.short)} campus and these details are correct.</span></label><span class="err" data-e="ok"></span>
-    <div class="acts"><button class="pill" type="submit">Create account</button></div></form></div>`;
+    <div class="acts"><button class="pill" type="submit">Create account</button></div></form><p style="margin-top:14px"><button class="link" type="button" id="toIn">Already have an account? Sign in</button></p></div>`;
   $('#reg').onsubmit=e=>{e.preventDefault();const f=e.target,v=n=>f.elements[n].value.trim(),er={},ph=v('phone').replace(/\D/g,'');
     if(v('biz').length<2)er.biz='Enter your business name.';
     if(v('name').length<3)er.name='Enter your full name.';
     if(ph.length<10||ph.length>14)er.phone='Enter a valid WhatsApp number.';
     if(v('where').length<3)er.where='Where on campus is your shop?';
-    if(!VENDOR_CODES.includes(v('code').toUpperCase()))er.code='That invite code is not valid. Ask the Stall team for one.';
+    if(!v('code'))er.code='Enter your vendor invite code.';if(f.elements.pw.value.length<8)er.pw='Use at least 8 characters.';
     if(!f.elements.ok.checked)er.ok='Please confirm to continue.';
     f.querySelectorAll('[data-e]').forEach(x=>x.textContent=er[x.dataset.e]||'');
     if(Object.keys(er).length)return;
-    S.user={role:'vendor',id:'V-'+ph,name:v('name'),biz:v('biz'),phone:v('phone'),where:v('where'),cat:f.elements.cat.value};
-    S.me={name:S.user.name,phone:S.user.phone};save();gate();view('shop');toast('Welcome to Stall, '+S.user.biz)};
+    regSend(f,{role:'vendor',name:v('name'),biz:v('biz'),phone:v('phone'),where:v('where'),cat:f.elements.cat.value,code:v('code'),password:f.elements.pw.value})};
 }
+async function regSend(f,body){const b=f.querySelector('[type=submit]');b.disabled=true;const r=await apiPost('register',body);b.disabled=false;
+  if(r.error){f.querySelectorAll('[data-e]').forEach(x=>x.textContent='');(f.querySelector('[data-e="'+r.field+'"]')||f.querySelector('[data-e="ok"]')).textContent=r.error;return}
+  S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();view('shop');toast('Welcome to Stall, '+(S.user.biz||S.user.name.split(' ')[0]))}
+function loginGate(g){g.innerHTML=`<div class="gin" style="text-align:left"><h1 style="font-size:36px">Sign in</h1><p style="margin-bottom:6px">Use your matric number or phone number.</p>
+   <form id="lg" novalidate><label>Matric number or phone<input name="id" autocapitalize="characters" autocomplete="username"></label>
+    <label>Password<input name="pw" type="password" autocomplete="current-password"><span class="err" data-e="id"></span></label>
+    <div class="acts"><button class="pill" type="submit">Sign in</button></div></form>
+   <p style="margin-top:14px"><button class="link" type="button" id="toUp">New here? Create an account</button></p></div>`;
+  $('#lg').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('[type=submit]');b.disabled=true;const r=await apiPost('login',{id:f.elements.id.value,password:f.elements.pw.value});b.disabled=false;
+    if(r.error){f.querySelector('[data-e=id]').textContent=r.error;return}
+    S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();view('shop');toast('Welcome back, '+(S.user.biz||S.user.name.split(' ')[0]))}}
 function gate(){
   const g=$('#gate');$('#who').textContent=S.user?`Signed in as ${S.user.name} (${S.user.role==='vendor'?'campus vendor':S.user.matric}).`:'';$('#signOut').hidden=!S.user;
   const isV=!!S.user&&S.user.role==='vendor';$('#sellBtn').hidden=isV;$('#sellHero').hidden=isV;
   if(S.user){g.hidden=true;return}
   g.hidden=false;g.scrollTo(0,0);
+  if(authMode==='in'){loginGate(g);return}
   if(si<SL.length){const s=SL[si];
     g.innerHTML=`<div class="gin" key="${si}"><div class="gt" style="background:${s.c}">${s.e}</div><h1>${s.h}</h1><p>${s.p}</p>
     <div class="dots">${SL.map((_,k)=>`<i class="${k===si?'on':''}"></i>`).join('')}</div>
@@ -479,22 +493,24 @@ function gate(){
     <label>Matric number<input name="matric" autocapitalize="characters" maxlength="16"><span class="err" data-e="matric"></span></label>
     <label>Email address<input name="email" type="email" autocomplete="email" placeholder="you@gmail.com"><span class="err" data-e="email"></span></label>
     <label>WhatsApp number<input name="phone" inputmode="tel" placeholder="080..."><span class="err" data-e="phone"></span></label>
+    <label>Create a password<input name="pw" type="password" autocomplete="new-password" placeholder="At least 8 characters"><span class="err" data-e="pw"></span></label>
     <label>Hostel or where you stay (optional)<input name="where" maxlength="40"></label>
     <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span>I am a current ${esc(SCHOOL.short)} student. I will meet in safe, public campus spots.</span></label><span class="err" data-e="ok"></span>
-    <div class="acts"><button class="pill" type="submit">Create account</button></div></form></div>`;
+    <div class="acts"><button class="pill" type="submit">Create account</button></div></form><p style="margin-top:14px"><button class="link" type="button" id="toIn">Already have an account? Sign in</button></p></div>`;
   $('#reg').onsubmit=e=>{e.preventDefault();const f=e.target,v=n=>f.elements[n].value.trim(),er={};
     const dom=(v('email').split('@')[1]||'').toLowerCase(),ph=v('phone').replace(/\D/g,'');
     if(v('name').length<3)er.name='Enter your full name.';
     if(!SCHOOL.matric.test(v('matric')))er.matric='Enter your matric number as it appears on your student ID.';
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(v('email')))er.email='Enter a valid email address.';
     if(ph.length<10||ph.length>14)er.phone='Enter a valid WhatsApp number.';
+    if(f.elements.pw.value.length<8)er.pw='Use at least 8 characters.';
     if(!f.elements.ok.checked)er.ok='Please confirm to continue.';
     f.querySelectorAll('[data-e]').forEach(x=>x.textContent=er[x.dataset.e]||'');
     if(Object.keys(er).length)return;
-    S.user={role:'student',id:v('matric').toUpperCase(),name:v('name'),matric:v('matric').toUpperCase(),email:v('email').toLowerCase(),phone:v('phone'),where:v('where')};
-    S.me={name:S.user.name,phone:S.user.phone};save();gate();view('shop');toast('Welcome to Stall, '+S.user.name.split(' ')[0])};
+    regSend(f,{role:'student',name:v('name'),matric:v('matric'),email:v('email'),phone:v('phone'),where:v('where'),password:f.elements.pw.value})};
 }
 S.cart=S.cart.filter(id=>get(id));render();badge();$('#badge').classList.remove('bump');gate();
+fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate()}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{});
 $('#hchips').innerHTML=CATS.map(c=>`<button class="hc" data-hc="${c.id}">${c.e} ${c.name}</button>`).join('');
 document.addEventListener('click',e=>{const b=e.target.closest('[data-hc]');if(b){cat=b.dataset.hc;render();$('#browse').scrollIntoView()}});
 (async()=>{const ref=new URLSearchParams(location.search).get('reference');if(!ref)return;history.replaceState(null,'','/');
