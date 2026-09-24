@@ -452,7 +452,7 @@ function vendorGate(g){
     <label>Owner's full name<input name="name" autocomplete="name" maxlength="50"><span class="err" data-e="name"></span></label>
     <label>WhatsApp number<input name="phone" inputmode="tel" placeholder="080..."><span class="err" data-e="phone"></span></label>
     <div class="two"><label>Shop location on campus<input name="where" maxlength="40" placeholder="e.g. Cafeteria, Stall 4"><span class="err" data-e="where"></span></label><label>What you sell<select name="cat">${CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></label></div>
-    <label>Vendor invite code<input name="code" autocapitalize="characters" maxlength="20" placeholder="From the Stall team"><span class="err" data-e="code"></span></label>
+    <label>Invite code (optional)<input name="code" autocapitalize="characters" maxlength="20" placeholder="Only if the Stall team gave you one"><span class="err" data-e="code"></span></label>
     <label>Create a password<input name="pw" type="password" autocomplete="new-password" placeholder="At least 8 characters"><span class="err" data-e="pw"></span></label>
     <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span>I run this shop on the ${esc(SCHOOL.short)} campus and these details are correct.</span></label><span class="err" data-e="ok"></span>
     <div class="acts"><button class="pill" type="submit">Create account</button></div></form><p style="margin-top:14px"><button class="link" type="button" id="toIn">Already have an account? Sign in</button></p></div>`;
@@ -461,7 +461,7 @@ function vendorGate(g){
     if(v('name').length<3)er.name='Enter your full name.';
     if(ph.length<10||ph.length>14)er.phone='Enter a valid WhatsApp number.';
     if(v('where').length<3)er.where='Where on campus is your shop?';
-    if(!v('code'))er.code='Enter your vendor invite code.';if(f.elements.pw.value.length<8)er.pw='Use at least 8 characters.';
+    if(f.elements.pw.value.length<8)er.pw='Use at least 8 characters.';
     if(!f.elements.ok.checked)er.ok='Please confirm to continue.';
     f.querySelectorAll('[data-e]').forEach(x=>x.textContent=er[x.dataset.e]||'');
     if(Object.keys(er).length)return;
@@ -496,7 +496,7 @@ function gate(){
   const g=$('#gate');$('#who').textContent=S.user?`Signed in as ${S.user.name} (${S.user.role==='vendor'?'campus vendor':S.user.matric}).`:'';$('#signOut').hidden=!S.user;$('#adminBtn').hidden=!(S.user&&S.user.admin);
   const isV=!!S.user&&S.user.role==='vendor';$('#sellBtn').hidden=isV;$('#sellHero').hidden=isV;
   if(S.user&&S.user.role==='vendor'&&S.user.status&&S.user.status!=='active'){g.hidden=false;g.scrollTo(0,0);const sus=S.user.status==='suspended';
-    g.innerHTML=`<div class="gin"><h1>${sus?'Account suspended':'Waiting for approval'}</h1><p>${sus?'Your shop has been suspended. Message the Stall team to find out why.':'Thanks for signing up, '+esc(S.user.biz)+'. The Stall team will approve your shop shortly. Tap below to check again.'}</p><div class="acts"><button class="pill" id="pendRefresh">Check again</button></div><p style="margin-top:14px"><button class="link" id="pendOut">Sign out</button></p></div>`;return}
+    g.innerHTML=`<div class="gin"><h1>${sus?'Account suspended':'Waiting for approval'}</h1><p>${sus?'Your shop has been suspended. Message the Stall team to find out why.':'Thanks for signing up, '+esc(S.user.biz)+'. The Stall team has been told and will approve your shop shortly. Tap below to check again.'}</p><div class="acts"><button class="pill" id="pendRefresh">Check again</button></div><p style="margin-top:14px"><button class="link" id="pendOut">Sign out</button></p></div>`;return}
   if(S.user){g.hidden=true;return}
   g.hidden=false;g.scrollTo(0,0);
   if(authMode==='in'){loginGate(g);return}
