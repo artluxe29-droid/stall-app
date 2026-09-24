@@ -226,7 +226,7 @@ const save=()=>{try{localStorage.setItem('stall:v2',JSON.stringify(S))}catch(e){
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const naira=n=>'₦'+Number(n).toLocaleString('en-NG');
 const ci=id=>CATS.find(c=>c.id===id)||CATS[0];
-let PUB=[];const items=()=>[...PUB,...SEED],get=id=>items().find(i=>i.id===id)||sItems().find(i=>i.id===id);
+let PUB=[],STORES=[];const items=()=>[...PUB,...SEED],get=id=>items().find(i=>i.id===id)||sItems().find(i=>i.id===id);
 const stat=i=>i.sold?'sold':(S.st[i.id]||'');
 const ago=t=>{const h=Math.round((Date.now()-t)/H);return h<1?'Just now':h<24?h+'h ago':Math.round(h/24)+'d ago'};
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;t.style.animation='none';t.offsetWidth;t.style.animation='';clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2200)}
@@ -355,10 +355,10 @@ document.addEventListener('click',e=>{
   if(b=c('[data-inc]')){S.cart.push(b.dataset.inc);save();badge();refresh();if(c('#detail'))$('#detail').close();return}
   if(b=c('[data-dec]')){const k=S.cart.indexOf(b.dataset.dec);if(k>-1)S.cart.splice(k,1);save();badge();refresh();return}
   if(b=c('[data-store]')){storePage(b.dataset.store);return}
-  if(b=c('[data-toggle]')){const s=myStore();s.open=!s.open;save();refresh();return}
-  if(b=c('[data-avail]')){const it=myStore().items.find(x=>x.id===b.dataset.avail);it.avail=!it.avail;save();refresh();return}
-  if(b=c('[data-delitem]')){const s=myStore(),id=b.dataset.delitem;s.items=s.items.filter(x=>x.id!==id);S.cart=S.cart.filter(x=>x!==id);save();badge();refresh();return}
-  if(b=c('[data-delstore]')){const s=myStore(),ids=s.items.map(x=>x.id);S.stores=S.stores.filter(x=>x!==s);S.cart=S.cart.filter(x=>!ids.includes(x));save();badge();view('stores');toast('Store deleted');return}
+  if(b=c('[data-toggle]')){const s=myStore();s.open=!s.open;refresh();apiPost('stores/toggle',{}).then(loadPub);return}
+  if(b=c('[data-avail]')){const it=myStore().items.find(x=>x.id===b.dataset.avail);it.avail=!it.avail;refresh();apiPost('stores/item/avail',{id:it.id}).then(loadPub);return}
+  if(b=c('[data-delitem]')){const s=myStore(),id=b.dataset.delitem;apiPost('stores/item/delete',{id}).then(loadPub);s.items=s.items.filter(x=>x.id!==id);S.cart=S.cart.filter(x=>x!==id);save();badge();refresh();return}
+  if(b=c('[data-delstore]')){const s=myStore(),ids=s.items.map(x=>x.id);apiPost('stores/delete',{}).then(loadPub);STORES=STORES.filter(x=>x!==s);S.cart=S.cart.filter(x=>!ids.includes(x));save();badge();view('stores');toast('Store deleted');return}
   if(b=c('.chip')){cat=b.dataset.c;render();return}
   if(b=c('.card')){openDetail(b.dataset.id);return}
   const id=t.id||(c('button')||{}).id;
@@ -399,10 +399,10 @@ const SEED_STORES=[
  {id:'z2',owner:'',name:'Bookworm Corner',emoji:'📚',cat:'books',desc:'Notebooks, pens and course stationery.',spot:'Faculty of Science foyer',phone:'',open:true,vendor:true,items:[
   {id:'z2a',title:'A4 notebook, 80 leaves',price:900,desc:'Hardcover.',avail:true},
   {id:'z2b',title:'Pen pack (10)',price:1200,desc:'Blue ink.',avail:true}]}];
-const allStores=()=>[...S.stores,...SEED_STORES];
+const allStores=()=>[...STORES,...SEED_STORES];
 const sItems=()=>allStores().flatMap(s=>s.items.map(it=>({...it,cat:s.cat,spot:s.spot,seller:s.name,phone:s.phone||'',multi:true,se:s.emoji,cond:'',t:0})));
 const uid=()=>S.user?(S.user.id||S.user.matric):'';
-const myStore=()=>S.stores.find(s=>s.owner===uid());
+const myStore=()=>STORES.find(s=>s.owner===uid());
 let cur='';
 function refresh(){render();if(!$('#store').hidden)storePage(cur);if($('#cart').open)openCart()}
 function renderStores(){
@@ -423,15 +423,16 @@ function storePage(id){
   if($('#store').hidden)view('store');
 }
 $('#storeCat').innerHTML=CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-function makeStore(d,feeRef){const id='u'+Date.now();S.user.payout={bank:d.bank,acct:d.acct};
-  S.stores.push({id,owner:uid(),name:d.name,emoji:d.emoji,cat:d.cat,desc:d.desc,spot:d.spot,phone:d.phone,open:true,paid:true,vendor:S.user.role==='vendor',feeRef,items:[]});
-  save();renderStores();storePage(id);toast('Store fee paid. Your store is open')}
+async function makeStore(d,ref){const r=await apiPost('stores/create',{reference:ref,d});
+  if(r.error)return toast(r.error);
+  await loadPub();renderStores();storePage(r.id);toast('Store fee paid. Your store is open')}
 $('#storeForm').onsubmit=e=>{e.preventDefault();const E=e.target.elements,d={name:E.name.value.trim(),emoji:E.emoji.value,cat:E.cat.value,desc:E.desc.value.trim(),spot:E.spot.value.trim(),phone:E.phone.value.trim(),bank:E.bank.value,acct:E.acct.value.trim()};
   startPay({kind:'store'},{kind:'store',d},e.target.querySelector('[type=submit]'),'Pay '+naira(FEE_STORE)+' and open store')};
-$('#itemForm').onsubmit=e=>{e.preventDefault();const f=e.target,E=f.elements,s=myStore(),imgs=pk2.get();
+$('#itemForm').onsubmit=async e=>{e.preventDefault();const f=e.target,E=f.elements,s=myStore(),imgs=pk2.get();
   if(!imgs.length)return pk2.err('Add at least one photo.');
-  s.items.unshift({id:'i'+Date.now(),title:E.title.value.trim(),price:+E.price.value,desc:E.desc.value.trim(),imgs,avail:true});
-  save();f.reset();pk2.clear();$('#itemDlg').close();storePage(s.id);toast('Item added')};
+  const sb=f.querySelector('[type=submit]');sb.disabled=true;const r=await apiPost('stores/item',{title:E.title.value,price:E.price.value,desc:E.desc.value,imgs});sb.disabled=false;
+  if(r.error)return toast(r.error);
+  f.reset();pk2.clear();$('#itemDlg').close();await loadPub();storePage(s.id);toast('Item added')};
 function openItem(id){const i=get(id);if(!i)return;const st=allStores().find(x=>x.id===cur),ok=st&&st.open&&i.avail,d=$('#detail');
   d.innerHTML=`${gal(i)}<div class="pad"><h2 style="margin-bottom:4px">${esc(i.title)}</h2><p class="price" style="font-size:24px;margin:6px 0 12px">${naira(i.price)}</p><p>${esc(i.desc||'')}</p><p class="meta" style="margin-top:12px">${esc(i.seller)} · ${esc(i.spot)}</p>
    <div class="acts">${ok?`<button class="pill" data-inc="${id}">Add to bag</button>`:'<button class="pill" disabled>Unavailable</button>'}<button class="pill alt" data-close>Close</button></div></div>`;d.showModal()}
@@ -470,7 +471,7 @@ function vendorGate(g){
 }
 let PV=-1;
 async function pollPub(){if(!S.user||document.hidden)return;const r=await fetchJ('/api/listings/ver').catch(()=>null);if(r&&typeof r.v==='number'&&r.v!==PV){PV=r.v;loadPub()}}
-async function loadPub(){if(!S.user)return;const r=await fetchJ('/api/listings').catch(()=>null);if(r&&r.listings){PUB=r.listings;refresh()}}
+async function loadPub(){if(!S.user)return;const[a,b]=await Promise.all([fetchJ('/api/listings').catch(()=>null),fetchJ('/api/stores').catch(()=>null)]);if(a&&a.listings)PUB=a.listings;if(b&&b.stores)STORES=b.stores;if((a&&a.listings)||(b&&b.stores)){refresh();renderStores()}}
 function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub()}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
 async function openAdmin(){const d=$('#adminDlg');d.innerHTML='<div class="pad"><h2>Admin</h2><p class="meta">Loading...</p></div>';d.showModal();
   d.onclick=async e=>{const b=e.target.closest('[data-off],[data-vs]');if(!b)return;if(b.dataset.off)await apiPost('admin/code-off',{code:b.dataset.off});else await apiPost('admin/status',{id:+b.dataset.vs,status:b.dataset.to});adminDraw()};
@@ -541,10 +542,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-hc]');if(b
   S.refs=S.refs||[];if(S.refs.includes(ref))return;
   try{const r=await fetchJ('/api/verify?ref='+encodeURIComponent(ref));
     if(!r.paid||!p)return toast('Payment not completed. You were not charged.');
+    await loadPub();
     const L=p.kind==='order'?p.ids.map(([id,q])=>({i:get(id),q})).filter(x=>x.i):[];
     if(p.kind==='order'&&(!L.length||r.amount!==tot(L)))return toast('Payment received but the order could not be matched. Contact Stall support with reference '+ref);
     S.refs.push(ref);save();
-    p.kind==='store'?makeStore(p.d,'FEE-'+ref.slice(-6).toUpperCase()):place({get:k=>p.f[k]},L)}
+    p.kind==='store'?makeStore(p.d,ref):place({get:k=>p.f[k]},L)}
   catch(e){toast('Could not confirm payment. If you were charged, contact Stall support.')}})();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 </script>

@@ -14,7 +14,7 @@ const tg=async(env,text)=>{if(!env.TELEGRAM_BOT_TOKEN||!env.TELEGRAM_CHAT_ID)ret
 export async function onRequest({request,env,params,waitUntil}){
   const path=[].concat(params.path||[]).join('/'),url=new URL(request.url);
   const bump=()=>env.DB.prepare('UPDATE ver SET n=n+1 WHERE id=1').run();
-  if(!env.DB&&(['register','login','logout','me'].includes(path)||path.startsWith('admin/')||path.startsWith('listings')||path.startsWith('photo/')))return J({error:'Accounts are not set up yet.'},500);
+  if(!env.DB&&(['register','login','logout','me'].includes(path)||path.startsWith('admin/')||path.startsWith('listings')||path.startsWith('stores')||path.startsWith('photo/')))return J({error:'Accounts are not set up yet.'},500);
   if(path==='register'&&request.method==='POST'){
     const b=await request.json().catch(()=>({})),t=k=>String(b[k]||'').trim(),bad=(field,error)=>J({error,field},400);
     const vendor=b.role==='vendor',phone=phoneN(b.phone),name=t('name'),pass=String(b.password||'');
@@ -68,6 +68,35 @@ export async function onRequest({request,env,params,waitUntil}){
   if(path==='listings/ver')return J({v:((await env.DB.prepare('SELECT n FROM ver WHERE id=1').first())||{n:0}).n},200,{'cache-control':'no-store'});
   if(path.startsWith('photo/')){const [,l,n]=path.split('/'),r=await env.DB.prepare('SELECT data FROM photos WHERE lid=? AND n=?').bind(+l,+n).first();if(!r)return new Response('Not found',{status:404});
     const m=r.data.match(/^data:(image\/[a-z]+);base64,(.*)$/s);return new Response(Uint8Array.from(atob(m[2]),c=>c.charCodeAt(0)),{headers:{'content-type':m[1],'cache-control':'public, max-age=31536000, immutable'}})}
+  if(path==='stores'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
+    const ss=(await env.DB.prepare('SELECT s.*,u.role,u.phone AS up,u.matric FROM stores s JOIN users u ON u.id=s.uid ORDER BY s.created DESC').all()).results,its=(await env.DB.prepare('SELECT * FROM store_items ORDER BY created DESC').all()).results;
+    return J({stores:ss.map(s=>({id:'S'+s.id,owner:s.role==='vendor'?'V-'+s.up:s.matric,name:s.name,emoji:s.emoji,cat:s.cat,desc:s.descr,spot:s.spot,phone:s.phone,open:!!s.isopen,vendor:!!s.vendor,items:its.filter(i=>i.sid===s.id).map(i=>({id:'I'+i.id,title:i.title,price:i.price,desc:i.descr,avail:!!i.avail,imgs:Array.from({length:i.n},(_,k)=>'/api/photo/-'+i.id+'/'+k)}))}))})}
+  if(path.startsWith('stores/')&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);
+    if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);
+    const b=await request.json().catch(()=>({})),mine=await env.DB.prepare('SELECT id FROM stores WHERE uid=?').bind(u.id).first(),ok=()=>bump().then(()=>J({ok:true}));
+    if(path==='stores/create'){const d=b.d||{},t=k=>String(d[k]||'').trim(),ref=String(b.reference||'');
+      if(!/^[\w-]{6,80}$/.test(ref))return J({error:'Invalid payment reference.'},400);
+      if(mine||await env.DB.prepare('SELECT 1 FROM stores WHERE ref=?').bind(ref).first())return J({error:'You already have a store.'},409);
+      const v=(await ps(env,'/transaction/verify/'+ref)).data||{};
+      if(v.status!=='success'||v.amount!==500000||(v.metadata||{}).kind!=='store')return J({error:'Payment could not be confirmed. Contact Stall support with reference '+ref},402);
+      if(t('name').length<2||t('name').length>40)return J({error:'Enter a store name.'},400);
+      const r=await env.DB.prepare('INSERT INTO stores(uid,name,emoji,cat,descr,spot,phone,bank,acct,isopen,vendor,ref,created) VALUES(?,?,?,?,?,?,?,?,?,1,?,?,?)').bind(u.id,t('name'),t('emoji').slice(0,8),t('cat').slice(0,20),t('desc').slice(0,200),t('spot').slice(0,60),t('phone').slice(0,20)||u.phone,t('bank').slice(0,40),t('acct').slice(0,20),u.role==='vendor'?1:0,ref,Date.now()).run();
+      await bump();return J({ok:true,id:'S'+r.meta.last_row_id})}
+    if(!mine)return J({error:'Open a store first.'},400);
+    if(path==='stores/toggle'){await env.DB.prepare('UPDATE stores SET isopen=1-isopen WHERE id=?').bind(mine.id).run();return ok()}
+    if(path==='stores/item'){const t=k=>String(b[k]||'').trim(),price=Math.round(+b.price),imgs=Array.isArray(b.imgs)?b.imgs:[];
+      if(t('title').length<3||t('title').length>80)return J({error:'Enter a title of 3 to 80 characters.'},400);
+      if(!(price>=1&&price<=10000000))return J({error:'Enter a valid price.'},400);
+      if(imgs.length<1||imgs.length>8||imgs.some(x=>typeof x!=='string'||!/^data:image\/(jpeg|png|webp);base64,/.test(x)||x.length>450000))return J({error:'Add 1 to 8 photos.'},400);
+      const r=await env.DB.prepare('INSERT INTO store_items(sid,title,price,descr,avail,n,created) VALUES(?,?,?,?,1,?,?)').bind(mine.id,t('title'),price,t('desc').slice(0,300),imgs.length,Date.now()).run(),id=r.meta.last_row_id;
+      await env.DB.batch(imgs.map((x,i)=>env.DB.prepare('INSERT INTO photos(lid,n,data) VALUES(?,?,?)').bind(-id,i,x)));return ok()}
+    const iid=+String(b.id||'').slice(1);
+    if(path==='stores/item/avail'){await env.DB.prepare('UPDATE store_items SET avail=1-avail WHERE id=? AND sid=?').bind(iid,mine.id).run();return ok()}
+    if(path==='stores/item/delete'){const r=await env.DB.prepare('DELETE FROM store_items WHERE id=? AND sid=?').bind(iid,mine.id).run();if(r.meta.changes)await env.DB.prepare('DELETE FROM photos WHERE lid=?').bind(-iid).run();return ok()}
+    if(path==='stores/delete'){const its=(await env.DB.prepare('SELECT id FROM store_items WHERE sid=?').bind(mine.id).all()).results;
+      for(const i of its)await env.DB.prepare('DELETE FROM photos WHERE lid=?').bind(-i.id).run();
+      await env.DB.prepare('DELETE FROM store_items WHERE sid=?').bind(mine.id).run();await env.DB.prepare('DELETE FROM stores WHERE id=?').bind(mine.id).run();return ok()}
+  }
   if(path.startsWith('admin/')){
     const a=await me(env,request);if(!a||!a.is_admin)return J({error:'Not allowed'},403);
     const b=request.method==='POST'?await request.json().catch(()=>({})):{};
