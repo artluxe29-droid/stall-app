@@ -100,7 +100,7 @@ export async function onRequest({request,env,params,waitUntil}){
       if(!t('acctName'))return J({error:'Verify your store account number first.'},400);
       const manual=!!d.bank_manual;
       if(manual)waitUntil(tg(env,'Payout details need confirming (store)\n'+t('name')+' - '+u.phone+'\nBank: '+BANKS[d.bank_code]+'\nAccount: '+t('acct')+'\nName given: '+t('acctName')));
-      const r=await env.DB.prepare('INSERT INTO stores(uid,name,emoji,cat,descr,spot,phone,bank,acct,bank_code,acct_name,bank_verified,isopen,vendor,ref,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?)').bind(u.id,t('name'),t('emoji').slice(0,8),t('cat').slice(0,20),t('desc').slice(0,200),t('spot').slice(0,60),t('phone').slice(0,20)||u.phone,BANKS[d.bank_code],t('acct').slice(0,20),d.bank_code,t('acctName'),manual?0:1.slice(0,60),u.role==='vendor'?1:0,ref,Date.now()).run();
+      const r=await env.DB.prepare('INSERT INTO stores(uid,name,emoji,cat,descr,spot,phone,bank,acct,bank_code,acct_name,bank_verified,isopen,vendor,ref,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?)').bind(u.id,t('name'),t('emoji').slice(0,8),t('cat').slice(0,20),t('desc').slice(0,200),t('spot').slice(0,60),t('phone').slice(0,20)||u.phone,BANKS[d.bank_code],t('acct').slice(0,20),d.bank_code,t('acctName').slice(0,60),manual?0:1,u.role==='vendor'?1:0,ref,Date.now()).run();
       await bump();return J({ok:true,id:'S'+r.meta.last_row_id})}
     if(!mine)return J({error:'Open a store first.'},400);
     if(path==='stores/toggle'){await env.DB.prepare('UPDATE stores SET isopen=1-isopen WHERE id=?').bind(mine.id).run();return ok()}
