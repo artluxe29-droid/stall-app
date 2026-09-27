@@ -182,7 +182,7 @@ label input,label select,label textarea{display:block;width:100%;margin-top:5px;
  <div class="two"><label>Pickup spot<input name="spot" required maxlength="40" placeholder="e.g. Cafeteria, Stall 4"></label><label>WhatsApp number<input name="phone" required inputmode="tel"></label></div>
  <div class="opt sel" style="margin-top:14px"><span>One-time store fee: ₦5,000<small>Paid online when you open your store. Listing single items stays free.</small></span></div>
  <div class="two"><label>Payout bank<select name="bank_code"><option value="044">Access Bank</option><option value="070">Fidelity Bank</option><option value="011">First Bank</option><option value="214">FCMB</option><option value="058">GTBank</option><option value="50211">Kuda</option><option value="50515">Moniepoint</option><option value="999992">OPay</option><option value="999991">PalmPay</option><option value="221">Stanbic IBTC</option><option value="232">Sterling Bank</option><option value="033">UBA</option><option value="032">Union Bank</option><option value="035">Wema Bank</option><option value="057">Zenith Bank</option></select></label><label>Account number<input name="acct" required inputmode="numeric" pattern="\d{10}" maxlength="10" placeholder="10 digits"></label></div>
-  <input type="hidden" name="acctName"><div class="acts" style="margin:0 0 10px"><button type="button" class="pill sm alt" data-verify-bank>Verify account</button><span class="meta bankok"></span></div>
+  <input type="hidden" name="acctName"><input type="hidden" name="bankManual"><div class="acts" style="margin:0 0 10px"><button type="button" class="pill sm alt" data-verify-bank>Verify account</button><span class="meta bankok"></span></div>
   <p class="note">Buyers pay this account directly. Stall keeps no cut of what you sell &mdash; only the one-time store fee.</p>
  <div class="acts"><button class="pill" type="submit">Pay ₦5,000 and open store</button><button class="pill alt" type="button" data-close>Cancel</button></div></form></div></dialog>
 <div id="gate" hidden></div>
@@ -201,7 +201,7 @@ label input,label select,label textarea{display:block;width:100%;margin-top:5px;
   <div class="two"><label>Your name<input name="seller" required maxlength="30"></label><label>WhatsApp number<input name="phone" required inputmode="tel" placeholder="080..."></label></div>
   
   <div class="two"><label>Payout bank<select name="bank_code"><option value="044">Access Bank</option><option value="070">Fidelity Bank</option><option value="011">First Bank</option><option value="214">FCMB</option><option value="058">GTBank</option><option value="50211">Kuda</option><option value="50515">Moniepoint</option><option value="999992">OPay</option><option value="999991">PalmPay</option><option value="221">Stanbic IBTC</option><option value="232">Sterling Bank</option><option value="033">UBA</option><option value="032">Union Bank</option><option value="035">Wema Bank</option><option value="057">Zenith Bank</option></select></label><label>Account number<input name="acct" required inputmode="numeric" pattern="\d{10}" maxlength="10" placeholder="10 digits"></label></div>
-  <input type="hidden" name="acctName"><div class="acts" style="margin:0 0 10px"><button type="button" class="pill sm alt" data-verify-bank>Verify account</button><span class="meta bankok"></span></div>
+  <input type="hidden" name="acctName"><input type="hidden" name="bankManual"><div class="acts" style="margin:0 0 10px"><button type="button" class="pill sm alt" data-verify-bank>Verify account</button><span class="meta bankok"></span></div>
   <p class="note">Free to list. Buyers pay this account directly &mdash; Stall keeps no cut.</p>
   <div class="acts"><button class="pill" type="submit">Post listing</button><button class="pill alt" type="button" data-close>Cancel</button></div>
  </form></div></dialog>
@@ -268,13 +268,21 @@ function mkPicker(root){
 }
 function wireBankVerify(root){
   const btn=root.querySelector('[data-verify-bank]');if(!btn)return;
-  const f=root.closest('form')||root,bank=f.elements.bank_code,acct=f.elements.acct,nm=f.elements.acctName,ok=f.querySelector('.bankok');
-  [bank,acct].forEach(el=>el.addEventListener('input',()=>{nm.value='';ok.textContent=''}));
+  const f=root.closest('form')||root,bank=f.elements.bank_code,acct=f.elements.acct,nm=f.elements.acctName,mn=f.elements.bankManual,ok=f.querySelector('.bankok');
+  let fails=0;
+  [bank,acct].forEach(el=>el.addEventListener('input',()=>{nm.value='';mn.value='';fails=0;ok.innerHTML='';const mb=f.querySelector('.manualBank');if(mb)mb.remove()}));
   btn.onclick=async()=>{btn.disabled=true;btn.textContent='Checking…';
     const r=await apiPost('bank/resolve',{bank_code:bank.value,acct_no:acct.value});
     btn.disabled=false;btn.textContent='Verify account';
-    if(r.error){ok.style.color='#E5484D';ok.textContent=r.error;return}
-    nm.value=r.name;ok.style.color='';ok.textContent='✓ '+r.name}}
+    if(r.error){fails++;ok.style.color='#E5484D';ok.textContent=r.error;
+      if(fails>=2&&!f.querySelector('.manualBank')){
+        const div=document.createElement('div');div.className='manualBank';
+        div.innerHTML='<p class="meta" style="margin-top:8px">Still not going through? Type the name on the account yourself, and the Stall team will confirm it before you get paid.</p><label>Account holder\'s name<input class="manualName" maxlength="60"></label><button type="button" class="pill sm alt manualUse">Use this name</button>';
+        ok.insertAdjacentElement('afterend',div);
+        div.querySelector('.manualUse').onclick=()=>{const v=div.querySelector('.manualName').value.trim();if(v.length<3)return toast('Enter the name on the account');
+          nm.value=v;mn.value='1';ok.style.color='';ok.innerHTML='⏳ Using "'+esc(v)+'" — pending confirmation';div.remove()}}
+      return}
+    nm.value=r.name;mn.value='';ok.style.color='';ok.textContent='✓ '+r.name}}
 const TEST_MODE=false;
 const lines=()=>{const m=new Map();S.cart.forEach(id=>m.set(id,(m.get(id)||0)+1));return[...m].map(([id,q])=>({i:get(id),q})).filter(x=>x.i)};
 const tot=L=>L.reduce((a,x)=>a+x.i.price*x.q,0),em=i=>i.se||ci(i.cat).e;
@@ -428,7 +436,7 @@ $('#catSel').innerHTML=CATS.map(c=>`<option value="${c.id}">${c.name}</option>`)
 $('#form').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),imgs=pk1.get();
   if(!imgs.length)return pk1.err('Add at least one photo.');
   if(!S.user.acctSet&&!f.get('acctName'))return toast('Verify your payout account first.');
-  const sb=e.target.querySelector('[type=submit]');sb.disabled=true;const r=await apiPost('listings',{title:f.get('title'),price:f.get('price'),cat:f.get('cat'),cond:f.get('cond'),spot:f.get('spot'),desc:f.get('desc'),seller:f.get('seller'),phone:f.get('phone'),imgs,bank_code:f.get('bank_code'),acct_no:f.get('acct'),acct_name:f.get('acctName')});sb.disabled=false;
+  const sb=e.target.querySelector('[type=submit]');sb.disabled=true;const r=await apiPost('listings',{title:f.get('title'),price:f.get('price'),cat:f.get('cat'),cond:f.get('cond'),spot:f.get('spot'),desc:f.get('desc'),seller:f.get('seller'),phone:f.get('phone'),imgs,bank_code:f.get('bank_code'),acct_no:f.get('acct'),acct_name:f.get('acctName'),bank_manual:f.get('bankManual')});sb.disabled=false;
   if(r.error)return toast(r.error);
   if(f.get('acctName'))S.user.acctSet=true;
   save();e.target.reset();pk1.clear();$('#sell').close();cat='all';await loadPub();toast('Listing posted')};
@@ -470,7 +478,7 @@ async function makeStore(d,ref){const r=await apiPost('stores/create',{reference
   await loadPub();renderStores();storePage(r.id);toast('Store fee paid. Your store is open')}
 $('#storeForm').onsubmit=e=>{e.preventDefault();const E=e.target.elements;
   if(!E.acctName.value)return toast('Verify your payout account first.');
-  const d={name:E.name.value.trim(),emoji:E.emoji.value,cat:E.cat.value,desc:E.desc.value.trim(),spot:E.spot.value.trim(),phone:E.phone.value.trim(),bank_code:E.bank_code.value,acct:E.acct.value.trim(),acctName:E.acctName.value};
+  const d={name:E.name.value.trim(),emoji:E.emoji.value,cat:E.cat.value,desc:E.desc.value.trim(),spot:E.spot.value.trim(),phone:E.phone.value.trim(),bank_code:E.bank_code.value,acct:E.acct.value.trim(),acctName:E.acctName.value,bank_manual:E.bankManual.value};
   startPay({kind:'store'},{kind:'store',d},e.target.querySelector('[type=submit]'),'Pay '+naira(FEE_STORE)+' and open store')};
 $('#itemForm').onsubmit=async e=>{e.preventDefault();const f=e.target,E=f.elements,s=myStore(),imgs=pk2.get();
   if(!imgs.length)return pk2.err('Add at least one photo.');
@@ -518,23 +526,25 @@ async function pollPub(){if(!S.user||document.hidden)return;const r=await fetchJ
 async function loadPub(){if(!S.user)return;const[a,b]=await Promise.all([fetchJ('/api/listings').catch(()=>null),fetchJ('/api/stores').catch(()=>null)]);if(a&&a.listings)PUB=a.listings;if(b&&b.stores)STORES=b.stores;if((a&&a.listings)||(b&&b.stores)){refresh();renderStores()}}
 function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub()}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
 async function openAdmin(){const d=$('#adminDlg');d.innerHTML='<div class="pad"><h2>Admin</h2><p class="meta">Loading...</p></div>';d.showModal();
-  d.onclick=async e=>{const b=e.target.closest('[data-off],[data-vs],[data-ok],[data-no],[data-rvoff]');if(!b)return;
+  d.onclick=async e=>{const b=e.target.closest('[data-off],[data-vs],[data-ok],[data-no],[data-rvoff],[data-bankok]');if(!b)return;
     if(b.dataset.off)await apiPost('admin/code-off',{code:b.dataset.off});
     else if(b.dataset.vs)await apiPost('admin/status',{id:+b.dataset.vs,status:b.dataset.to});
     else if(b.dataset.ok)await apiPost('admin/orders/decide',{id:+b.dataset.ok,approve:true});
     else if(b.dataset.no){const why=prompt('Reason for rejecting this payment?')||'Rejected by admin';await apiPost('admin/orders/decide',{id:+b.dataset.no,approve:false,reason:why})}
     else if(b.dataset.rvoff)await apiPost('admin/reviewers',{phone:b.dataset.rvoff,add:false});
+    else if(b.dataset.bankok){const parts=b.dataset.bankok.split(':');await apiPost('admin/bank-confirm',{kind:parts[0],id:parts[1]})}
     adminDraw()};
   adminDraw()}
 async function adminDraw(){const d=$('#adminDlg'),o=await fetchJ('/api/admin/orders').catch(()=>({}));
   if(!o.orders){d.innerHTML='<div class="pad"><h2>Admin</h2><p class="meta">Not allowed.</p><div class="acts"><button class="pill alt" data-close>Close</button></div></div>';return}
   const queueHtml=`<p class="lb">Payments needing review (${o.orders.length})</p>${o.orders.map(x=>`<div class="line"><div class="t"><b>${esc(x.title)}</b> · ${naira(x.amount)}<br><small>${esc(x.buyerName)} → ${esc(x.sellerName)} · ${esc(x.note||'')}</small><br>${x.receipt?`<img src="${x.receipt}" style="max-width:160px;border-radius:8px;margin-top:6px">`:''}</div><div class="acts" style="flex-direction:column;gap:6px"><button class="pill sm" data-ok="${x.id}">Approve</button><button class="pill sm alt" data-no="${x.id}">Reject</button></div></div>`).join('')||'<p class="meta">Nothing needs review right now.</p>'}`;
   if(!S.user.admin){d.innerHTML=`<div class="pad"><h2>Review orders</h2>${queueHtml}<div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;return}
-  const c=await fetchJ('/api/admin/codes').catch(()=>({})),v=await fetchJ('/api/admin/vendors').catch(()=>({})),rv=await fetchJ('/api/admin/reviewers').catch(()=>({}));
+  const c=await fetchJ('/api/admin/codes').catch(()=>({})),v=await fetchJ('/api/admin/vendors').catch(()=>({})),rv=await fetchJ('/api/admin/reviewers').catch(()=>({})),bk=await fetchJ('/api/admin/banks').catch(()=>({}));
   const st=x=>x.status==='active'?'Approved':x.status==='pending'?'Waiting for approval':'Suspended';
   d.innerHTML=`<div class="pad"><h2>Admin</h2>
    ${queueHtml}
    <form id="codeForm" style="margin-top:20px"><label>New vendor code for<input name="label" maxlength="40" placeholder="Shop or vendor name"></label><span class="err" id="codeErr"></span><div class="acts"><button class="pill" type="submit">Create code</button></div></form><div id="codeOut"></div>
+   <p class="lb" style="margin-top:20px">Payout details awaiting confirmation (${(bk.items||[]).length})</p>${(bk.items||[]).map(x=>`<div class="line"><div class="t"><b>${esc(x.name)}</b> · ${x.kind==="store"?"Store":"Person"}<br><small>${esc(x.bank_name||x.bank||"")} · ${esc(x.acct_no||x.acct||"")} · Name given: ${esc(x.acct_name)}</small></div><button class="pill sm" data-bankok="${x.kind}:${x.id}">Confirm</button></div>`).join("")||"<p class=\"meta\">Nothing waiting here.</p>"}
    <p class="lb" style="margin-top:20px">Vendors (${v.vendors.length})</p>${v.vendors.map(x=>`<div class="line"><div class="t"><b>${esc(x.biz)}</b> · ${st(x)}<br><small>${esc(x.name)} · ${esc(x.phone)} · ${esc(x.place||'')}</small></div>${x.status==='active'?`<button class="pill sm alt" data-vs="${x.id}" data-to="suspended">Suspend</button>`:`<button class="pill sm" data-vs="${x.id}" data-to="active">${x.status==='pending'?'Approve':'Reactivate'}</button>`}</div>`).join('')||'<p class="meta">No vendors yet.</p>'}
    <p class="lb" style="margin-top:20px">Codes</p>${c.codes.map(x=>`<div class="line"><div class="t"><b>${esc(x.label||'Old code')}</b><br><small>${esc(x.code)} · ${x.biz?'Used by '+esc(x.biz):x.active?'Not used yet':'Turned off'}</small></div>${x.active&&!x.biz?`<button class="pill sm alt" data-off="${esc(x.code)}">Turn off</button>`:''}</div>`).join('')||'<p class="meta">No codes yet.</p>'}
    <p class="lb" style="margin-top:20px">Second reviewers (${(rv.reviewers||[]).length})</p>${(rv.reviewers||[]).map(x=>`<div class="line"><div class="t">${esc(x.name)} · ${esc(x.phone)}</div><button class="pill sm alt" data-rvoff="${esc(x.phone)}">Remove</button></div>`).join('')||'<p class="meta">Nobody else can review payments yet.</p>'}

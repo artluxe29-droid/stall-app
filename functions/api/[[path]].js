@@ -63,8 +63,10 @@ export async function onRequest({request,env,params,waitUntil}){
     if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);
     const b=await request.json().catch(()=>({})),t=k=>String(b[k]||'').trim(),price=Math.round(+b.price),imgs=Array.isArray(b.imgs)?b.imgs:[];
     if(b.bank_code){if(!BANKS[b.bank_code])return J({error:'Choose a valid bank.'},400);
-      await env.DB.prepare('UPDATE users SET bank_code=?,bank_name=?,acct_no=?,acct_name=? WHERE id=?').bind(b.bank_code,BANKS[b.bank_code],String(b.acct_no||'').replace(/\D/g,''),String(b.acct_name||'').trim(),u.id).run();
-      u.acct_no=b.acct_no;u.acct_name=b.acct_name}
+      const manual=!!b.bank_manual;
+      await env.DB.prepare('UPDATE users SET bank_code=?,bank_name=?,acct_no=?,acct_name=?,bank_verified=? WHERE id=?').bind(b.bank_code,BANKS[b.bank_code],String(b.acct_no||'').replace(/\D/g,''),String(b.acct_name||'').trim(),manual?0:1,u.id).run();
+      u.acct_no=b.acct_no;u.acct_name=b.acct_name;
+      if(manual)waitUntil(tg(env,'Payout details need confirming\n'+u.name+' - '+u.phone+'\nBank: '+BANKS[b.bank_code]+'\nAccount: '+b.acct_no+'\nName given: '+b.acct_name))}
     if(!u.acct_no||!u.acct_name)return J({error:'Add and verify your payout bank details first.'},400);
     if(t('title').length<3||t('title').length>80)return J({error:'Enter a title of 3 to 80 characters.'},400);
     if(!(price>=1&&price<=10000000))return J({error:'Enter a valid price.'},400);
@@ -96,7 +98,9 @@ export async function onRequest({request,env,params,waitUntil}){
       if(t('name').length<2||t('name').length>40)return J({error:'Enter a store name.'},400);
       if(!BANKS[d.bank_code||''])return J({error:'Choose a payout bank.'},400);
       if(!t('acctName'))return J({error:'Verify your store account number first.'},400);
-      const r=await env.DB.prepare('INSERT INTO stores(uid,name,emoji,cat,descr,spot,phone,bank,acct,bank_code,acct_name,isopen,vendor,ref,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?,?)').bind(u.id,t('name'),t('emoji').slice(0,8),t('cat').slice(0,20),t('desc').slice(0,200),t('spot').slice(0,60),t('phone').slice(0,20)||u.phone,BANKS[d.bank_code],t('acct').slice(0,20),d.bank_code,t('acctName').slice(0,60),u.role==='vendor'?1:0,ref,Date.now()).run();
+      const manual=!!d.bank_manual;
+      if(manual)waitUntil(tg(env,'Payout details need confirming (store)\n'+t('name')+' - '+u.phone+'\nBank: '+BANKS[d.bank_code]+'\nAccount: '+t('acct')+'\nName given: '+t('acctName')));
+      const r=await env.DB.prepare('INSERT INTO stores(uid,name,emoji,cat,descr,spot,phone,bank,acct,bank_code,acct_name,bank_verified,isopen,vendor,ref,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?)').bind(u.id,t('name'),t('emoji').slice(0,8),t('cat').slice(0,20),t('desc').slice(0,200),t('spot').slice(0,60),t('phone').slice(0,20)||u.phone,BANKS[d.bank_code],t('acct').slice(0,20),d.bank_code,t('acctName'),manual?0:1.slice(0,60),u.role==='vendor'?1:0,ref,Date.now()).run();
       await bump();return J({ok:true,id:'S'+r.meta.last_row_id})}
     if(!mine)return J({error:'Open a store first.'},400);
     if(path==='stores/toggle'){await env.DB.prepare('UPDATE stores SET isopen=1-isopen WHERE id=?').bind(mine.id).run();return ok()}
@@ -192,6 +196,12 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',code='STALL-'+[...crypto.getRandomValues(new Uint8Array(6))].map(x=>A[x%32]).join('');
       await env.DB.prepare('INSERT INTO vendor_codes(code,active,label,created) VALUES(?,1,?,?)').bind(code,label,Date.now()).run();return J({code,label})}
     if(path==='admin/code-off'){await env.DB.prepare('UPDATE vendor_codes SET active=0 WHERE code=? AND used_by IS NULL').bind(String(b.code||'')).run();return J({ok:true})}
+    if(path==='admin/banks'&&request.method==='GET'){
+      const uu=(await env.DB.prepare("SELECT id,name,phone,bank_name,acct_no,acct_name FROM users WHERE bank_verified=0").all()).results.map(x=>({kind:'user',...x}));
+      const ss=(await env.DB.prepare("SELECT id,name,bank,acct,acct_name FROM stores WHERE bank_verified=0").all()).results.map(x=>({kind:'store',...x}));
+      return J({items:[...uu,...ss]})}
+    if(path==='admin/bank-confirm'&&request.method==='POST'){const tbl=b.kind==='store'?'stores':'users';
+      await env.DB.prepare('UPDATE '+tbl+' SET bank_verified=1 WHERE id=?').bind(+b.id).run();return J({ok:true})}
     if(path==='admin/vendors')return J({vendors:(await env.DB.prepare("SELECT id,name,biz,phone,place,cat,status FROM users WHERE role='vendor' ORDER BY created DESC").all()).results});
     if(path==='admin/status'&&['active','suspended'].includes(b.status)){await env.DB.prepare("UPDATE users SET status=? WHERE id=? AND role='vendor'").bind(b.status,+b.id).run();return J({ok:true})}
     return J({error:'Not found'},404);
