@@ -330,7 +330,7 @@ function orderScreen(o){const d=$('#checkout');
   if(o.status==='verified'||o.status==='released'){
     d.innerHTML=`<div class="pad" style="text-align:center"><svg class="ok" viewBox="0 0 72 72"><circle cx="36" cy="36" r="30"/><path d="M23 37l9 9 18-20"/></svg>
      <h2>Payment verified ✓</h2><p class="meta">Your release code</p><p style="font-size:32px;font-weight:700;letter-spacing:1px;margin:6px 0">${esc(o.code||'')}</p>
-     <p class="meta" style="margin-bottom:16px">Send this to ${esc(o.sellerName)}. They'll use it to confirm your payment before handing your order over.</p>
+     <p class="meta" style="margin-bottom:16px">Show this screen to ${esc(o.sellerName)} when you collect your order, or send it ahead on WhatsApp so they know it's coming.</p>
      <div class="acts">${waCode(o.sellerPhone,o.code,o.title)?`<a class="pill" href="${waCode(o.sellerPhone,o.code,o.title)}" target="_blank" rel="noopener" style="text-decoration:none">Send code on WhatsApp</a>`:''}</div>
      <div class="acts"><button class="pill alt" id="payNext">${PAYQ.length?'Next':'Done'}</button></div></div>`;
     $('#payNext').onclick=()=>payAdvance();return}
@@ -351,7 +351,7 @@ function orderScreen(o){const d=$('#checkout');
    <div class="acts"><button class="pill" id="paidBtn">I've paid</button></div>
    <form id="rcForm" hidden><label>Amount you sent<input name="amt" type="number" value="${o.amount}" required></label>
     <label>Transaction reference<input name="ref" maxlength="60" placeholder="From your bank app or receipt" required></label>
-    <label>Receipt photo<input name="file" type="file" accept="image/*" capture="environment" required></label>
+    <label>Receipt photo<input name="file" type="file" accept="image/*" required></label>
     <span class="err" id="rcErr"></span>
     <div class="acts"><button class="pill" type="submit">Submit for review</button></div></form></div>`;
   $('#copyAcct').onclick=()=>{navigator.clipboard?.writeText(o.acct).then(()=>toast('Account number copied'))};

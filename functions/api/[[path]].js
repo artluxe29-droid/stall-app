@@ -5,6 +5,24 @@ const E=new TextEncoder(),hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).pa
 const sha=async s=>hex(await crypto.subtle.digest('SHA-256',E.encode(s)));
 const pbk=async(pw,salt)=>{const k=await crypto.subtle.importKey('raw',E.encode(pw),'PBKDF2',false,['deriveBits']);return hex(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:E.encode(salt),iterations:100000},k,256))};
 const rnd=n=>hex(crypto.getRandomValues(new Uint8Array(n)));
+const aiCheckReceipt=async(env,dataUrl,amount,ref)=>{
+  if(!env.AI)return{ok:null,why:'Photo checking is not connected yet.'};
+  try{
+    const m=dataUrl.match(/^data:image\/[a-z]+;base64,(.*)$/s);if(!m)return{ok:null,why:'Could not read that photo.'};
+    const bytes=Uint8Array.from(atob(m[1]),c=>c.charCodeAt(0));
+    const prompt='You are checking a Nigerian bank transfer receipt or alert screenshot, submitted as proof of payment. '
+      +'The sender claims they paid NGN '+amount+' with reference or narration "'+ref+'". '
+      +'Look only at what is in the image. Reply with exactly one word: '
+      +'YES if the image clearly shows a successful bank transfer or payment alert for an amount that reasonably matches NGN '+amount+'. '
+      +'NO if the image is not a payment receipt or alert at all (for example a random unrelated photo), or clearly shows a different amount or a failed transaction. '
+      +'UNSURE if you cannot tell either way.';
+    const r=await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct',{image:[...bytes],prompt,max_tokens:6});
+    const txt=String(r&&(r.response||r.description)||'').toUpperCase();
+    if(txt.includes('YES'))return{ok:true};
+    if(txt.includes('NO'))return{ok:false,why:"The photo doesn't look like a matching payment receipt."};
+    return{ok:null,why:'Could not confidently read the receipt photo.'};
+  }catch(e){return{ok:null,why:'Receipt photo check was unavailable.'}}
+};
 const PAY_WINDOW=20*60*1000;
 const BANKS={'044':'Access Bank','070':'Fidelity Bank','011':'First Bank','214':'FCMB','058':'GTBank','50211':'Kuda','50515':'Moniepoint','999992':'OPay','999991':'PalmPay','221':'Stanbic IBTC','232':'Sterling Bank','033':'UBA','032':'Union Bank','035':'Wema Bank','057':'Zenith Bank'};
 const relCode=()=>{const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return 'STALL-'+[...crypto.getRandomValues(new Uint8Array(6))].map(x=>A[x%32]).join('')};
@@ -164,6 +182,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     if(!/^data:image\/(jpeg|png|webp);base64,/.test(img)||img.length>450000)return J({error:'Add a photo of your receipt.'},400);
     const dup=await env.DB.prepare("SELECT 1 FROM orders WHERE r_ref=? AND id!=? AND status IN ('verified','released')").bind(ref,id).first();
     const reasons=[];if(amt!==o.amount)reasons.push('Amount does not match the order.');if(dup)reasons.push('This reference has already been used.');
+    if(!reasons.length){const ai=await aiCheckReceipt(env,img,amt,ref);if(ai.ok!==true)reasons.push(ai.why||'The receipt photo could not be confirmed automatically.')}
     const now=Date.now();
     if(!reasons.length){const code=relCode();
       await env.DB.prepare("UPDATE orders SET receipt=?,r_amount=?,r_ref=?,status='verified',code=?,updated=? WHERE id=?").bind(img,amt,ref,code,now,id).run();
