@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Get the Stall app</title>
+<meta name="description" content="Install Stall, the ACU campus marketplace, on your phone. Free, no Play Store needed.">
+<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0F172A"><link rel="apple-touch-icon" href="/icons/apple-touch-icon-v2.png"><link rel="icon" href="/icons/icon-192-v2.png">
+<meta property="og:title" content="Get the Stall app"><meta property="og:description" content="Buy and sell on campus. Install Stall on your phone in seconds."><meta property="og:image" content="/icons/icon-512-v2.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--bg:#F5F6FA;--card:#FFFFFF;--bg2:#EEF0F5;--ink:#0F172A;--muted:#64748B;--line:#E5E7EF;--acc:#FF9F1C;--sh:0 1px 2px rgba(15,23,42,.04),0 10px 30px rgba(15,23,42,.07)}
+@media (prefers-color-scheme:dark){:root{--bg:#0B0F1A;--card:#121828;--bg2:#1A2133;--ink:#F1F5F9;--muted:#94A3B8;--line:#243049;--sh:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35)}}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Plus Jakarta Sans",-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+h1,h2,h3,p{margin:0}button,a{font:inherit}
+.w{max-width:960px;margin:0 auto;padding:18px 16px 48px}
+.top{display:flex;align-items:center;gap:10px;font-weight:800;font-size:22px;letter-spacing:-.04em;color:var(--ink);text-decoration:none}.top img{width:36px;height:36px;border-radius:10px}.top b::after{content:'.';color:var(--acc)}
+.hero{margin-top:18px;border-radius:28px;padding:clamp(24px,5vw,44px);color:#fff;display:grid;grid-template-columns:1.2fr .8fr;gap:28px;align-items:center;
+ background:radial-gradient(90% 120% at 100% 0%,rgba(255,159,28,.35) 0,rgba(255,159,28,0) 55%),linear-gradient(135deg,#0F172A 0%,#1E293B 70%,#27344D 100%);box-shadow:var(--sh)}
+.eyebrow{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);background:rgba(255,159,28,.14);padding:5px 10px;border-radius:8px}
+.hero h1{font-size:clamp(30px,5.5vw,50px);line-height:1.05;font-weight:800;letter-spacing:-.04em;margin:14px 0 10px}
+.hero p{color:#CBD5E1;max-width:36ch}
+.cta{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
+.btn{border:0;border-radius:14px;padding:13px 22px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+.btn.acc{background:var(--acc);color:#1A1206}.btn.ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}
+.btn.alt{background:var(--bg2);color:var(--ink)}.btn.dark{background:var(--ink);color:var(--bg)}
+.qr{background:#fff;border-radius:24px;padding:18px;text-align:center;color:#0F172A;box-shadow:0 20px 40px rgba(0,0,0,.3)}
+.qr svg{width:100%;height:auto;display:block}.qr small{display:block;font-weight:700;margin-top:8px;font-size:13px}
+.note{margin-top:14px;background:rgba(255,159,28,.14);color:#FFD08A;border-radius:14px;padding:12px 14px;font-size:14px}
+.sec{margin-top:28px}.sec h2{font-size:22px;font-weight:800;letter-spacing:-.03em;margin-bottom:12px}
+.tabs{display:inline-flex;background:var(--card);border-radius:14px;padding:4px;box-shadow:var(--sh)}
+.tabs button{border:0;background:none;padding:9px 18px;border-radius:11px;font-weight:700;color:var(--muted);cursor:pointer}.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+.steps{list-style:none;padding:0;margin:14px 0 0;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;counter-reset:s}
+.steps li{background:var(--card);border-radius:20px;padding:18px;box-shadow:var(--sh);counter-increment:s}
+.steps li::before{content:counter(s);display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--acc);color:#1A1206;font-weight:800;margin-bottom:10px}
+.steps b{display:block;margin-bottom:4px}.steps span{color:var(--muted);font-size:14px}
+.ic{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:7px;background:var(--bg2);vertical-align:-7px;margin:0 2px}.ic svg{width:16px;height:16px}
+.why{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.why div{background:var(--card);border-radius:20px;padding:16px;box-shadow:var(--sh);font-weight:700}.why small{display:block;font-weight:500;color:var(--muted);font-size:13px;margin-top:2px}
+.share{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.done{display:none}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:12px;font-weight:600}
+@media (max-width:720px){.hero{grid-template-columns:1fr}.qr{max-width:260px}.steps,.why{grid-template-columns:1fr}}
+/* Poster when printed */
+.poster{display:none}
+@media print{body{background:#fff}.w{display:none}.poster{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:95vh;color:#0F172A;font-family:"Plus Jakarta Sans",sans-serif}
+ .poster h1{font-size:54px;font-weight:800;letter-spacing:-.04em;line-height:1.05}.poster h1 i{font-style:normal;color:#FF9F1C}.poster p{font-size:22px;margin:12px 0 26px;color:#334155}
+ .poster .pq{width:360px}.poster .pq svg{width:100%;height:auto}.poster .u{font-size:22px;font-weight:800;margin-top:14px}.poster ol{text-align:left;font-size:17px;margin-top:22px;color:#334155}
+ @page{margin:14mm}}
+</style>
+</head>
+<body>
+<div class="w">
+  <a class="top" href="/"><img src="/icons/icon-192-v2.png" alt=""><b>Stall</b></a>
+  <div class="hero">
+    <div>
+      <span class="eyebrow">Free · No Play Store needed</span>
+      <h1>Get Stall on your phone.</h1>
+      <p>Buy and sell on campus from your home screen. It opens full-screen like any other app and takes almost no space.</p>
+      <div class="cta" id="cta">
+        <button class="btn acc" id="installBtn" hidden>Install Stall</button>
+        <a class="btn acc" id="howBtn" href="#steps">Show me how</a>
+        <a class="btn ghost" href="/">Open Stall</a>
+      </div>
+      <p class="note" id="note" hidden></p>
+    </div>
+    <div class="qr"><div id="qrBig"></div><small>Scan with your phone camera</small></div>
+  </div>
+
+  <div class="sec" id="steps">
+    <h2>How to install</h2>
+    <div class="tabs" role="tablist"><button role="tab" id="tA" aria-selected="true">Android</button><button role="tab" id="tI" aria-selected="false">iPhone</button></div>
+    <ol class="steps" id="sA">
+      <li><b>Open in Chrome</b><span>Open this page in Chrome on your phone.</span></li>
+      <li><b>Tap Install</b><span>Tap <b style="display:inline">Install Stall</b> above, or tap <span class="ic">⋮</span> then <b style="display:inline">Install app</b> (or <b style="display:inline">Add to Home screen</b>).</span></li>
+      <li><b>Open from your home screen</b><span>Look for the navy <b style="display:inline">S.</b> icon and sign in.</span></li>
+    </ol>
+    <ol class="steps" id="sI" hidden>
+      <li><b>Open in Safari</b><span>This only works in Safari. In another browser, copy the link and paste it into Safari.</span></li>
+      <li><b>Tap Share, then Add to Home Screen</b><span>Tap <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></span> at the bottom, scroll down and choose <b style="display:inline">Add to Home Screen</b>, then <b style="display:inline">Add</b>.</span></li>
+      <li><b>Open from your home screen</b><span>Look for the navy <b style="display:inline">S.</b> icon and sign in.</span></li>
+    </ol>
+  </div>
+
+  <div class="sec"><h2>Why install?</h2>
+    <div class="why"><div>One tap away<small>Opens straight from your home screen</small></div><div>Full screen<small>No browser bars, feels like a real app</small></div><div>Always up to date<small>New features arrive automatically</small></div></div>
+  </div>
+
+  <div class="sec"><h2>Share Stall</h2>
+    <p style="color:var(--muted)">Tell your friends, your hostel or your customers. Vendors can print the poster for their stall.</p>
+    <div class="share"><a class="btn dark" id="waBtn" target="_blank" rel="noopener">Share on WhatsApp</a><button class="btn alt" id="copyBtn">Copy link</button><button class="btn alt" id="printBtn">Print poster</button></div>
+  </div>
+</div>
+
+<div class="poster" aria-hidden="true">
+  <h1>Buy &amp; sell on campus<br>with Stall<i>.</i></h1>
+  <p>Textbooks, gadgets, food and hostel essentials from ACU students and campus shops.</p>
+  <div class="pq" id="qrPoster"></div>
+  <div class="u" id="posterUrl"></div>
+  <ol><li>Scan the code with your phone camera</li><li>Tap <b>Install</b> (Android) or <b>Share → Add to Home Screen</b> (iPhone)</li><li>Sign up with your matric number</li></ol>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+<script src="/qr.js"></script>
+<script>
+const $=s=>document.querySelector(s),link=location.origin+'/install',home=location.origin+'/';
+const ua=navigator.userAgent,ios=/iphone|ipad|ipod/i.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1),iosOther=ios&&/CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(ua);
+const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2200)}
+function qrSvg(el,text){try{const q=qrcode(0,'M');q.addData(text);q.make();el.innerHTML=q.createSvgTag({cellSize:8,margin:2,scalable:true})}catch(e){el.textContent=text}}
+qrSvg($('#qrBig'),link);qrSvg($('#qrPoster'),link);$('#posterUrl').textContent=link.replace(/^https?:\/\//,'');
+function tab(i){$('#tA').setAttribute('aria-selected',!i);$('#tI').setAttribute('aria-selected',!!i);$('#sA').hidden=!!i;$('#sI').hidden=!i}
+$('#tA').onclick=()=>tab(0);$('#tI').onclick=()=>tab(1);if(ios)tab(1);
+const note=m=>{$('#note').textContent=m;$('#note').hidden=false};
+if(standalone){note('You already have Stall installed. Open it from your home screen.');$('#howBtn').hidden=true}
+else if(iosOther)note('On iPhone, Stall can only be installed from Safari. Tap "Copy link" below and paste it into Safari.');
+let dip=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;$('#installBtn').hidden=false;$('#howBtn').hidden=true});
+$('#installBtn').onclick=async()=>{if(!dip)return;dip.prompt();const r=await dip.userChoice.catch(()=>({}));dip=null;$('#installBtn').hidden=true;if(r&&r.outcome==='accepted')note('Installing… look for the Stall icon on your home screen.');else $('#howBtn').hidden=false};
+addEventListener('appinstalled',()=>{note('Stall is installed. Open it from your home screen.');$('#installBtn').hidden=true});
+$('#waBtn').href='https://wa.me/?text='+encodeURIComponent('Buy and sell on campus with Stall. Get the app here: '+link);
+$('#copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(link);toast('Link copied')}catch(e){prompt('Copy this link',link)}};
+$('#printBtn').onclick=()=>print();
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+</script>
+</body>
+</html>
