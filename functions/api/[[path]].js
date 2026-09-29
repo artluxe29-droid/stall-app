@@ -92,6 +92,12 @@ export async function onRequest({request,env,params,waitUntil}){
     if(u.status==='suspended')return J({error:'This account has been suspended. Contact the Stall team if you think this is a mistake.'},403);
     return J({user:pub(u)},200,{'set-cookie':await start(env,u.id)});
   }
+  if(path==='password'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);
+    const b=await request.json().catch(()=>({})),pw=String(b.password||'');
+    if(await pbk(String(b.old||''),u.salt)!==u.pw)return J({error:'Your current password is wrong.'},400);
+    if(pw.length<8||pw.length>100)return J({error:'Use at least 8 characters.'},400);
+    const salt=rnd(16),t=cookie(request,'stall_s');await env.DB.prepare('UPDATE users SET salt=?,pw=? WHERE id=?').bind(salt,await pbk(pw,salt),u.id).run();
+    await env.DB.prepare('DELETE FROM sessions WHERE uid=? AND h!=?').bind(u.id,await sha(t)).run();return J({ok:true})}
   if(path==='logout'){const t=cookie(request,'stall_s');if(t)await env.DB.prepare('DELETE FROM sessions WHERE h=?').bind(await sha(t)).run();return J({ok:true},200,{'set-cookie':'stall_s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'})}
   if(path==='me'){const u=await me(env,request);return u?J({user:pub(u)}):J({error:'Not signed in'},401)}
   if(path==='listings'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);waitUntil(dailyCleanup(env));
@@ -293,6 +299,11 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       await env.DB.prepare('UPDATE users SET status=? WHERE id=?').bind(b.status,t.id).run();
       if(b.status==='suspended')await env.DB.prepare('DELETE FROM sessions WHERE uid=?').bind(t.id).run();await bump();
       await logA(env,a,'account',b.status==='suspended'?'suspended':t.status==='pending'?'approved vendor':'reactivated',(t.biz?t.biz+' ('+t.name+')':t.name)+' · '+t.phone,{detail:b.reason});return J({ok:true})}
+    if(path==='admin/reset-password'&&request.method==='POST'){const t=await env.DB.prepare('SELECT id,name,phone,is_admin FROM users WHERE id=?').bind(+b.id).first();
+      if(!t)return J({error:'Account not found.'},404);if(t.is_admin)return J({error:"Admin passwords can't be reset here."},400);
+      const A='abcdefghjkmnpqrstuvwxyz23456789',pw=[...crypto.getRandomValues(new Uint8Array(10))].map(x=>A[x%31]).join(''),salt=rnd(16);
+      await env.DB.prepare('UPDATE users SET salt=?,pw=? WHERE id=?').bind(salt,await pbk(pw,salt),t.id).run();await env.DB.prepare('DELETE FROM sessions WHERE uid=?').bind(t.id).run();
+      await logA(env,a,'account','reset password',t.name+' · '+t.phone);return J({ok:true,password:pw,name:t.name})}
     if(path==='admin/log'&&request.method==='GET'){const k=url.searchParams.get('kind'),w=[],v=[];if(['payment','account','other'].includes(k)){w.push('kind=?');v.push(k)}
       if(/^#?\d+$/.test(q)){w.push('oid=?');v.push(+q.replace('#',''))}else if(q){w.push('(who LIKE ? OR target LIKE ? OR action LIKE ? OR detail LIKE ?)');v.push(like,like,like,like)}
       return list('admin_log','id,t,who,kind,action,oid,target,detail',w,v,'id DESC')}
