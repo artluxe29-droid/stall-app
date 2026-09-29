@@ -274,6 +274,9 @@ footer{background:transparent}
 @media (max-width:560px){.promo{flex-direction:column;align-items:flex-start}.promo .row{flex-wrap:nowrap}.promo .row .pill{padding:12px 16px;white-space:nowrap}.pa{display:none}.trust{display:flex;overflow-x:auto;scrollbar-width:none;gap:8px}.trust div{flex:none;padding:10px 12px;font-size:13px}
   .grid{grid-template-columns:1fr 1fr;gap:12px}.tile{height:140px;margin:6px 6px 0;border-radius:15px}.cb{padding:10px 11px 12px}.card h3{font-size:14px}.price{font-size:16px}.cf .pill{padding:8px 10px;font-size:13px}
   .hrow{grid-auto-columns:46%}}
+.appcard{display:flex;align-items:center;gap:12px;margin-top:12px;background:var(--card);border-radius:20px;padding:12px 14px;box-shadow:var(--sh)}
+.appcard img{width:44px;height:44px;border-radius:12px;flex:none}.appcard div{flex:1;min-width:0}.appcard b{display:block;font-weight:800}.appcard small{color:var(--muted);font-size:13px}
+.appcard .x{background:none;border:0;color:var(--muted);font-size:20px;padding:4px 6px}
 </style>
 </head>
 <body>
@@ -298,6 +301,7 @@ footer{background:transparent}
       <div class="pa" aria-hidden="true"><span>📚</span><span>🎧</span><span>👟</span><span>🍲</span></div>
     </div>
     <div class="trust"><div><i>🎓</i><span>ACU only<small>Verified students and shops</small></span></div><div><i>🛡️</i><span>Checked payments<small>Stall confirms every transfer</small></span></div><div><i>📍</i><span>Collect on campus<small>Meet at a spot you choose</small></span></div></div>
+    <div class="appcard" id="appCard" hidden><img src="/icons/icon-192-v2.png" alt=""><div><b>Get the Stall app</b><small>Free · on your home screen</small></div><button class="pill sm" id="installGo">Install</button><button class="x" id="installX" aria-label="Hide">×</button></div>
     <div class="sec"><h3>Categories</h3><button class="see" id="toStores">Browse stores →</button></div>
     <div class="cats" id="hchips"></div>
   </div>
@@ -577,6 +581,9 @@ document.addEventListener('click',e=>{
   const id0=t.id||(c('button')||{}).id,id={tbShop:'navShop',tbStores:'navStores',tbOrders:'navOrders',accSelling:'navSelling',accVerify:'verifyBtn',accPw:'pwBtn',accAdmin:'adminBtn',accOut:'signOut'}[id0]||id0;
   if(/^acc/.test(id0)&&$('#accDlg').open)$('#accDlg').close();
   if(id0==='tbMe')openAccount();
+  if(id0==='installGo'||id0==='accInstall')doInstall();
+  if(id0==='accShare')location.href='/install';
+  if(id0==='installX'){try{localStorage.setItem('stall:hideInstall','1')}catch(e){}drawInstall()}
   if(id0==='tbSell'){S.user&&S.user.role==='vendor'?(myStore()?storePage(myStore().id):view('stores')):$('#sellBtn').click()}
   if(id==='bagBtn')openCart();
   if(id==='goCheckout')openCheckout();
@@ -604,10 +611,17 @@ document.addEventListener('click',e=>{
   if(id==='addItem')$('#itemDlg').showModal();
   if(id==='shopNow'){$('#browse').scrollIntoView()}
 });
+// Install as an app: one-tap prompt on Android/Chrome, guide page on iPhone.
+let DIP=null;const IOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
+const APPMODE=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,canInstall=()=>!APPMODE()&&(!!DIP||IOS);
+function drawInstall(){let hid=false;try{hid=localStorage.getItem('stall:hideInstall')==='1'}catch(e){}$('#appCard').hidden=!canInstall()||hid}
+async function doInstall(){if(!DIP){location.href='/install';return}DIP.prompt();const r=await DIP.userChoice.catch(()=>({}));DIP=null;drawInstall();if(r&&r.outcome==='accepted')toast('Installing Stall…')}
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();DIP=e;drawInstall()});
+addEventListener('appinstalled',()=>{DIP=null;drawInstall();toast('Stall is installed. Open it from your home screen.')});
 function openAccount(){const u=S.user,d=$('#accDlg');if(!u)return;const ns=NEWS.filter(x=>x.side==='sell').length;
   const row=(id,ic,l,sub)=>`<button class="line" id="${id}" style="width:100%;background:none;border:0;border-bottom:1px solid var(--line);text-align:left;font:inherit;color:inherit"><div class="mini" style="background:var(--bg2);width:44px;height:44px;border-radius:14px;font-size:20px">${ic}</div><div class="t"><b>${l}</b>${sub?`<span class="meta">${sub}</span>`:''}</div><span class="meta">›</span></button>`;
   d.innerHTML=`<div class="pad"><div style="display:flex;gap:14px;align-items:center"><div class="sav" style="width:60px;height:60px;margin:0;font-size:26px;border:0;background:var(--bg2)">${esc((u.name||'?')[0])}</div><div><h2 style="margin:0;font-size:22px">${esc(u.name)}</h2><p class="meta">${u.role==='vendor'?'Campus vendor':esc(u.matric||'')} ${u.verified?VB:''}</p></div></div>
-   <div style="margin-top:14px">${row('accSelling','📦','Orders to fulfil',ns?ns+' new':'Things people bought from you')}${u.verified?'':row('accVerify','✅','Get verified','Show buyers a ✓ badge')}${row('accPw','🔒','Change password','')}${u.admin||u.reviewer?row('accAdmin','🛠️',u.admin?'Admin':'Review payments',''):''}${row('accOut','↩︎','Sign out','')}</div>
+   <div style="margin-top:14px">${row('accSelling','📦','Orders to fulfil',ns?ns+' new':'Things people bought from you')}${u.verified?'':row('accVerify','✅','Get verified','Show buyers a ✓ badge')}${canInstall()?row('accInstall','📲','Install the app','Add Stall to your home screen'):''}${row('accShare','📣','Share Stall','QR code and poster for friends and customers')}${row('accPw','🔒','Change password','')}${u.admin||u.reviewer?row('accAdmin','🛠️',u.admin?'Admin':'Review payments',''):''}${row('accOut','↩︎','Sign out','')}</div>
    <div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;d.showModal()}
 function openVerify(){const d=$('#verDlg'),u=S.user,st=u.verify;
   d.innerHTML=`<div class="pad"><h2>Verified seller ✓</h2><p class="meta">A green ${VB} badge on your listings and store tells buyers Stall has checked who you are. One-off fee of ${naira(PRICE.verify)}, paid only after we approve you.</p>
@@ -897,6 +911,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-hc]');if(b
     S.refs.push(ref);save();
     p.kind==='store'?makeStore(p.d,ref):place({get:k=>p.f[k]},L)}
   catch(e){toast('Could not confirm payment. If you were charged, contact Stall support.')}})();
+drawInstall();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 </script>
 </body>
