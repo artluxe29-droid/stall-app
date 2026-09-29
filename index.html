@@ -216,7 +216,7 @@ dialog.adm[open]{display:flex;flex-direction:column}
 <section id="store" hidden></section>
 <section id="orders" hidden><div class="wrap" style="padding-top:36px;max-width:720px"><h2 style="font-size:40px;letter-spacing:-.035em;margin-bottom:18px">Your orders</h2><div id="orderList"></div></div></section>
 <section id="selling" hidden><div class="wrap" style="padding-top:36px;max-width:720px"><h2 style="font-size:40px;letter-spacing:-.035em;margin-bottom:18px">Orders to fulfil</h2><div id="sellingList"></div></div></section>
-<footer><span id="who"></span> <button class="link" id="signOut" hidden>Sign out</button> <button class="link" id="adminBtn" hidden>Admin</button><br>Stall connects ACU students and campus shops. Buyers pay sellers directly by bank transfer and Stall checks each payment before issuing a release code. Never hand over an item, or accept one, without a valid Stall release code.</footer>
+<footer><span id="who"></span> <button class="link" id="pwBtn" hidden>Change password</button> <button class="link" id="signOut" hidden>Sign out</button> <button class="link" id="adminBtn" hidden>Admin</button><br>Stall connects ACU students and campus shops. Buyers pay sellers directly by bank transfer and Stall checks each payment before issuing a release code. Never hand over an item, or accept one, without a valid Stall release code.</footer>
 
 <dialog id="itemDlg"><div class="pad"><h2>Add item</h2><form id="itemForm" method="dialog">
  <label>Item name<input name="title" required maxlength="60" placeholder="e.g. Jollof rice and chicken"></label>
@@ -240,6 +240,8 @@ dialog.adm[open]{display:flex;flex-direction:column}
 <dialog id="cart" class="drawer"></dialog>
 <dialog id="checkout"></dialog>
 <dialog id="adminDlg"></dialog>
+<dialog id="pwDlg"><form class="pad" id="pwForm"><h2>Change password</h2><label>Current password<input name="old" type="password" autocomplete="current-password" required></label><label>New password<input name="pw" type="password" autocomplete="new-password" minlength="8" required></label><span class="err" id="pwErr"></span>
+ <div class="acts"><button class="pill" type="submit">Save</button><button class="pill alt" type="button" data-close>Cancel</button></div></form></dialog>
 <dialog id="done"></dialog>
 <dialog id="sell"><div class="pad"><h2>Sell an item</h2>
  <form id="form" method="dialog">
@@ -263,23 +265,15 @@ const CATS=[
  {id:'fashion',name:'Fashion',e:'👟',c:'linear-gradient(135deg,#FFD3E0,#FFA9C2)'},{id:'hostel',name:'Hostel gear',e:'🛏️',c:'linear-gradient(135deg,#D5F5DC,#A5E6B5)'},
  {id:'food',name:'Food',e:'🍿',c:'linear-gradient(135deg,#FFF0B0,#FFE070)'},{id:'services',name:'Services',e:'✂️',c:'linear-gradient(135deg,#E3D9FF,#C4B0FF)'}];
 const H=36e5,now=Date.now();
-const SEED=[
- {id:'s1',title:'Engineering Mathematics (Stroud), 6th ed.',price:6500,cat:'books',cond:'Used',spot:'Library steps',desc:'Clean pages, light highlighting in the first three chapters.',seller:'Tunde',t:now-2*H},
- {id:'s2',title:'Rechargeable standing fan',price:18000,cat:'hostel',cond:'Like new',spot:'Hostel gate',desc:'Lasts a full night on one charge. Comes with charger.',seller:'Amara',t:now-5*H},
- {id:'s3',title:'Casio fx-991 scientific calculator',price:9500,cat:'tech',cond:'Used',spot:'Faculty of Engineering',desc:'Works perfectly. Cover included.',seller:'Ife',t:now-9*H},
- {id:'s4',title:'Air Force style sneakers, size 43',price:22000,cat:'fashion',cond:'Like new',spot:'Main gate',desc:'Worn twice. Original box.',seller:'Kelechi',t:now-20*H},
- {id:'s5',title:'Homemade chin chin, 1 litre',price:2500,cat:'food',cond:'New',spot:'Cafeteria',desc:'Fresh batch every Friday. Order a day ahead.',seller:'Bisi',t:now-26*H},
- {id:'s6',title:'Barbing at your hostel room',price:2000,cat:'services',cond:'New',spot:'Your room',desc:'Clean cuts, own clippers. Evenings and weekends.',seller:'Dami',t:now-30*H},
- {id:'s7',title:'Bluetooth headphones',price:14000,cat:'tech',cond:'Used',spot:'Library steps',desc:'Good battery, small scratch on the left cup.',seller:'Chuka',t:now-48*H},
- {id:'s8',title:'Anatomy notes and past questions bundle',price:3000,cat:'books',cond:'Used',spot:'Faculty of Science',desc:'Three sessions of past questions, printed and bound.',seller:'Zainab',t:now-70*H}];
 let S={mine:[],cart:[],orders:[],st:{},me:{},user:null,stores:[]},cat='all',q='',sort='new';
 const $=s=>document.querySelector(s);
 try{Object.assign(S,JSON.parse(localStorage.getItem('stall:v2')||'{}'))}catch(e){}
+S.cart=(S.cart||[]).filter(id=>/^[LI]\d+$/.test(id));
 const save=()=>{try{localStorage.setItem('stall:v2',JSON.stringify(S))}catch(e){toast('Storage is full. Remove some photos.')}};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const naira=n=>'₦'+Number(n).toLocaleString('en-NG');
 const ci=id=>CATS.find(c=>c.id===id)||CATS[0];
-let PUB=[],STORES=[],PTOT=0,PQ=0,SN=24,qT;const LC=new Map(),items=()=>PTOT||q||cat!=='all'?PUB:SEED,get=id=>LC.get(id)||SEED.find(i=>i.id===id)||sItems().find(i=>i.id===id);
+let PUB=[],STORES=[],PTOT=0,PQ=0,PLD=0,SN=24,qT;const LC=new Map(),items=()=>PUB,get=id=>LC.get(id)||sItems().find(i=>i.id===id);
 const stat=i=>i.sold?'sold':(S.st[i.id]||'');
 const ago=t=>{const h=Math.round((Date.now()-t)/H);return h<1?'Just now':h<24?h+'h ago':Math.round(h/24)+'d ago'};
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;t.style.animation='none';t.offsetWidth;t.style.animation='';clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2200)}
@@ -294,7 +288,7 @@ function render(){
    <article class="card" data-id="${i.id}"><div class="tile" style="${cv(i)}">${ic(i)}${s?`<span class="tag">${s==='sold'?'Sold':'Reserved'}</span>`:''}</div>
    <div class="cb"><h3>${esc(i.title)}</h3><div class="meta">${esc(i.cond)} · ${esc(i.spot)} · ${ago(i.t)}</div>
    <div class="cf"><span class="price">${naira(i.price)}</span><button class="pill sm ${inC?'alt':''}" data-add="${i.id}" ${s?'disabled':''}>${inC?'In bag':'Add to bag'}</button></div></div></article>`}).join('')
-   :`<div class="empty"><h3>Nothing found</h3><p>Try a different word, or list the item yourself.</p></div>`;
+   :PQ&&!PLD?'':(q||cat!=='all'?`<div class="empty"><h3>Nothing found</h3><p>Try a different word, or list the item yourself.</p></div>`:`<div class="empty"><h3>No listings yet</h3><p>Be the first to sell something on Stall.</p>${S.user&&S.user.role!=='vendor'?'<div class="acts" style="justify-content:center"><button class="pill" id="sellEmpty">Sell something</button></div>':''}</div>`);
   document.querySelectorAll('.card').forEach(c=>io?io.observe(c):c.classList.add('in'));
   document.querySelectorAll('.empty').forEach(()=>{});
 }
@@ -464,7 +458,7 @@ document.addEventListener('click',e=>{
   const id=t.id||(c('button')||{}).id;
   if(id==='bagBtn')openCart();
   if(id==='goCheckout')openCheckout();
-  if(id==='sellBtn'||id==='sellHero'){const f=$('#form').elements;f.seller.value=S.user.name;f.phone.value=S.user.phone;wireBankVerify($('#form'));$('#sell').showModal()}
+  if(id==='sellBtn'||id==='sellHero'||id==='sellEmpty'){const f=$('#form').elements;f.seller.value=S.user.name;f.phone.value=S.user.phone;wireBankVerify($('#form'));$('#sell').showModal()}
   if(id==='gNext'){si++;gate()}
   if(id==='toIn'){authMode='in';gate()}
   if(id==='toUp'){authMode='up';gate()}
@@ -473,6 +467,7 @@ document.addEventListener('click',e=>{
   if(id==='gSkip'){si=SL.length;gate()}
   if(id==='pendRefresh')refreshMe();
   if(id==='adminBtn')openAdmin();
+  if(id==='pwBtn'){$('#pwForm').reset();$('#pwErr').textContent='';$('#pwDlg').showModal()}
   if(id==='more')loadPub(true);
   if(id==='moreStores'){SN+=24;renderStores()}
   if(id==='noticeGo'){view(NEWS.some(x=>x.side==='buy')?'orders':'selling')}
@@ -485,6 +480,8 @@ document.addEventListener('click',e=>{
   if(id==='addItem')$('#itemDlg').showModal();
   if(id==='shopNow'){$('#browse').scrollIntoView()}
 });
+$('#pwForm').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('[type=submit]');b.disabled=true;const r=await apiPost('password',{old:f.elements.old.value,password:f.elements.pw.value});b.disabled=false;
+  if(r.error)return $('#pwErr').textContent=r.error;$('#pwDlg').close();toast('Password changed')};
 $('#q').oninput=e=>{q=e.target.value.trim().toLowerCase();clearTimeout(qT);qT=setTimeout(loadPub,300)};
 $('#sort').onchange=e=>{sort=e.target.value;loadPub()};
 $('#catSel').innerHTML=CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
@@ -495,16 +492,7 @@ $('#form').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),
   if(r.error)return toast(r.error);
   if(f.get('acctName'))S.user.acctSet=true;
   save();e.target.reset();pk1.clear();$('#sell').close();cat='all';await loadPub();toast('Listing posted')};
-const SEED_STORES=[
- {id:'z1',owner:'',name:"Iya Debo's Canteen",emoji:'🍲',cat:'food',desc:'Home-style meals, cooked fresh every day.',spot:'Cafeteria, Stall 4',phone:'',open:true,vendor:true,items:[
-  {id:'z1a',title:'Jollof rice and chicken',price:2500,desc:'Party jollof, fried chicken and plantain.',avail:true},
-  {id:'z1b',title:'Amala, ewedu and gbegiri',price:2000,desc:'Two wraps with assorted meat.',avail:true},
-  {id:'z1c',title:'Fried rice and turkey',price:3000,desc:'Served with coleslaw.',avail:true},
-  {id:'z1d',title:'Zobo, 50cl',price:500,desc:'Chilled.',avail:false}]},
- {id:'z2',owner:'',name:'Bookworm Corner',emoji:'📚',cat:'books',desc:'Notebooks, pens and course stationery.',spot:'Faculty of Science foyer',phone:'',open:true,vendor:true,items:[
-  {id:'z2a',title:'A4 notebook, 80 leaves',price:900,desc:'Hardcover.',avail:true},
-  {id:'z2b',title:'Pen pack (10)',price:1200,desc:'Blue ink.',avail:true}]}];
-const allStores=()=>[...STORES,...SEED_STORES];
+const allStores=()=>STORES;
 const sItems=()=>allStores().flatMap(s=>s.items.map(it=>({...it,cat:s.cat,spot:s.spot,seller:s.name,phone:s.phone||'',multi:true,se:s.emoji,cond:'',t:0})));
 const uid=()=>S.user?(S.user.id||S.user.matric):'';
 const myStore=()=>STORES.find(s=>s.owner===uid());
@@ -514,7 +502,7 @@ function renderStores(){
   $('#openStore').textContent=myStore()?'Manage my store':'Open your store';
   const AS=allStores(),ms=$('#moreStores');ms.hidden=AS.length<=SN;
   $('#storeGrid').innerHTML=AS.slice(0,SN).map(s=>`<article class="card in" data-store="${s.id}"><div class="tile" style="background:${ci(s.cat).c}">${s.emoji}<span class="tag">${s.open?'Open':'Closed'}</span></div>
-   <div class="cb"><h3>${esc(s.name)}</h3><div class="meta">${esc(ci(s.cat).name)} · ${esc(s.spot)}${s.vendor?' · Campus vendor':''}</div><div class="meta">${s.items.filter(i=>i.avail).length} available now</div></div></article>`).join('');
+   <div class="cb"><h3>${esc(s.name)}</h3><div class="meta">${esc(ci(s.cat).name)} · ${esc(s.spot)}${s.vendor?' · Campus vendor':''}</div><div class="meta">${s.items.filter(i=>i.avail).length} available now</div></div></article>`).join('')||`<div class="empty"><h3>No stores yet</h3><p>Campus shops and students can open a store for ₦5,000.</p></div>`;
 }
 function storePage(id){
   cur=id;const s=allStores().find(x=>x.id===id);if(!s)return view('stores');
@@ -593,7 +581,7 @@ async function loadPub(more){if(!S.user)return;const n=++PQ,mo=more===true,need=
   const qs=new URLSearchParams({q,cat,sort,off:mo?PUB.length:0,n:mo?24:Math.min(96,Math.max(24,PUB.length))});
   const[a,b,c]=await Promise.all([fetchJ('/api/listings?'+qs).catch(()=>null),mo?null:fetchJ('/api/stores').catch(()=>null),need.length?fetchJ('/api/listings?ids='+need.join(',')).catch(()=>null):null]);
   $('#more').disabled=false;if(n!==PQ)return;if(c&&c.listings)c.listings.forEach(i=>LC.set(i.id,i));
-  if(a&&a.listings){a.listings.forEach(i=>LC.set(i.id,i));PUB=mo?[...PUB,...a.listings]:a.listings;PTOT=a.total}if(b&&b.stores)STORES=b.stores;if((a&&a.listings)||(b&&b.stores)){refresh();renderStores()}}
+  if(a&&a.listings){a.listings.forEach(i=>LC.set(i.id,i));PUB=mo?[...PUB,...a.listings]:a.listings;PTOT=a.total;PLD=1}if(b&&b.stores)STORES=b.stores;if((a&&a.listings)||(b&&b.stores)){refresh();renderStores()}}
 function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub();pollNews()}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
 const AD={tab:'overview',st:{},sum:{},n:0},OST={pending:['Waiting for payment',''],under_review:['Needs review','warn'],verified:['Paid, awaiting delivery','warn'],released:['Delivered','ok'],expired:['Expired',''],rejected:['Rejected','bad']};
 const ATABS=[['overview','Overview'],['payments','Payments','review'],['orders','Orders'],['vendors','Vendors','vendorsPending'],['payouts','Payouts','banks'],['users','People'],['codes','Codes'],['log','Activity']];
@@ -617,6 +605,9 @@ async function openAdmin(){const d=$('#adminDlg');AD.rev=!S.user.admin;if(AD.rev
     if(b=c('[data-store-go]')){b.disabled=true;const post=b.dataset.storeGo==='clean';if(post&&!confirm('Remove old receipt photos (closed more than 60 days ago), sold listings older than 30 days and unused photos? This cannot be undone.'))return b.disabled=false;
       const r=post?await apiPost('admin/storage',{}):await fetchJ('/api/admin/storage').catch(()=>({error:'Could not reach Stall.'}));b.disabled=false;if(r.error)return toast(r.error);if(post){toast('Space freed');await adminSum()}
       const mb=x=>(x/1048576).toFixed(1)+' MB';$('#storeOut').innerHTML=`<small>${r.photos.toLocaleString()} listing and store photos (${mb(r.photoBytes)}) · ${r.receipts.toLocaleString()} receipt photos (${mb(r.receiptBytes)})</small><small>Last clean-up: ${r.cleanupAt?aAgo(r.cleanupAt):'never'}. It also runs automatically once a day.</small>`;return}
+    if(b=c('[data-apw]')){if(!confirm('Give '+b.dataset.nm+' a new temporary password? Their old password stops working and they are signed out everywhere.'))return;
+      const r=await apiPost('admin/reset-password',{id:+b.dataset.apw});if(r.error)return toast(r.error);const ph=b.dataset.ph,w=ph[0]==='0'?'234'+ph.slice(1):ph;
+      b.closest('.arow').insertAdjacentHTML('afterend',`<div class="codebox"><small>Temporary password for ${esc(r.name)}</small><b>${esc(r.password)}</b><small>Send it only to the phone on their account. They can change it from "Change password" at the bottom of the app.</small><div class="aacts" style="margin-top:8px"><button class="pill sm alt" type="button" data-copy="${esc(r.password)}">Copy</button><a class="pill sm" target="_blank" rel="noopener" href="https://wa.me/${w}?text=${encodeURIComponent('Hi '+r.name+', your Stall password has been reset. Sign in with your phone number and this temporary password: '+r.password+' . Then tap "Change password" at the bottom of the app to set your own.')}">Send on WhatsApp</a></div></div>`);adminSum();return}
     let r,msg;b=c('[data-aok],[data-avs],[data-abank],[data-aoff],[data-arv]');if(!b)return;
     if(b.dataset.aok){r=await apiPost('admin/orders/decide',{id:+b.dataset.aok,approve:true});msg='Payment approved, release code sent to buyer'}
     else if(b.dataset.avs){const to=b.dataset.to;if(to==='suspended'&&!confirm('Suspend this account? They will be signed out, their listings and store will be hidden, and they cannot sign in until you reactivate them.'))return;r=await apiPost('admin/status',{id:+b.dataset.avs,status:to});msg=to==='active'?'Account active':'Account suspended'}
@@ -672,7 +663,7 @@ function aVendor(x){const[l,kk]={active:['Approved','ok'],pending:['Waiting for 
 function aUser(x){const st=x.role==='vendor';
   return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(st&&x.biz?x.biz+' ('+x.name+')':x.name)}</b>${bdg(st?'Vendor':'Student')}${x.is_admin?bdg('Admin','ok'):''}${x.reviewer?bdg('Reviewer','ok'):''}${x.status&&x.status!=='active'?bdg(x.status==='pending'?'Waiting for approval':'Suspended','warn'):''}</div>
    <small>${x.matric?esc(x.matric)+' · ':''}${wa(x.phone)}${x.email?' · '+esc(x.email):''}${x.place?' · '+esc(x.place):''}</small><small>Joined ${aAgo(x.created)}</small></div>
-   <div class="aacts">${x.is_admin?'':`<button class="pill sm alt" data-arv="${esc(x.phone)}" data-add="${x.reviewer?0:1}">${x.reviewer?'Remove reviewer':'Make reviewer'}</button>${x.status==='suspended'?`<button class="pill sm" data-avs="${x.id}" data-to="active">Reactivate</button>`:`<button class="pill sm red" data-avs="${x.id}" data-to="suspended">Suspend</button>`}`}</div></div>`}
+   <div class="aacts">${x.is_admin?'':`<button class="pill sm alt" data-arv="${esc(x.phone)}" data-add="${x.reviewer?0:1}">${x.reviewer?'Remove reviewer':'Make reviewer'}</button><button class="pill sm alt" data-apw="${x.id}" data-nm="${esc(x.name)}" data-ph="${esc(x.phone)}">Reset password</button>${x.status==='suspended'?`<button class="pill sm" data-avs="${x.id}" data-to="active">Reactivate</button>`:`<button class="pill sm red" data-avs="${x.id}" data-to="suspended">Suspend</button>`}`}</div></div>`}
 function aLog(x){const k={payment:['Payment','warn'],account:['Account',''],other:['Other','']}[x.kind]||['',''];
   return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.who||'Automatic')}</b> <span>${esc(x.action)}</span>${bdg(k[0],k[1])}</div><small>${esc(x.target||'')}</small>${x.detail?`<small>${esc(x.detail)}</small>`:''}<small>${new Date(x.t).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'})} · ${aAgo(x.t)}</small></div></div>`}
 function aCode(x){const[l,kk]=x.biz?['Used by '+x.biz,'ok']:x.active?['Not used yet','warn']:['Turned off',''];
@@ -692,7 +683,7 @@ function loginGate(g){g.innerHTML=`<div class="gin" style="text-align:left"><h1 
     if(r.error){f.querySelector('[data-e=id]').textContent=r.error;return}
     S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();loadPub();view('shop');toast('Welcome back, '+(S.user.biz||S.user.name.split(' ')[0]))}}
 function gate(){
-  const g=$('#gate');$('#who').textContent=S.user?`Signed in as ${S.user.name} (${S.user.role==='vendor'?'campus vendor':S.user.matric}).`:'';$('#signOut').hidden=!S.user;$('#adminBtn').hidden=!(S.user&&(S.user.admin||S.user.reviewer));$('#adminBtn').textContent=S.user&&S.user.admin?'Admin':'Review orders';
+  const g=$('#gate');$('#who').textContent=S.user?`Signed in as ${S.user.name} (${S.user.role==='vendor'?'campus vendor':S.user.matric}).`:'';$('#signOut').hidden=!S.user;$('#pwBtn').hidden=!S.user;$('#adminBtn').hidden=!(S.user&&(S.user.admin||S.user.reviewer));$('#adminBtn').textContent=S.user&&S.user.admin?'Admin':'Review orders';
   const isV=!!S.user&&S.user.role==='vendor';$('#sellBtn').hidden=isV;$('#sellHero').hidden=isV;
   if(S.user&&S.user.role==='vendor'&&S.user.status&&S.user.status!=='active'){g.hidden=false;g.scrollTo(0,0);const sus=S.user.status==='suspended';
     g.innerHTML=`<div class="gin"><h1>${sus?'Account suspended':'Waiting for approval'}</h1><p>${sus?'Your shop has been suspended. Message the Stall team to find out why.':'Thanks for signing up, '+esc(S.user.biz)+'. The Stall team has been told and will approve your shop shortly. Tap below to check again.'}</p><div class="acts"><button class="pill" id="pendRefresh">Check again</button></div><p style="margin-top:14px"><button class="link" id="pendOut">Sign out</button></p></div>`;return}
