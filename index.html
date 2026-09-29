@@ -173,6 +173,14 @@ dialog.adm[open]{display:flex;flex-direction:column}
 .codebox{background:var(--bg2);border-radius:16px;padding:14px 16px;margin:6px 0 12px}
 .codebox small{color:var(--muted)}.codebox b{display:block;font-size:26px;letter-spacing:1px;margin:2px 0 10px}
 @media (max-width:560px){dialog.adm{width:100%;height:100%;max-height:100%;border-radius:0}.ah,.ab{padding-left:16px;padding-right:16px}.arow{flex-wrap:wrap}.arow .aacts{width:100%}.arow .aacts .pill{flex:1}}
+.more{display:flex;justify-content:center;margin-top:22px}.more .pill{min-width:220px}
+.ndot{display:inline-block;width:8px;height:8px;border-radius:4px;background:#E5484D;margin-left:5px;vertical-align:2px}
+.notice{max-width:1080px;margin:12px auto 0;padding:0 18px}
+.notice>div{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:12px 16px;font-size:15px}
+.upd{background:var(--bg2);border-radius:16px;padding:14px 16px;margin-bottom:16px}
+.upd p{font-size:15px;padding:6px 0;border-bottom:1px solid var(--line)}.upd p:last-child{border-bottom:0}
+.onote{font-size:14px;margin-top:8px;padding:8px 12px;border-radius:12px;background:var(--bg)}
+.onote.bad{color:#E5484D}
 </style>
 </head>
 <body>
@@ -180,11 +188,12 @@ dialog.adm[open]{display:flex;flex-direction:column}
   <button class="logo" id="home">Stall</button>
   <button class="nl" id="navShop">Shop</button>
   <button class="nl" id="navStores">Stores</button>
-  <button class="nl" id="navOrders">Orders</button>
-  <button class="nl" id="navSelling">Selling</button>
+  <button class="nl" id="navOrders">Orders<i class="ndot" hidden></i></button>
+  <button class="nl" id="navSelling">Selling<i class="ndot" hidden></i></button>
   <button class="nl hide" id="sellBtn">Sell</button>
   <button class="nl bag" id="bagBtn" aria-label="Open bag"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8V6a3 3 0 016 0v2"/></svg><b id="badge" hidden>0</b></button>
 </div></nav>
+<div id="notice" class="notice" role="status" hidden></div>
 
 <section id="shop">
   <div class="hero">
@@ -199,10 +208,11 @@ dialog.adm[open]{display:flex;flex-direction:column}
       <select class="sort" id="sort" aria-label="Sort"><option value="new">Newest</option><option value="lo">Price: low to high</option><option value="hi">Price: high to low</option></select></div>
     <div class="chips" id="chips"></div>
     <div class="grid" id="grid"></div>
+    <div class="more"><button class="pill alt" id="more" hidden>Show more</button></div>
   </div>
 </section>
 
-<section id="stores" hidden><div class="wrap" style="padding-top:36px"><div class="bar2"><h2 style="font-size:40px;letter-spacing:-.035em">Campus stores</h2><button class="pill sm" id="openStore">Open your store</button></div><div class="grid" id="storeGrid"></div></div></section>
+<section id="stores" hidden><div class="wrap" style="padding-top:36px"><div class="bar2"><h2 style="font-size:40px;letter-spacing:-.035em">Campus stores</h2><button class="pill sm" id="openStore">Open your store</button></div><div class="grid" id="storeGrid"></div><div class="more"><button class="pill alt" id="moreStores" hidden>Show more stores</button></div></div></section>
 <section id="store" hidden></section>
 <section id="orders" hidden><div class="wrap" style="padding-top:36px;max-width:720px"><h2 style="font-size:40px;letter-spacing:-.035em;margin-bottom:18px">Your orders</h2><div id="orderList"></div></div></section>
 <section id="selling" hidden><div class="wrap" style="padding-top:36px;max-width:720px"><h2 style="font-size:40px;letter-spacing:-.035em;margin-bottom:18px">Orders to fulfil</h2><div id="sellingList"></div></div></section>
@@ -269,7 +279,7 @@ const save=()=>{try{localStorage.setItem('stall:v2',JSON.stringify(S))}catch(e){
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const naira=n=>'₦'+Number(n).toLocaleString('en-NG');
 const ci=id=>CATS.find(c=>c.id===id)||CATS[0];
-let PUB=[],STORES=[];const items=()=>[...PUB,...SEED],get=id=>items().find(i=>i.id===id)||sItems().find(i=>i.id===id);
+let PUB=[],STORES=[],PTOT=0,PQ=0,SN=24,qT;const LC=new Map(),items=()=>PTOT||q||cat!=='all'?PUB:SEED,get=id=>LC.get(id)||SEED.find(i=>i.id===id)||sItems().find(i=>i.id===id);
 const stat=i=>i.sold?'sold':(S.st[i.id]||'');
 const ago=t=>{const h=Math.round((Date.now()-t)/H);return h<1?'Just now':h<24?h+'h ago':Math.round(h/24)+'d ago'};
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;t.style.animation='none';t.offsetWidth;t.style.animation='';clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2200)}
@@ -279,8 +289,7 @@ function badge(){const n=S.cart.length,b=$('#badge');b.hidden=!n;b.textContent=n
 function renderChips(){$('#chips').innerHTML=[{id:'all',name:'All'},...CATS].map(c=>`<button class="chip" data-c="${c.id}" aria-pressed="${cat===c.id}">${esc(c.name)}</button>`).join('')}
 function render(){
   renderChips();
-  let l=items().filter(i=>(cat==='all'||i.cat===cat)&&(!q||(i.title+' '+i.desc+' '+i.spot).toLowerCase().includes(q)));
-  l.sort((a,b)=>sort==='lo'?a.price-b.price:sort==='hi'?b.price-a.price:b.t-a.t);
+  const l=items(),mo=$('#more');mo.hidden=!(PTOT>PUB.length&&l===PUB);mo.textContent=`Show more (${(PTOT-PUB.length).toLocaleString()} more)`;
   $('#grid').innerHTML=l.length?l.map(i=>{const c=ci(i.cat),s=stat(i),inC=S.cart.includes(i.id);return `
    <article class="card" data-id="${i.id}"><div class="tile" style="${cv(i)}">${ic(i)}${s?`<span class="tag">${s==='sold'?'Sold':'Reserved'}</span>`:''}</div>
    <div class="cb"><h3>${esc(i.title)}</h3><div class="meta">${esc(i.cond)} · ${esc(i.spot)} · ${ago(i.t)}</div>
@@ -335,7 +344,7 @@ function openCart(){
   if(!d.open)d.showModal();
 }
 function openDetail(id){
-  const i=get(id);if(!i)return;const c=ci(i.cat),s=stat(i),own=PUB.some(m=>m.id===id&&m.mine),d=$('#detail');
+  const i=get(id);if(!i)return;const c=ci(i.cat),s=stat(i),own=!!(LC.get(id)||{}).mine,d=$('#detail');
   d.innerHTML=`${gal(i)}<div class="pad"><h2 style="margin-bottom:4px">${esc(i.title)}</h2>
    <p class="price" style="font-size:24px;margin:6px 0 12px">${naira(i.price)}</p><p>${esc(i.desc||'No extra details.')}</p>
    <p class="meta" style="margin-top:12px">${esc(i.cond)} · Meet at ${esc(i.spot)} · Sold by ${esc(i.seller)}, ${esc(SCHOOL.short)} student · ${ago(i.t)}</p>
@@ -402,7 +411,7 @@ function orderScreen(o){const d=$('#checkout');
     try{const img=await shrinkReceipt(file);
       const r=await apiPost('orders/receipt',{id:o.id,amount:f.amt.value,ref:f.ref.value,receipt:img});
       if(r.error){sb.disabled=false;$('#rcErr').textContent=r.error;return}
-      const oo=await loadOne(o.id);orderScreen(oo)}
+      if(r.verified)markSeen('b');const oo=await loadOne(o.id);orderScreen(oo)}
     catch(x){sb.disabled=false;$('#rcErr').textContent='Could not read that photo. Try another.'}}}
 function shrinkReceipt(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.8))};im.onerror=rej;im.src=r.result};r.onerror=rej;r.readAsDataURL(file)})}
 async function loadOne(id){const r=await fetchJ('/api/orders/mine');return (r.orders||[]).find(x=>x.id===id)}
@@ -415,19 +424,22 @@ async function startCheckout(items){const b=$('#goPay');if(b){b.disabled=true;b.
 function orderCard(o,seller){const badge=o.status==='pending'?'Awaiting payment':o.status==='under_review'?'Under review':o.status==='verified'?'Verified ✓':o.status==='released'?'Completed':o.status==='rejected'?'Rejected':'Expired';
   return `<div class="order"><div class="top"><b>${esc(o.title)} · ${esc(seller?o.buyerName:o.sellerName)}</b><span class="status ${o.status==='released'?'done':''}">${badge}</span></div>
    <div class="meta">${naira(o.amount)} · ${ago(o.deadline-19*60*1000)}</div>
+   ${o.status==='rejected'?`<div class="onote bad">Payment not accepted${o.note?': '+esc(o.note):''}.${seller?'':' If you did pay, contact the seller or the Stall team.'}</div>`:''}
+   ${o.status==='under_review'?`<div class="onote">${seller?'The buyer has sent a receipt. Stall is checking the payment. Don\'t hand over the item yet.':'Stall is checking your receipt. You will see the result here, usually within a few hours.'}</div>`:''}
+   ${seller&&o.status==='verified'?'<div class="onote">Payment confirmed by Stall. Hand over the item when the buyer gives you their release code.</div>':''}
    ${!seller&&o.status==='pending'?`<div class="acts"><button class="pill sm" data-payid="${o.id}">Pay now</button></div>`:''}
    ${!seller&&o.status==='verified'?`<div class="acts"><button class="pill sm" data-showcode="${o.id}">Show release code</button></div>`:''}
    ${seller&&o.status==='verified'?`<form data-codeform="${o.id}" class="acts" style="gap:8px"><input name="code" placeholder="STALL-XXXXXX" style="flex:1" required><button class="pill sm" type="submit">Release</button></form>`:''}
    </div>`}
-async function renderOrders(){const r=await fetchJ('/api/orders/mine').catch(()=>({}));const L=r.orders||[];
-  $('#orderList').innerHTML=L.length?L.map(o=>orderCard(o,false)).join(''):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>When you buy something, it shows up here.</p><div class="acts" style="justify-content:center"><button class="pill" id="toShop">Start shopping</button></div></div>`;
+async function renderOrders(){const r=await fetchJ('/api/orders/mine').catch(()=>({}));const L=r.orders||[],up=updBox('buy');markSeen('b');
+  $('#orderList').innerHTML=up+(L.length?L.map(o=>orderCard(o,false)).join(''):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>When you buy something, it shows up here.</p><div class="acts" style="justify-content:center"><button class="pill" id="toShop">Start shopping</button></div></div>`);
   $('#orderList').querySelectorAll('[data-payid]').forEach(b=>b.onclick=async()=>{const o=(L).find(x=>x.id==b.dataset.payid);PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)});
   $('#orderList').querySelectorAll('[data-showcode]').forEach(b=>b.onclick=async()=>{const o=(L).find(x=>x.id==b.dataset.showcode);PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)})}
-async function renderSelling(){const r=await fetchJ('/api/orders/selling').catch(()=>({}));const L=r.orders||[];
-  $('#sellingList').innerHTML=L.length?L.map(o=>orderCard(o,true)).join(''):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>Orders for things you sell show up here.</p></div>`;
+async function renderSelling(){const r=await fetchJ('/api/orders/selling').catch(()=>({}));const L=r.orders||[],up=updBox('sell');markSeen('s');
+  $('#sellingList').innerHTML=up+(L.length?L.map(o=>orderCard(o,true)).join(''):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>Orders for things you sell show up here.</p></div>`);
   $('#sellingList').querySelectorAll('[data-codeform]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();const r=await apiPost('orders/code',{id:f.dataset.codeform,code:f.elements.code.value});
     if(r.error)return toast(r.error);toast('Order released');renderSelling()})}
-function view(v){['shop','stores','store','orders','selling'].forEach(x=>$('#'+x).hidden=x!==v);scrollTo({top:0});if(v==='orders')renderOrders();if(v==='selling')renderSelling();if(v==='stores')renderStores()}
+function view(v){['shop','stores','store','orders','selling'].forEach(x=>$('#'+x).hidden=x!==v);drawNews();scrollTo({top:0});if(v==='orders')renderOrders();if(v==='selling')renderSelling();if(v==='stores')renderStores()}
 document.addEventListener('click',e=>{
   const t=e.target,c=s=>t.closest(s);
   if(c('[data-close]')){c('dialog').close();return}
@@ -436,8 +448,8 @@ document.addEventListener('click',e=>{
   if(b=c('[data-add]')){e.stopPropagation();add(b.dataset.add);if(c('#detail'))$('#detail').close();return}
   if(b=c('[data-buy]')){const id=b.dataset.buy;if(!S.cart.includes(id)){S.cart.push(id);save();badge();render()}$('#detail').close();openCheckout();return}
   if(b=c('[data-rm]')){S.cart=S.cart.filter(x=>x!==b.dataset.rm);save();badge();render();openCart();return}
-  if(b=c('[data-sold]')){const id=b.dataset.sold;const pit=PUB.find(m=>m.id===id);if(pit){pit.sold=pit.sold?0:1;apiPost('listings/sold',{id,sold:pit.sold}).then(loadPub)}else S.st[id]==='sold'?delete S.st[id]:S.st[id]='sold';save();render();$('#detail').close();return}
-  if(b=c('[data-del]')){const id=b.dataset.del;apiPost('listings/delete',{id}).then(loadPub);PUB=PUB.filter(m=>m.id!==id);S.cart=S.cart.filter(x=>x!==id);save();badge();render();$('#detail').close();toast('Listing deleted');return}
+  if(b=c('[data-sold]')){const id=b.dataset.sold;const pit=LC.get(id);if(pit){pit.sold=pit.sold?0:1;apiPost('listings/sold',{id,sold:pit.sold}).then(loadPub)}else S.st[id]==='sold'?delete S.st[id]:S.st[id]='sold';save();render();$('#detail').close();return}
+  if(b=c('[data-del]')){const id=b.dataset.del;apiPost('listings/delete',{id}).then(loadPub);PUB=PUB.filter(m=>m.id!==id);LC.delete(id);PTOT=Math.max(0,PTOT-1);S.cart=S.cart.filter(x=>x!==id);save();badge();render();$('#detail').close();toast('Listing deleted');return}
   if(b=c('[data-gi]')){$('#gmain').src=b.src;b.parentNode.querySelectorAll('img').forEach(x=>x.classList.toggle('on',x===b));return}
   if(b=c('[data-item]')){openItem(b.dataset.item);return}
   if(b=c('[data-inc]')){S.cart.push(b.dataset.inc);save();badge();refresh();if(c('#detail'))$('#detail').close();return}
@@ -447,7 +459,7 @@ document.addEventListener('click',e=>{
   if(b=c('[data-avail]')){const it=myStore().items.find(x=>x.id===b.dataset.avail);it.avail=!it.avail;refresh();apiPost('stores/item/avail',{id:it.id}).then(loadPub);return}
   if(b=c('[data-delitem]')){const s=myStore(),id=b.dataset.delitem;apiPost('stores/item/delete',{id}).then(loadPub);s.items=s.items.filter(x=>x.id!==id);S.cart=S.cart.filter(x=>x!==id);save();badge();refresh();return}
   if(b=c('[data-delstore]')){const s=myStore(),ids=s.items.map(x=>x.id);apiPost('stores/delete',{}).then(loadPub);STORES=STORES.filter(x=>x!==s);S.cart=S.cart.filter(x=>!ids.includes(x));save();badge();view('stores');toast('Store deleted');return}
-  if(b=c('.chip')){cat=b.dataset.c;render();return}
+  if(b=c('.chip')){cat=b.dataset.c;render();loadPub();return}
   if(b=c('.card')){openDetail(b.dataset.id);return}
   const id=t.id||(c('button')||{}).id;
   if(id==='bagBtn')openCart();
@@ -461,6 +473,9 @@ document.addEventListener('click',e=>{
   if(id==='gSkip'){si=SL.length;gate()}
   if(id==='pendRefresh')refreshMe();
   if(id==='adminBtn')openAdmin();
+  if(id==='more')loadPub(true);
+  if(id==='moreStores'){SN+=24;renderStores()}
+  if(id==='noticeGo'){view(NEWS.some(x=>x.side==='buy')?'orders':'selling')}
   if(id==='signOut'||id==='pendOut'){apiPost('logout',{});authMode='in';S.user=null;S.me={};save();si=SL.length;$('#store').innerHTML='';gate()}
   if(id==='navOrders'||id==='viewOrders'){$('#done').close();view('orders')}
   if(id==='navSelling')view('selling')
@@ -470,8 +485,8 @@ document.addEventListener('click',e=>{
   if(id==='addItem')$('#itemDlg').showModal();
   if(id==='shopNow'){$('#browse').scrollIntoView()}
 });
-$('#q').oninput=e=>{q=e.target.value.trim().toLowerCase();render()};
-$('#sort').onchange=e=>{sort=e.target.value;render()};
+$('#q').oninput=e=>{q=e.target.value.trim().toLowerCase();clearTimeout(qT);qT=setTimeout(loadPub,300)};
+$('#sort').onchange=e=>{sort=e.target.value;loadPub()};
 $('#catSel').innerHTML=CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
 $('#form').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),imgs=pk1.get();
   if(!imgs.length)return pk1.err('Add at least one photo.');
@@ -497,7 +512,8 @@ let cur='';
 function refresh(){render();if(!$('#store').hidden)storePage(cur);if($('#cart').open)openCart()}
 function renderStores(){
   $('#openStore').textContent=myStore()?'Manage my store':'Open your store';
-  $('#storeGrid').innerHTML=allStores().map(s=>`<article class="card in" data-store="${s.id}"><div class="tile" style="background:${ci(s.cat).c}">${s.emoji}<span class="tag">${s.open?'Open':'Closed'}</span></div>
+  const AS=allStores(),ms=$('#moreStores');ms.hidden=AS.length<=SN;
+  $('#storeGrid').innerHTML=AS.slice(0,SN).map(s=>`<article class="card in" data-store="${s.id}"><div class="tile" style="background:${ci(s.cat).c}">${s.emoji}<span class="tag">${s.open?'Open':'Closed'}</span></div>
    <div class="cb"><h3>${esc(s.name)}</h3><div class="meta">${esc(ci(s.cat).name)} · ${esc(s.spot)}${s.vendor?' · Campus vendor':''}</div><div class="meta">${s.items.filter(i=>i.avail).length} available now</div></div></article>`).join('');
 }
 function storePage(id){
@@ -562,13 +578,27 @@ function vendorGate(g){
     regSend(f,{role:'vendor',name:v('name'),biz:v('biz'),phone:v('phone'),where:v('where'),cat:f.elements.cat.value,code:v('code'),password:f.elements.pw.value})};
 }
 let PV=-1;
-async function pollPub(){if(!S.user||document.hidden)return;const r=await fetchJ('/api/listings/ver').catch(()=>null);if(r&&typeof r.v==='number'&&r.v!==PV){PV=r.v;loadPub()}}
-async function loadPub(){if(!S.user)return;const[a,b]=await Promise.all([fetchJ('/api/listings').catch(()=>null),fetchJ('/api/stores').catch(()=>null)]);if(a&&a.listings)PUB=a.listings;if(b&&b.stores)STORES=b.stores;if((a&&a.listings)||(b&&b.stores)){refresh();renderStores()}}
-function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub()}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
+let NEWS=[],PN=0;
+const seenK=()=>{S.seen=S.seen||{};return S.seen[uid()]||(S.seen[uid()]={b:Date.now()-2592e5,s:Date.now()-2592e5})};
+function markSeen(k){seenK()[k]=Date.now();save();NEWS=NEWS.filter(x=>x.side!==(k==='b'?'buy':'sell'));drawNews()}
+const newsText=x=>{const t='“'+esc(x.title)+'”';return x.side==='buy'?(x.status==='verified'?`Payment confirmed for ${t}. Your release code is ready. Give it to the seller when you collect.`:x.status==='rejected'?`Your payment for ${t} was not accepted${x.note?': '+esc(x.note):''}. The order was cancelled.`:`Your order for ${t} expired because payment was not made in time.`)
+  :(x.status==='verified'?`New paid order: ${t} from ${esc(x.buyerName)} (${naira(x.amount)}). Hand it over when they give you their release code.`:`Order complete: ${esc(x.buyerName)} collected ${t}.`)};
+function drawNews(){const nb=NEWS.filter(x=>x.side==='buy').length,ns=NEWS.length-nb,dO=$('#navOrders .ndot'),dS=$('#navSelling .ndot'),el=$('#notice');
+  if(dO)dO.hidden=!nb;if(dS)dS.hidden=!ns;const onO=!$('#orders').hidden||!$('#selling').hidden;
+  el.hidden=!NEWS.length||onO;if(NEWS.length&&!onO)el.innerHTML=`<div><span>${newsText(NEWS[0])}${NEWS.length>1?` <b>+${NEWS.length-1} more</b>`:''}</span><button class="pill sm" id="noticeGo">View</button></div>`}
+async function pollNews(){if(!S.user)return;const k=seenK();const r=await fetchJ(`/api/orders/news?sb=${k.b}&ss=${k.s}`).catch(()=>null);if(r&&r.news){NEWS=r.news;drawNews()}}
+const updBox=side=>{const L=NEWS.filter(x=>x.side===side);return L.length?`<div class="upd"><p class="lb" style="margin:0 0 4px">What's new</p>${L.map(x=>`<p>${newsText(x)}</p>`).join('')}</div>`:''};
+async function pollPub(){if(!S.user||document.hidden)return;if(PN++%3===0)pollNews();const r=await fetchJ('/api/listings/ver').catch(()=>null);if(r&&typeof r.v==='number'&&r.v!==PV){PV=r.v;loadPub()}}
+async function loadPub(more){if(!S.user)return;const n=++PQ,mo=more===true,need=S.cart.filter(id=>id[0]==='L'&&!LC.has(id));if(mo){$('#more').disabled=true;$('#more').textContent='Loading…'}
+  const qs=new URLSearchParams({q,cat,sort,off:mo?PUB.length:0,n:mo?24:Math.min(96,Math.max(24,PUB.length))});
+  const[a,b,c]=await Promise.all([fetchJ('/api/listings?'+qs).catch(()=>null),mo?null:fetchJ('/api/stores').catch(()=>null),need.length?fetchJ('/api/listings?ids='+need.join(',')).catch(()=>null):null]);
+  $('#more').disabled=false;if(n!==PQ)return;if(c&&c.listings)c.listings.forEach(i=>LC.set(i.id,i));
+  if(a&&a.listings){a.listings.forEach(i=>LC.set(i.id,i));PUB=mo?[...PUB,...a.listings]:a.listings;PTOT=a.total}if(b&&b.stores)STORES=b.stores;if((a&&a.listings)||(b&&b.stores)){refresh();renderStores()}}
+function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub();pollNews()}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
 const AD={tab:'overview',st:{},sum:{},n:0},OST={pending:['Waiting for payment',''],under_review:['Needs review','warn'],verified:['Paid, awaiting delivery','warn'],released:['Delivered','ok'],expired:['Expired',''],rejected:['Rejected','bad']};
-const ATABS=[['overview','Overview'],['payments','Payments','review'],['orders','Orders'],['vendors','Vendors','vendorsPending'],['payouts','Payouts','banks'],['users','People'],['codes','Codes']];
-const AF={orders:[['all','All'],['verified','Awaiting delivery'],['under_review','Needs review'],['pending','Waiting for payment'],['released','Delivered'],['rejected','Rejected'],['expired','Expired']],vendors:[['all','All'],['pending','Waiting'],['active','Approved'],['suspended','Suspended']],users:[['all','Everyone'],['student','Students'],['vendor','Vendors'],['reviewer','Reviewers']],codes:[['all','All'],['unused','Not used'],['used','Used'],['off','Turned off']]};
-const AQ={payments:'Search order #, name, phone or reference',orders:'Search order #, name, phone or reference',vendors:'Search shop, name or phone',users:'Search name, matric, phone or email',codes:'Search code or shop name'};
+const ATABS=[['overview','Overview'],['payments','Payments','review'],['orders','Orders'],['vendors','Vendors','vendorsPending'],['payouts','Payouts','banks'],['users','People'],['codes','Codes'],['log','Activity']];
+const AF={orders:[['all','All'],['verified','Awaiting delivery'],['under_review','Needs review'],['pending','Waiting for payment'],['released','Delivered'],['rejected','Rejected'],['expired','Expired']],vendors:[['all','All'],['pending','Waiting'],['active','Approved'],['suspended','Suspended']],users:[['all','Everyone'],['student','Students'],['vendor','Vendors'],['reviewer','Reviewers']],codes:[['all','All'],['unused','Not used'],['used','Used'],['off','Turned off']],log:[['all','Everything'],['payment','Payments'],['account','Accounts'],['other','Other']]};
+const AQ={payments:'Search order #, name, phone or reference',orders:'Search order #, name, phone or reference',vendors:'Search shop, name or phone',users:'Search name, matric, phone or email',codes:'Search code or shop name',log:'Search person, order # or action'};
 const aAgo=t=>{if(!t)return'';const s=(Date.now()-t)/1e3;return s<60?'just now':s<3600?Math.floor(s/60)+' min ago':s<86400?Math.floor(s/3600)+' h ago':new Date(t).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})};
 const wa=p=>{p=String(p||'');return p?`<a class="link" target="_blank" rel="noopener" href="https://wa.me/${p[0]==='0'?'234'+p.slice(1):p}">${esc(p)}</a>`:''};
 const bdg=(l,k)=>`<span class="badge ${k?'b-'+k:''}">${esc(l)}</span>`;
@@ -584,9 +614,12 @@ async function openAdmin(){const d=$('#adminDlg');AD.rev=!S.user.admin;if(AD.rev
     if(b=c('[data-zoom]'))return b.classList.toggle('big');
     if(b=c('[data-rj]')){const f=$('#rj'+b.dataset.rj);f.hidden=!f.hidden;return}
     if(b=c('[data-copy]')){navigator.clipboard&&navigator.clipboard.writeText(b.dataset.copy);return toast('Copied')}
+    if(b=c('[data-store-go]')){b.disabled=true;const post=b.dataset.storeGo==='clean';if(post&&!confirm('Remove old receipt photos (closed more than 60 days ago), sold listings older than 30 days and unused photos? This cannot be undone.'))return b.disabled=false;
+      const r=post?await apiPost('admin/storage',{}):await fetchJ('/api/admin/storage').catch(()=>({error:'Could not reach Stall.'}));b.disabled=false;if(r.error)return toast(r.error);if(post){toast('Space freed');await adminSum()}
+      const mb=x=>(x/1048576).toFixed(1)+' MB';$('#storeOut').innerHTML=`<small>${r.photos.toLocaleString()} listing and store photos (${mb(r.photoBytes)}) · ${r.receipts.toLocaleString()} receipt photos (${mb(r.receiptBytes)})</small><small>Last clean-up: ${r.cleanupAt?aAgo(r.cleanupAt):'never'}. It also runs automatically once a day.</small>`;return}
     let r,msg;b=c('[data-aok],[data-avs],[data-abank],[data-aoff],[data-arv]');if(!b)return;
     if(b.dataset.aok){r=await apiPost('admin/orders/decide',{id:+b.dataset.aok,approve:true});msg='Payment approved, release code sent to buyer'}
-    else if(b.dataset.avs){const to=b.dataset.to;if(to==='suspended'&&!confirm('Suspend this vendor? Their shop will stop working until you reactivate it.'))return;r=await apiPost('admin/status',{id:+b.dataset.avs,status:to});msg=to==='active'?'Vendor approved':'Vendor suspended'}
+    else if(b.dataset.avs){const to=b.dataset.to;if(to==='suspended'&&!confirm('Suspend this account? They will be signed out, their listings and store will be hidden, and they cannot sign in until you reactivate them.'))return;r=await apiPost('admin/status',{id:+b.dataset.avs,status:to});msg=to==='active'?'Account active':'Account suspended'}
     else if(b.dataset.abank){const[kind,id]=b.dataset.abank.split(':');r=await apiPost('admin/bank-confirm',{kind,id});msg='Payout details confirmed'}
     else if(b.dataset.aoff){r=await apiPost('admin/code-off',{code:b.dataset.aoff});msg='Code turned off'}
     else if(b.dataset.arv){const add=b.dataset.add==='1';if(!add&&!confirm('Remove this person as a payment reviewer?'))return;r=await apiPost('admin/reviewers',{phone:b.dataset.arv,add});msg=add?'Reviewer added':'Reviewer removed'}
@@ -610,21 +643,27 @@ function adminTab(k){AD.tab=k;const S0=ast(k);document.querySelectorAll('#adminD
 async function adminLoad(){const k=AD.tab,S0=ast(k),n=++AD.n,el=()=>n===AD.n&&$('#alist'),qs=p=>'?'+new URLSearchParams({q:S0.q,page:S0.page,...p});
   if(k==='overview'){const s=AD.sum,card=(n,l,go,hot)=>`<${go?`button data-go="${go}"`:'div'} class="stat${hot&&n?' hot':''}"><b>${n==null?'–':n.toLocaleString()}</b><span>${l}</span></${go?'button':'div'}>`,todo=(s.review||0)+(s.vendorsPending||0)+(s.banks||0);
     if(el())el().innerHTML=`<p class="lb">Needs your attention</p>${todo?'':'<p class="meta">All caught up. Nothing is waiting on you.</p>'}<div class="stats">${card(s.review,'Payments to review','payments',1)}${card(s.vendorsPending,'Vendors waiting for approval','vendors:pending',1)}${card(s.banks,'Payout details to confirm','payouts',1)}${card(s.delivery,'Paid, waiting for delivery','orders:verified')}</div>
-     <p class="lb" style="margin-top:22px">Stall at a glance</p><div class="stats">${card(s.students,'Students','users:student')}${card(s.vendors,'Vendors','vendors:all')}${card(s.stores,'Stores')}${card(s.released,'Orders delivered','orders:released')}${card(s.today,'Orders today','orders:all')}</div>`;return}
-  const url={payments:'/api/admin/orders'+qs({status:'under_review'}),orders:'/api/admin/orders'+qs({status:S0.f}),vendors:'/api/admin/vendors'+qs({status:S0.f}),users:'/api/admin/users'+qs({role:S0.f}),codes:'/api/admin/codes'+qs({f:S0.f}),payouts:'/api/admin/banks'}[k];
+     <p class="lb" style="margin-top:22px">Stall at a glance</p><div class="stats">${card(s.students,'Students','users:student')}${card(s.vendors,'Vendors','vendors:all')}${card(s.stores,'Stores')}${card(s.released,'Orders delivered','orders:released')}${card(s.today,'Orders today','orders:all')}</div>
+     <p class="lb" style="margin-top:22px">System</p>
+     <div class="arow"><div class="t"><div class="ttl"><b>Automatic receipt check</b>${!s.aiOn?bdg('Off','bad'):s.aiLast&&!s.aiLast.ok?bdg('Failing','bad'):bdg(s.aiLast?'Working':'On','ok')}</div>
+      <small>${!s.aiOn?'Not connected, so every receipt waits for a person. In Cloudflare open stall-app → Settings → Bindings, add a Workers AI binding named <b>AI</b> for Production, then redeploy.':s.aiLast?(s.aiLast.ok?'Last receipt checked '+aAgo(s.aiLast.t)+'.':'Last check failed '+aAgo(s.aiLast.t)+': '+esc(s.aiLast.err||'unknown error')+'. Receipts are coming to you for review until it works again.'):'Connected. No receipt has been checked yet.'}</small></div></div>
+     <div class="arow"><div class="t"><div class="ttl"><b>Storage</b></div><small>Receipt photos are removed 60 days after an order closes, and sold listings after 30 days. Order records stay.</small><div id="storeOut"></div></div>
+      <div class="aacts"><button class="pill sm alt" data-store-go="check">Check</button><button class="pill sm" data-store-go="clean">Free up space</button></div></div>`;return}
+  const url={payments:'/api/admin/orders'+qs({status:'under_review'}),orders:'/api/admin/orders'+qs({status:S0.f}),vendors:'/api/admin/vendors'+qs({status:S0.f}),users:'/api/admin/users'+qs({role:S0.f}),codes:'/api/admin/codes'+qs({f:S0.f}),payouts:'/api/admin/banks',log:'/api/admin/log'+qs({kind:S0.f})}[k];
   const r=await fetchJ(url).catch(()=>({error:'Could not reach Stall. Check your connection.'}));if(!el())return;
   if(r.error)return el().innerHTML=`<p class="err">${esc(r.error)}</p>`;
-  const R={payments:aOrder,orders:aOrder,vendors:aVendor,users:aUser,codes:aCode,payouts:aBank}[k],E={payments:'No payments waiting for review. You are all caught up.',payouts:'No payout details waiting for confirmation.'}[k]||(S0.q?'Nothing matches your search.':'Nothing here yet.');
+  const R={payments:aOrder,orders:aOrder,vendors:aVendor,users:aUser,codes:aCode,payouts:aBank,log:aLog}[k],E={payments:'No payments waiting for review. You are all caught up.',payouts:'No payout details waiting for confirmation.'}[k]||(S0.q?'Nothing matches your search.':'Nothing here yet.');
   const a=S0.page*r.ps+1,z=S0.page*r.ps+r.items.length;
   el().innerHTML=(r.items.length?r.items.map(R).join(''):`<p class="meta" style="padding:30px 0;text-align:center">${E}</p>`)
    +(r.total>r.items.length||S0.page?`<div class="pager"><button class="pill sm alt" data-pg="-1" ${S0.page?'':'disabled'}>Previous</button><span>${a.toLocaleString()}–${z.toLocaleString()} of ${r.total.toLocaleString()}</span><button class="pill sm alt" data-pg="1" ${z<r.total?'':'disabled'}>Next</button></div>`:r.items.length?`<p class="meta" style="margin-top:12px">${r.total.toLocaleString()} total</p>`:'')}
-function aOrder(x){const[l,kk]=OST[x.status]||[x.status,''],rev=x.status==='under_review',mis=x.rAmount!=null&&x.rAmount!==x.amount,left=Math.round((x.deadline-Date.now())/6e4);
+function aOrder(x){const[l,kk]=OST[x.status]||[x.status,''],rev=x.status==='under_review',mis=x.rAmount!=null&&x.rAmount!==x.amount;
   return `<div class="arow">${x.hasReceipt?`<img class="rimg" data-zoom src="/api/admin/receipt/${x.id}" alt="Receipt for order ${x.id}" loading="lazy">`:''}<div class="t">
    <div class="ttl"><b>#${x.id} · ${esc(x.title)}</b>${bdg(l,kk)}</div>
    <small>Order total <b>${naira(x.amount)}</b>${x.rAmount!=null?` · buyer says they sent <b${mis?' class="flag"':''}>${naira(x.rAmount)}</b>`:''}${x.rRef?` · ref <b>${esc(x.rRef)}</b>`:''}</small>
    <small>Buyer: ${esc(x.buyerName)} ${wa(x.buyerPhone)}</small><small>Seller: ${esc(x.sellerName)} ${wa(x.sellerPhone)} · pays to ${esc(x.bank||'')} ${esc(x.acct||'')} (${esc(x.acctName||'')})</small>
    ${x.note?`<small class="flag">${esc(x.note)}</small>`:''}
-   <small>Updated ${aAgo(x.updated||x.created)}${rev?(left>0?` · <span class="flag">auto-expires in ${left} min</span>`:' · <span class="flag">past its deadline</span>'):''}${x.status==='verified'?' · release code not used yet':''}${x.status==='released'?' · release code used':''}${rev&&!x.hasReceipt?' · no photo attached':''}</small>
+   ${x.decidedBy?`<small>${x.decision==='approved'?'Approved':'Rejected'} by <b>${esc(x.decidedBy)}</b> · ${new Date(x.decidedAt).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'})}</small>`:''}
+   <small>${rev?'Receipt sent':'Updated'} ${aAgo(x.updated||x.created)}${x.status==='verified'?' · release code not used yet':''}${x.status==='released'?' · release code used':''}${rev&&!x.hasReceipt?' · no photo attached':''}</small>
    ${rev?`<form id="rj${x.id}" data-rjf="${x.id}" class="rjf" hidden><select name="why"><option>Amount does not match the order</option><option>Receipt photo is not a real payment</option><option>Reference was already used</option><option>Seller did not receive the money</option><option value="">Other reason</option></select><input name="more" maxlength="120" placeholder="Extra note for the buyer (optional)"><div class="aacts"><button class="pill sm red" type="submit">Reject payment</button><button class="pill sm alt" type="button" data-rj="${x.id}">Cancel</button></div></form>`:''}
   </div>${rev?`<div class="aacts"><button class="pill sm" data-aok="${x.id}">Approve</button><button class="pill sm alt" data-rj="${x.id}">Reject</button></div>`:''}</div>`}
 function aVendor(x){const[l,kk]={active:['Approved','ok'],pending:['Waiting for approval','warn'],suspended:['Suspended','bad']}[x.status]||[x.status,''];
@@ -633,7 +672,9 @@ function aVendor(x){const[l,kk]={active:['Approved','ok'],pending:['Waiting for 
 function aUser(x){const st=x.role==='vendor';
   return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(st&&x.biz?x.biz+' ('+x.name+')':x.name)}</b>${bdg(st?'Vendor':'Student')}${x.is_admin?bdg('Admin','ok'):''}${x.reviewer?bdg('Reviewer','ok'):''}${x.status&&x.status!=='active'?bdg(x.status==='pending'?'Waiting for approval':'Suspended','warn'):''}</div>
    <small>${x.matric?esc(x.matric)+' · ':''}${wa(x.phone)}${x.email?' · '+esc(x.email):''}${x.place?' · '+esc(x.place):''}</small><small>Joined ${aAgo(x.created)}</small></div>
-   <div class="aacts">${x.is_admin?'':`<button class="pill sm alt" data-arv="${esc(x.phone)}" data-add="${x.reviewer?0:1}">${x.reviewer?'Remove reviewer':'Make reviewer'}</button>`}</div></div>`}
+   <div class="aacts">${x.is_admin?'':`<button class="pill sm alt" data-arv="${esc(x.phone)}" data-add="${x.reviewer?0:1}">${x.reviewer?'Remove reviewer':'Make reviewer'}</button>${x.status==='suspended'?`<button class="pill sm" data-avs="${x.id}" data-to="active">Reactivate</button>`:`<button class="pill sm red" data-avs="${x.id}" data-to="suspended">Suspend</button>`}`}</div></div>`}
+function aLog(x){const k={payment:['Payment','warn'],account:['Account',''],other:['Other','']}[x.kind]||['',''];
+  return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.who||'Automatic')}</b> <span>${esc(x.action)}</span>${bdg(k[0],k[1])}</div><small>${esc(x.target||'')}</small>${x.detail?`<small>${esc(x.detail)}</small>`:''}<small>${new Date(x.t).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'})} · ${aAgo(x.t)}</small></div></div>`}
 function aCode(x){const[l,kk]=x.biz?['Used by '+x.biz,'ok']:x.active?['Not used yet','warn']:['Turned off',''];
   return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.label||'Old code')}</b>${bdg(l,kk)}</div><small><b>${esc(x.code)}</b>${x.created?' · created '+ago(x.created):''}</small></div>
    <div class="aacts">${x.active&&!x.biz?`<button class="pill sm alt" data-copy="${esc(x.code)}">Copy</button><button class="pill sm alt" data-aoff="${esc(x.code)}">Turn off</button>`:''}</div></div>`}
@@ -689,7 +730,7 @@ function gate(){
 S.cart=S.cart.filter(id=>get(id));render();badge();$('#badge').classList.remove('bump');gate();
 refreshMe();setInterval(pollPub,20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollPub()});
 $('#hchips').innerHTML=CATS.map(c=>`<button class="hc" data-hc="${c.id}">${c.e} ${c.name}</button>`).join('');
-document.addEventListener('click',e=>{const b=e.target.closest('[data-hc]');if(b){cat=b.dataset.hc;render();$('#browse').scrollIntoView()}});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-hc]');if(b){cat=b.dataset.hc;render();loadPub();$('#browse').scrollIntoView()}});
 (async()=>{const ref=new URLSearchParams(location.search).get('reference');if(!ref)return;history.replaceState(null,'','/');
   const p=JSON.parse(sessionStorage.getItem('stall:pending')||'null');sessionStorage.removeItem('stall:pending');
   S.refs=S.refs||[];if(S.refs.includes(ref))return;
