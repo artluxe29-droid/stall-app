@@ -201,27 +201,55 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
   if(path.startsWith('admin/')){
     const a=await me(env,request);if(!a||(!a.is_admin&&!a.reviewer))return J({error:'Not allowed'},403);
     const b=request.method==='POST'?await request.json().catch(()=>({})):{};
-    if(path==='admin/orders'&&request.method==='GET')return J({orders:(await env.DB.prepare("SELECT * FROM orders WHERE status='under_review' ORDER BY created ASC LIMIT 100").all()).results.map(r=>({...oRow(r),receipt:r.receipt,rAmount:r.r_amount,rRef:r.r_ref}))});
-    if(path==='admin/orders/decide'&&request.method==='POST'){const o=await env.DB.prepare("SELECT * FROM orders WHERE id=? AND status='under_review'").bind(+b.id).first();if(!o)return J({error:'Order not found.'},404);
+    const PS=20,pg=Math.max(0,Math.floor(+url.searchParams.get('page')||0)),q=(url.searchParams.get('q')||'').trim().slice(0,60),like='%'+q+'%';
+    const list=async(from,cols,w,v,order,map=x=>x)=>{const wh=w.length?' WHERE '+w.join(' AND '):'';
+      const total=(await env.DB.prepare('SELECT COUNT(*) c FROM '+from+wh).bind(...v).first()).c;
+      const rs=(await env.DB.prepare('SELECT '+cols+' FROM '+from+wh+' ORDER BY '+order+' LIMIT ? OFFSET ?').bind(...v,PS,pg*PS).all()).results;
+      return J({items:rs.map(map),total,ps:PS},200,{'cache-control':'no-store'})};
+    if(path==='admin/summary'){await sweep(env);const c=s=>env.DB.prepare('SELECT COUNT(*) c FROM '+s),mid=new Date();mid.setUTCHours(-1,0,0,0);
+      const r=(await env.DB.batch([c("orders WHERE status='under_review'"),c("orders WHERE status='verified'"),c("users WHERE role='vendor' AND status='pending'"),c('users WHERE bank_verified=0'),c('stores WHERE bank_verified=0'),c("users WHERE role='student'"),c("users WHERE role='vendor'"),c('stores'),c("orders WHERE status='released'"),c('orders WHERE created>=?').bind(+mid)])).map(x=>x.results[0].c);
+      if(!a.is_admin)return J({review:r[0]});
+      return J({review:r[0],delivery:r[1],vendorsPending:r[2],banks:r[3]+r[4],students:r[5],vendors:r[6],stores:r[7],released:r[8],today:r[9]},200,{'cache-control':'no-store'})}
+    if(path==='admin/orders'&&request.method==='GET'){await sweep(env);
+      let st=a.is_admin?url.searchParams.get('status')||'under_review':'under_review';const w=[],v=[];
+      if(st!=='all'){if(!['pending','under_review','verified','released','expired','rejected'].includes(st))st='under_review';w.push('status=?');v.push(st)}
+      if(/^#?\d+$/.test(q)){w.push('id=?');v.push(+q.replace('#',''))}
+      else if(q){w.push('(buyer_name LIKE ? OR seller_name LIKE ? OR title LIKE ? OR r_ref LIKE ? OR buyer_phone LIKE ? OR seller_phone LIKE ?)');v.push(like,like,like,like,like,like)}
+      return list('orders','id,title,amount,bank_name,acct_no,acct_name,status,deadline,note,buyer_name,buyer_phone,seller_name,seller_phone,r_amount,r_ref,created,updated,receipt IS NOT NULL AS has_r',w,v,st==='under_review'?'created ASC':'updated DESC',
+        r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.acct_no,acctName:r.acct_name,status:r.status,deadline:r.deadline,note:r.note,buyerName:r.buyer_name,buyerPhone:r.buyer_phone,sellerName:r.seller_name,sellerPhone:r.seller_phone,rAmount:r.r_amount,rRef:r.r_ref,created:r.created,updated:r.updated,hasReceipt:!!r.has_r}))}
+    if(path.startsWith('admin/receipt/')){const r=await env.DB.prepare('SELECT receipt FROM orders WHERE id=?').bind(+path.split('/')[2]).first(),m=r&&r.receipt&&r.receipt.match(/^data:(image\/[a-z]+);base64,(.*)$/s);
+      if(!m)return new Response('Not found',{status:404});
+      return new Response(Uint8Array.from(atob(m[2]),c=>c.charCodeAt(0)),{headers:{'content-type':m[1],'cache-control':'private, max-age=86400'}})}
+    if(path==='admin/orders/decide'&&request.method==='POST'){const o=await env.DB.prepare("SELECT * FROM orders WHERE id=? AND status='under_review'").bind(+b.id).first();if(!o)return J({error:'This order was already handled or has expired.'},404);
       if(b.approve){const code=relCode();await env.DB.prepare("UPDATE orders SET status='verified',code=?,updated=? WHERE id=?").bind(code,Date.now(),o.id).run()}
       else await env.DB.prepare("UPDATE orders SET status='rejected',note=?,updated=? WHERE id=?").bind(String(b.reason||'Rejected by admin').slice(0,200),Date.now(),o.id).run();
       return J({ok:true})}
     if(!a.is_admin)return J({error:'Not allowed'},403);
+    if(path==='admin/users'&&request.method==='GET'){const role=url.searchParams.get('role'),w=[],v=[];
+      if(role==='student'||role==='vendor'){w.push('role=?');v.push(role)}else if(role==='reviewer')w.push('reviewer=1');
+      if(q){w.push('(name LIKE ? OR matric LIKE ? OR phone LIKE ? OR email LIKE ? OR biz LIKE ?)');v.push(like,like,like,like,like)}
+      return list('users','id,role,name,matric,email,phone,biz,place,status,created,is_admin,reviewer',w,v,'created DESC')}
     if(path==='admin/reviewers'&&request.method==='GET')return J({reviewers:(await env.DB.prepare('SELECT name,phone FROM users WHERE reviewer=1').all()).results});
     if(path==='admin/reviewers'&&request.method==='POST'){const ph=phoneN(b.phone);const r=await env.DB.prepare('UPDATE users SET reviewer=? WHERE phone=?').bind(b.add?1:0,ph).run();
       return r.meta.changes?J({ok:true}):J({error:'No account found with that phone number.'},404)}
-    if(path==='admin/codes'&&request.method==='GET')return J({codes:(await env.DB.prepare('SELECT c.code,c.label,c.active,u.biz FROM vendor_codes c LEFT JOIN users u ON u.id=c.used_by ORDER BY c.created DESC').all()).results});
+    if(path==='admin/codes'&&request.method==='GET'){const f=url.searchParams.get('f'),w=[],v=[];
+      if(f==='unused')w.push('c.active=1 AND c.used_by IS NULL');else if(f==='used')w.push('c.used_by IS NOT NULL');else if(f==='off')w.push('c.active=0 AND c.used_by IS NULL');
+      if(q){w.push('(c.code LIKE ? OR c.label LIKE ? OR u.biz LIKE ?)');v.push(like,like,like)}
+      return list('vendor_codes c LEFT JOIN users u ON u.id=c.used_by','c.code,c.label,c.active,c.created,u.biz',w,v,'c.created DESC')}
     if(path==='admin/codes'&&request.method==='POST'){const label=String(b.label||'').trim().slice(0,40);if(label.length<2)return J({error:'Enter the vendor or shop name.'},400);
       const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',code='STALL-'+[...crypto.getRandomValues(new Uint8Array(6))].map(x=>A[x%32]).join('');
       await env.DB.prepare('INSERT INTO vendor_codes(code,active,label,created) VALUES(?,1,?,?)').bind(code,label,Date.now()).run();return J({code,label})}
     if(path==='admin/code-off'){await env.DB.prepare('UPDATE vendor_codes SET active=0 WHERE code=? AND used_by IS NULL').bind(String(b.code||'')).run();return J({ok:true})}
     if(path==='admin/banks'&&request.method==='GET'){
-      const uu=(await env.DB.prepare("SELECT id,name,phone,bank_name,acct_no,acct_name FROM users WHERE bank_verified=0").all()).results.map(x=>({kind:'user',...x}));
-      const ss=(await env.DB.prepare("SELECT id,name,bank,acct,acct_name FROM stores WHERE bank_verified=0").all()).results.map(x=>({kind:'store',...x}));
-      return J({items:[...uu,...ss]})}
+      const uu=(await env.DB.prepare("SELECT id,name,phone,bank_name,acct_no,acct_name FROM users WHERE bank_verified=0 LIMIT 200").all()).results.map(x=>({kind:'user',...x}));
+      const ss=(await env.DB.prepare("SELECT id,name,phone,bank,acct,acct_name FROM stores WHERE bank_verified=0 LIMIT 200").all()).results.map(x=>({kind:'store',...x}));
+      const items=[...uu,...ss];return J({items,total:items.length,ps:items.length},200,{'cache-control':'no-store'})}
     if(path==='admin/bank-confirm'&&request.method==='POST'){const tbl=b.kind==='store'?'stores':'users';
       await env.DB.prepare('UPDATE '+tbl+' SET bank_verified=1 WHERE id=?').bind(+b.id).run();return J({ok:true})}
-    if(path==='admin/vendors')return J({vendors:(await env.DB.prepare("SELECT id,name,biz,phone,place,cat,status FROM users WHERE role='vendor' ORDER BY created DESC").all()).results});
+    if(path==='admin/vendors'&&request.method==='GET'){const st=url.searchParams.get('status'),w=["role='vendor'"],v=[];
+      if(['pending','active','suspended'].includes(st)){w.push('status=?');v.push(st)}
+      if(q){w.push('(name LIKE ? OR biz LIKE ? OR phone LIKE ? OR place LIKE ?)');v.push(like,like,like,like)}
+      return list('users','id,name,biz,phone,place,cat,status,created',w,v,"status='pending' DESC,created DESC")}
     if(path==='admin/status'&&['active','suspended'].includes(b.status)){await env.DB.prepare("UPDATE users SET status=? WHERE id=? AND role='vendor'").bind(b.status,+b.id).run();return J({ok:true})}
     return J({error:'Not found'},404);
   }
