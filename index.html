@@ -4,16 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Stall – buy and sell on campus</title>
-<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#5A2A0E"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Stall"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#F5F6FA" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#0B0F1A" media="(prefers-color-scheme: dark)"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Stall"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <style>
-:root{--bg:#FFFBF3;--bg2:#F6EEDD;--ink:#2A1408;--muted:#7A6455;--line:#E6D8C3;--blue:#5A2A0E;--on:#fff;--green:#1F9D55;--nav:rgba(255,251,243,.75);
+:root{--bg:#F5F6FA;--bg2:#EEF0F5;--card:#FFFFFF;--ink:#0F172A;--muted:#64748B;--line:#E5E7EF;--blue:#0F172A;--on:#FFFFFF;--acc:#FF9F1C;--acc-ink:#1A1206;--green:#16A34A;--nav:rgba(255,255,255,.86);--sh:0 1px 2px rgba(15,23,42,.04),0 10px 30px rgba(15,23,42,.07);
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1A0D06;--bg2:#2A1810;--ink:#FBEFD9;--muted:#C4A98F;--line:#4A3020;--blue:#F0A85A;--on:#2A1408;--nav:rgba(26,13,6,.75)}}
-:root[data-theme="dark"]{--bg:#1A0D06;--bg2:#2A1810;--ink:#FBEFD9;--muted:#C4A98F;--line:#4A3020;--blue:#F0A85A;--on:#2A1408;--nav:rgba(26,13,6,.75)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0B0F1A;--bg2:#1A2133;--card:#121828;--ink:#F1F5F9;--muted:#94A3B8;--line:#243049;--blue:#FF9F1C;--on:#1A1206;--nav:rgba(11,15,26,.86);--sh:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35)}}
+:root[data-theme="dark"]{--bg:#0B0F1A;--bg2:#1A2133;--card:#121828;--ink:#F1F5F9;--muted:#94A3B8;--line:#243049;--blue:#FF9F1C;--on:#1A1206;--nav:rgba(11,15,26,.86);--sh:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35)}
 html{scroll-padding-top:60px;scroll-behavior:smooth}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.47 -apple-system,"SF Pro Text",Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Plus Jakarta Sans",-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}
 :focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 h1,h2,h3,p{margin:0}
@@ -35,15 +35,11 @@ nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;height:52px;back
 .pill[disabled]{opacity:.45;pointer-events:none}
 .link{color:var(--blue);background:none;border:0;padding:0}
 .link:hover{text-decoration:underline}
-.hero{text-align:center;padding:72px 20px 40px;max-width:820px;margin:0 auto}
-.hero h1{font-size:clamp(40px,8vw,80px);line-height:1.05;font-weight:700;letter-spacing:-.04em}
-.hero p{font-size:clamp(19px,2.6vw,26px);color:var(--muted);margin:16px auto 28px;max-width:600px;line-height:1.3}
-.hero .row{display:flex;gap:22px;justify-content:center;align-items:center;flex-wrap:wrap}
 .wrap{max-width:1080px;margin:0 auto;padding:0 18px 60px}
 .tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:24px 0 8px}
 .search{flex:1 1 260px;padding:12px 18px;border-radius:980px;border:1px solid var(--line);background:var(--bg2);outline-offset:0}
 select.sort{padding:11px 14px;border-radius:980px;border:1px solid var(--line);background:var(--bg2)}
-.chips{display:flex;gap:8px;overflow-x:auto;padding:6px 0 14px;scrollbar-width:none}
+.chips{display:none;gap:8px;overflow-x:auto;padding:6px 0 14px;scrollbar-width:none}
 .chip{flex:none;border:0;background:var(--bg2);border-radius:980px;padding:8px 16px;font-size:15px;transition:background .2s,color .2s}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
@@ -123,15 +119,8 @@ label input,label select,label textarea{display:block;width:100%;margin-top:5px;
 .seg{display:flex;background:var(--bg2);border-radius:980px;padding:4px;margin:10px 0 0}
 .seg button{flex:1;border:0;background:transparent;padding:9px;border-radius:980px;font-weight:500}
 .seg button[aria-pressed="true"]{background:var(--bg);box-shadow:0 1px 4px rgba(0,0,0,.18)}
-@media (max-width:560px){.hero{padding-top:48px}.grid{grid-template-columns:1fr 1fr;gap:10px}.tile{height:120px;font-size:52px}.cb{padding:12px}.card h3{font-size:16px}.cf{flex-direction:column;align-items:stretch;gap:8px}.cf .pill{width:100%}dialog.drawer{border-radius:0}.nl.hide{display:none}}
+@media (max-width:560px){.grid{grid-template-columns:1fr 1fr;gap:10px}.tile{height:120px;font-size:52px}.cb{padding:12px}.card h3{font-size:16px}.cf{flex-direction:column;align-items:stretch;gap:8px}.cf .pill{width:100%}dialog.drawer{border-radius:0}.nl.hide{display:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.card{opacity:1;transform:none}.ok circle,.ok path{stroke-dashoffset:0}}
-.hero{max-width:none;margin:0;text-align:left;padding:clamp(56px,9vw,110px) max(18px,calc((100% - 1080px)/2 + 18px)) 44px;color:#FFF1DC;background:radial-gradient(120% 90% at 88% 18%,#EBA55E 0,#B5622B 36%,#5A2A0E 70%,#3A1808 100%);border-radius:0 0 32px 32px}
-.hero h1{max-width:11ch}.hero p{color:#F3D9B8;margin:16px 0 28px;max-width:30ch}
-.hero .row{justify-content:flex-start}.hero .pill{background:#FFF1DC;color:#3A1808}.hero .link{color:#FFF1DC}
-.glass,.trust div{background:rgba(255,241,220,.12);border:1px solid rgba(255,241,220,.28);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-radius:18px}
-.glass{margin-top:44px;padding:16px;max-width:460px;font-size:15px}.glass .hs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.hc{border:1px solid rgba(255,241,220,.3);background:rgba(255,241,220,.1);color:#FFF1DC;border-radius:980px;padding:7px 14px;font-size:14px}.hc:hover{background:rgba(255,241,220,.24)}
-.trust{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.trust div{padding:10px 14px;font-size:14px;font-weight:600}.trust small{display:block;font-weight:400;font-size:12px;color:#F3D9B8}
 #browse{padding-top:12px}
 dialog.adm{width:min(1000px,calc(100% - 20px));max-width:none;height:calc(100% - 20px);overflow:hidden}
 dialog.adm[open]{display:flex;flex-direction:column}
@@ -185,6 +174,106 @@ dialog.adm[open]{display:flex;flex-direction:column}
 .vb{display:inline-block;font-size:12px;font-weight:600;color:var(--green);white-space:nowrap}
 .boost{background:var(--bg2);border-radius:16px;padding:14px 16px;margin-top:16px}
 .boost .acts{margin-top:10px}
+/* ---- Premium look ---- */
+body{letter-spacing:-.005em}
+.pill{border-radius:14px;font-weight:600;padding:12px 22px}.pill.sm{border-radius:11px;padding:8px 14px}
+.pill.acc{background:var(--acc);color:var(--acc-ink)}.pill.ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}
+.link{color:var(--ink);font-weight:600}
+nav{background:var(--nav);border-bottom:1px solid var(--line)}
+.logo{font-size:23px;font-weight:800;letter-spacing:-.04em}.logo::after{content:'.';color:var(--acc)}
+.nl{font-weight:600;color:var(--muted)}.nl:hover{color:var(--ink);background:var(--bg2)}
+.bag{width:42px;height:42px;border-radius:14px;background:var(--card);box-shadow:var(--sh)}
+.bag b{background:#EF4444;color:#fff;top:-4px;right:-4px}
+.home{max-width:1080px;margin:0 auto;padding:18px 18px 0}
+.promo{position:relative;overflow:hidden;display:flex;align-items:center;gap:18px;border-radius:28px;padding:clamp(24px,5vw,48px);color:#fff;
+  background:radial-gradient(90% 120% at 100% 0%,rgba(255,159,28,.35) 0,rgba(255,159,28,0) 55%),linear-gradient(135deg,#0F172A 0%,#1E293B 70%,#27344D 100%);box-shadow:var(--sh)}
+.promo .pt{flex:1 1 60%;min-width:0;position:relative;z-index:1}
+.eyebrow{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);background:rgba(255,159,28,.14);padding:5px 10px;border-radius:8px}
+.promo h1{font-size:clamp(30px,5.4vw,54px);line-height:1.05;font-weight:800;letter-spacing:-.04em;margin:14px 0 10px;max-width:14ch}
+.promo p{color:#CBD5E1;max-width:34ch;font-size:clamp(15px,1.8vw,18px)}
+.promo .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.pa{flex:0 0 auto;display:grid;grid-template-columns:repeat(2,minmax(64px,110px));gap:12px;transform:rotate(-6deg)}
+.pa span{aspect-ratio:1;border-radius:24px;display:grid;place-items:center;font-size:clamp(30px,5vw,52px);box-shadow:0 12px 30px rgba(0,0,0,.25)}
+.pa span:nth-child(1){background:#FFE3BD}.pa span:nth-child(2){background:#CFE4FF;transform:translateY(18px)}.pa span:nth-child(3){background:#FFD3E0}.pa span:nth-child(4){background:#D5F5DC;transform:translateY(18px)}
+.trust{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.trust div{background:var(--card);border-radius:18px;padding:12px 14px;font-size:14px;font-weight:700;box-shadow:var(--sh);display:flex;gap:10px;align-items:center}
+.trust i{font-style:normal;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--bg2);flex:none}
+.trust small{display:block;font-weight:500;font-size:12px;color:var(--muted)}
+.sec{display:flex;justify-content:space-between;align-items:center;margin:26px 0 12px}.sec h3{font-size:19px;font-weight:800;letter-spacing:-.02em}
+.see{background:none;border:0;color:var(--muted);font-weight:600;font-size:14px;padding:4px}.see:hover{color:var(--ink)}
+.cats{display:flex;gap:14px;overflow-x:auto;scrollbar-width:none;padding:8px 6px 8px}
+.hc{flex:none;background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink);width:76px;padding:0}
+.hc span{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;font-size:28px;box-shadow:var(--sh);transition:transform .2s}.hc:hover span{transform:translateY(-3px)}
+.hc[aria-pressed="true"] span{outline:3px solid var(--acc);outline-offset:3px}
+#browse{padding-top:0}
+.tools{margin:22px 0 6px}.search{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:13px 18px 13px 44px;box-shadow:var(--sh);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:16px center}
+select.sort{background:var(--card);border-radius:16px;border:1px solid var(--line);font-weight:600}
+.chip{background:var(--card);border:1px solid var(--line);font-weight:600;font-size:14px;border-radius:12px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
+.card{background:var(--card);border-radius:22px;box-shadow:var(--sh);border:1px solid transparent}
+.card.in:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(15,23,42,.12)}
+.tile{height:190px;margin:8px 8px 0;border-radius:18px;font-size:64px}
+.tag{top:10px;left:10px;border-radius:8px;background:var(--ink);color:var(--bg);font-weight:700;padding:4px 9px;font-size:11.5px}
+.tag.ft{left:10px;right:auto;background:var(--acc);color:var(--acc-ink)}
+.tile .tag+.tag.ft{left:auto;right:10px}
+.cb{padding:12px 14px 14px}.card h3{font-size:15.5px;font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.meta{font-size:13px}.price{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.cf{padding-top:10px}.cf .pill{border-radius:12px}
+.hrow{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(200px,230px);gap:14px;overflow-x:auto;scrollbar-width:none;padding:4px 2px 14px;scroll-snap-type:x mandatory}
+.hrow .card{scroll-snap-align:start;opacity:1;transform:none}
+.fbadge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;background:var(--ink);color:var(--bg);border-radius:9px;padding:5px 10px;margin-left:10px;vertical-align:3px}
+.fbadge::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--acc)}
+dialog{background:var(--card);border-radius:28px}
+dialog::backdrop{background:rgba(15,23,42,.45)}
+.pad h2{font-weight:800;letter-spacing:-.035em}
+label input,label select,label textarea{border-radius:14px;background:var(--bg)}
+.order,.upd,.boost,.codebox,.stat{background:var(--card);box-shadow:var(--sh)}
+.order{border-radius:22px}
+section h2{font-weight:800}
+#stores h2,#orders h2,#selling h2{font-size:clamp(28px,5vw,36px)!important}
+.toast{border-radius:14px;font-weight:600}
+footer{background:transparent}
+/* product sheet */
+#detail{width:min(560px,calc(100% - 20px));padding:0}
+#detail .dx{position:absolute;top:14px;right:14px;z-index:2;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.92);color:#0F172A;font-size:20px;box-shadow:var(--sh)}
+#detail .gal,#detail .dtile{background:var(--bg2)}#detail #gmain{height:320px;object-fit:contain;background:var(--bg2)}
+#detail .dprice{font-size:30px;font-weight:800;letter-spacing:-.03em}
+#detail .dtitle{font-size:21px;font-weight:600;margin:4px 0 10px;letter-spacing:-.02em}
+#detail .dsep{height:1px;background:var(--line);margin:16px 0}
+#detail .dbar{position:sticky;bottom:0;display:flex;gap:10px;padding:14px 24px calc(14px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:1px solid var(--line)}
+#detail .dbar .pill{flex:1;padding:15px}#detail .chat{flex:none;width:54px;height:54px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;color:var(--ink);background:var(--card)}
+/* store header */
+.shero{background:linear-gradient(160deg,#0F172A,#1E293B);color:#fff;text-align:center;padding:22px 18px 26px;border-radius:0 0 28px 28px;position:relative}
+.shero .back{position:absolute;left:14px;top:14px;color:#fff;background:rgba(255,255,255,.1);width:40px;height:40px;border-radius:50%;font-size:18px}
+.sav{width:92px;height:92px;border-radius:50%;margin:14px auto 12px;display:grid;place-items:center;font-size:44px;border:4px solid rgba(255,255,255,.9)}
+.shero h2{font-size:clamp(24px,5vw,30px);font-weight:800;letter-spacing:-.03em}
+.shero .vb{color:#4ADE80;margin-top:4px}.sst{font-size:13px;color:#CBD5E1;margin-top:6px}.sst i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#EF4444;margin-right:6px}.sst i.on{background:#22C55E}
+.sstats{display:flex;justify-content:center;margin:18px auto 0;max-width:420px}.sstats div{flex:1;border-left:1px solid rgba(255,255,255,.15)}.sstats div:first-child{border:0}
+.sstats b{display:block;font-size:18px;font-weight:800}.sstats span{font-size:12px;color:#94A3B8}
+.shero .sbtn{display:flex;gap:10px;justify-content:center;margin-top:20px}.shero .sbtn a{text-decoration:none}
+#store .line{background:var(--card);border-radius:18px;padding:12px;margin-bottom:10px;border:0;box-shadow:var(--sh)}
+#store .line .mini{width:64px;height:64px;border-radius:16px}
+/* bottom tab bar (phones) */
+.tabbar{display:none}
+@media (max-width:760px){
+  .nav .nl:not(.bag){display:none}
+  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--nav);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
+  .tabbar button{flex:1;background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--muted);padding:6px 0;position:relative}
+  .tabbar button.on{color:var(--ink)}.tabbar svg{width:23px;height:23px}
+  .tabbar .ndot{position:absolute;top:4px;left:calc(50% + 8px);margin:0}
+  body{padding-bottom:calc(74px + env(safe-area-inset-bottom,0px))}
+  .toast{bottom:calc(86px + env(safe-area-inset-bottom,0px))}
+  dialog:not(.adm):not(.drawer){width:100%;max-width:100%;margin:auto 0 0;border-radius:28px 28px 0 0;max-height:92%}
+  dialog:not(.adm):not(.drawer)[open]{animation:sheet .35s cubic-bezier(.2,.8,.2,1)}
+  #detail #gmain{height:280px}#detail{width:100%}
+  .tools{flex-wrap:nowrap}.search{min-width:0;flex:1 1 0}select.sort{flex:none;width:118px}
+}
+@keyframes sheet{from{transform:translateY(40px);opacity:0}}
+@media (max-width:560px){.promo{flex-direction:column;align-items:flex-start}.promo .row{flex-wrap:nowrap}.promo .row .pill{padding:12px 16px;white-space:nowrap}.pa{display:none}.trust{display:flex;overflow-x:auto;scrollbar-width:none;gap:8px}.trust div{flex:none;padding:10px 12px;font-size:13px}
+  .grid{grid-template-columns:1fr 1fr;gap:12px}.tile{height:140px;margin:6px 6px 0;border-radius:15px}.cb{padding:10px 11px 12px}.card h3{font-size:14px}.price{font-size:16px}.cf .pill{padding:8px 10px;font-size:13px}
+  .hrow{grid-auto-columns:46%}}
 </style>
 </head>
 <body>
@@ -198,19 +287,26 @@ dialog.adm[open]{display:flex;flex-direction:column}
   <button class="nl bag" id="bagBtn" aria-label="Open bag"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8V6a3 3 0 016 0v2"/></svg><b id="badge" hidden>0</b></button>
 </div></nav>
 <div id="notice" class="notice" role="status" hidden></div>
+<div class="tabbar" role="navigation" aria-label="Main"><button id="tbShop" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</button><button id="tbStores"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16l-1-5H5zM5 9v11h14V9M9 20v-6h6v6"/></svg>Stores</button><button id="tbSell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Sell</button><button id="tbOrders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></svg>Orders<i class="ndot" hidden></i></button><button id="tbMe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Account<i class="ndot" hidden></i></button></div>
 
 <section id="shop">
-  <div class="hero">
-    <h1>Everything you need. Right on campus.</h1>
-    <p>Shop textbooks, gadgets, meals and hostel essentials from fellow students and campus stores.</p>
-    <div class="row"><button class="pill" id="shopNow">Shop now</button><button class="link" id="toStores">Browse stores</button><button class="link" id="sellHero">Sell something</button></div>
-    <div class="glass"><b>What are you looking for?</b><div class="hs" id="hchips"></div></div>
-    <div class="trust"><div>ACU only<small>Verified students and shops</small></div><div>Pay online<small>Card, transfer or USSD</small></div><div>Collect on campus<small>Or ask for hostel delivery</small></div></div>
+  <div class="home">
+    <div class="promo">
+      <div class="pt"><span class="eyebrow">ACU campus marketplace</span><h1>Everything you need, right on campus.</h1>
+        <p>Textbooks, gadgets, meals and hostel essentials from fellow students and campus stores.</p>
+        <div class="row"><button class="pill acc" id="shopNow">Shop now</button><button class="pill ghost" id="sellHero">Sell something</button></div></div>
+      <div class="pa" aria-hidden="true"><span>📚</span><span>🎧</span><span>👟</span><span>🍲</span></div>
+    </div>
+    <div class="trust"><div><i>🎓</i><span>ACU only<small>Verified students and shops</small></span></div><div><i>🛡️</i><span>Checked payments<small>Stall confirms every transfer</small></span></div><div><i>📍</i><span>Collect on campus<small>Meet at a spot you choose</small></span></div></div>
+    <div class="sec"><h3>Categories</h3><button class="see" id="toStores">Browse stores →</button></div>
+    <div class="cats" id="hchips"></div>
   </div>
   <div class="wrap" id="browse">
     <div class="tools"><input class="search" id="q" type="search" placeholder="Search listings" aria-label="Search listings">
       <select class="sort" id="sort" aria-label="Sort"><option value="new">Newest</option><option value="lo">Price: low to high</option><option value="hi">Price: high to low</option></select></div>
     <div class="chips" id="chips"></div>
+    <div id="featRow"></div>
+    <div class="sec" id="gridHead"><h3 id="gridTitle">Just in</h3></div>
     <div class="grid" id="grid"></div>
     <div class="more"><button class="pill alt" id="more" hidden>Show more</button></div>
   </div>
@@ -245,6 +341,7 @@ dialog.adm[open]{display:flex;flex-direction:column}
 <dialog id="checkout"></dialog>
 <dialog id="adminDlg"></dialog>
 <dialog id="verDlg"></dialog>
+<dialog id="accDlg"></dialog>
 <dialog id="pwDlg"><form class="pad" id="pwForm"><h2>Change password</h2><label>Current password<input name="old" type="password" autocomplete="current-password" required></label><label>New password<input name="pw" type="password" autocomplete="new-password" minlength="8" required></label><span class="err" id="pwErr"></span>
  <div class="acts"><button class="pill" type="submit">Save</button><button class="pill alt" type="button" data-close>Cancel</button></div></form></dialog>
 <dialog id="done"></dialog>
@@ -289,12 +386,18 @@ function renderChips(){$('#chips').innerHTML=[{id:'all',name:'All'},...CATS].map
 function render(){
   renderChips();
   const l=items(),mo=$('#more');mo.hidden=!(PTOT>PUB.length&&l===PUB);mo.textContent=`Show more (${(PTOT-PUB.length).toLocaleString()} more)`;
-  $('#grid').innerHTML=l.length?l.map(i=>{const c=ci(i.cat),s=stat(i),inC=S.cart.includes(i.id);return `
-   <article class="card" data-id="${i.id}"><div class="tile" style="${cv(i)}">${ic(i)}${s?`<span class="tag">${s==='sold'?'Sold':'Reserved'}</span>`:''}${i.featured&&!s?'<span class="tag ft">Featured</span>':''}</div>
-   <div class="cb"><h3>${esc(i.title)}</h3><div class="meta">${esc(i.cond)} · ${esc(i.spot)} · ${ago(i.t)}${i.verified?' · '+VB:''}</div>
-   <div class="cf"><span class="price">${naira(i.price)}</span><button class="pill sm ${inC?'alt':''}" data-add="${i.id}" ${s?'disabled':''}>${inC?'In bag':'Add to bag'}</button></div></div></article>`}).join('')
+  document.querySelectorAll('.hc').forEach(b=>b.setAttribute('aria-pressed',b.dataset.hc===cat));
+  const F=!q&&cat==='all'?PUB.filter(i=>i.featured&&!stat(i)):[];
+  $('#featRow').innerHTML=F.length?`<div class="sec"><h3>Featured<span class="fbadge">Promoted</span></h3></div><div class="hrow">${F.map(cardHtml).join('')}</div>`:'';
+  $('#gridTitle').textContent=q?'Results for “'+q+'”':cat!=='all'?ci(cat).name:'Just in';
+  $('#grid').innerHTML=l.length?l.map(cardHtml).join('')
    :PQ&&!PLD?'':(q||cat!=='all'?`<div class="empty"><h3>Nothing found</h3><p>Try a different word, or list the item yourself.</p></div>`:`<div class="empty"><h3>No listings yet</h3><p>Be the first to sell something on Stall.</p>${S.user&&S.user.role!=='vendor'?'<div class="acts" style="justify-content:center"><button class="pill" id="sellEmpty">Sell something</button></div>':''}</div>`);
   document.querySelectorAll('.card').forEach(c=>io?io.observe(c):c.classList.add('in'));
+}
+function cardHtml(i){const s=stat(i),inC=S.cart.includes(i.id);return `
+   <article class="card" data-id="${i.id}"><div class="tile" style="${cv(i)}">${ic(i)}${s?`<span class="tag">${s==='sold'?'Sold':'Reserved'}</span>`:''}${i.featured&&!s?'<span class="tag ft">Featured</span>':''}</div>
+   <div class="cb"><h3>${esc(i.title)}</h3><div class="meta">${esc(i.cond)} · ${esc(i.spot)} · ${ago(i.t)}${i.verified?' · '+VB:''}</div>
+   <div class="cf"><span class="price">${naira(i.price)}</span><button class="pill sm ${inC?'alt':''}" data-add="${i.id}" ${s?'disabled':''}>${inC?'In bag':'Add to bag'}</button></div></div></article>`
   document.querySelectorAll('.empty').forEach(()=>{});
 }
 function add(id){const i=get(id);if(!i||stat(i))return toast('No longer available');
@@ -344,13 +447,15 @@ function openCart(){
 }
 function openDetail(id){
   const i=get(id);if(!i)return;const c=ci(i.cat),s=stat(i),own=!!(LC.get(id)||{}).mine,d=$('#detail');
-  d.innerHTML=`${gal(i)}<div class="pad"><h2 style="margin-bottom:4px">${esc(i.title)}</h2>
-   <p class="price" style="font-size:24px;margin:6px 0 12px">${naira(i.price)}</p><p>${esc(i.desc||'No extra details.')}</p>
-   <p class="meta" style="margin-top:12px">${esc(i.cond)} · Meet at ${esc(i.spot)} · Sold by ${esc(i.seller)}, ${esc(SCHOOL.short)} student${i.verified?' '+VB:''} · ${ago(i.t)}</p>
-   <div class="acts"><button class="pill" data-buy="${id}" ${s?'disabled':''}>${s?(s==='sold'?'Sold':'Reserved'):'Buy now'}</button><button class="pill alt" data-add="${id}" ${s?'disabled':''}>Add to bag</button></div>
+  const wa=String(i.phone||'').replace(/\D/g,'').replace(/^0/,'234');
+  d.innerHTML=`<button class="dx" data-close aria-label="Close">×</button>${gal(i)}<div class="pad">
+   <div class="dprice">${naira(i.price)}</div><h2 class="dtitle">${esc(i.title)}</h2>
+   <p class="meta">${i.featured&&!s?'<span class="tag ft" style="position:static;display:inline-block;margin-right:6px">Featured</span>':''}${esc(i.cond)} · Meet at ${esc(i.spot)} · ${ago(i.t)}</p>
+   <div class="dsep"></div><p style="color:var(--muted)">${esc(i.desc||'No extra details.')}</p>
+   <p style="margin-top:14px;font-weight:600">Sold by ${esc(i.seller)}, ${esc(SCHOOL.short)} student${i.verified?' '+VB:''}</p>
    ${own&&!s?boostBox(id,'listing',i.featured,i.featuredUntil):''}
-   ${own?`<div class="acts"><button class="pill alt" data-sold="${id}">${s==='sold'?'Mark available':'Mark as sold'}</button><button class="pill red" data-del="${id}">Delete</button></div>`:''}
-   <div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;
+   ${own?`<div class="acts"><button class="pill alt" data-sold="${id}">${s==='sold'?'Mark available':'Mark as sold'}</button><button class="pill red" data-del="${id}">Delete</button></div>`:''}</div>
+   ${own?'':`<div class="dbar">${wa?`<a class="chat" href="https://wa.me/${wa}?text=${encodeURIComponent('Hi, I saw your '+i.title+' on Stall.')}" target="_blank" rel="noopener" aria-label="Chat with seller on WhatsApp"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg></a>`:''}<button class="pill alt" data-add="${id}" ${s?'disabled':''}>Add to bag</button><button class="pill" data-buy="${id}" ${s?'disabled':''}>${s?(s==='sold'?'Sold':'Reserved'):'Buy now'}</button></div>`}`;
   d.showModal();
 }
 function openCheckout(){
@@ -446,7 +551,8 @@ async function renderSelling(){const r=await fetchJ('/api/orders/selling').catch
   $('#sellingList').innerHTML=up+(L.length?L.map(o=>orderCard(o,true)).join(''):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>Orders for things you sell show up here.</p></div>`);
   $('#sellingList').querySelectorAll('[data-codeform]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();const r=await apiPost('orders/code',{id:f.dataset.codeform,code:f.elements.code.value});
     if(r.error)return toast(r.error);toast('Order released');renderSelling()})}
-function view(v){['shop','stores','store','orders','selling'].forEach(x=>$('#'+x).hidden=x!==v);drawNews();scrollTo({top:0});if(v==='orders')renderOrders();if(v==='selling')renderSelling();if(v==='stores')renderStores()}
+function view(v){['shop','stores','store','orders','selling'].forEach(x=>$('#'+x).hidden=x!==v);drawNews();
+  const tb={shop:'tbShop',stores:'tbStores',store:'tbStores',orders:'tbOrders',selling:'tbMe'}[v];document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('on',b.id===tb));const ad=$('#accDlg');if(ad.open)ad.close();scrollTo({top:0});if(v==='orders')renderOrders();if(v==='selling')renderSelling();if(v==='stores')renderStores()}
 document.addEventListener('click',e=>{
   const t=e.target,c=s=>t.closest(s);
   if(c('[data-close]')){c('dialog').close();return}
@@ -468,7 +574,10 @@ document.addEventListener('click',e=>{
   if(b=c('[data-delstore]')){const s=myStore(),ids=s.items.map(x=>x.id);apiPost('stores/delete',{}).then(loadPub);STORES=STORES.filter(x=>x!==s);S.cart=S.cart.filter(x=>!ids.includes(x));save();badge();view('stores');toast('Store deleted');return}
   if(b=c('.chip')){cat=b.dataset.c;render();loadPub();return}
   if(b=c('.card')){openDetail(b.dataset.id);return}
-  const id=t.id||(c('button')||{}).id;
+  const id0=t.id||(c('button')||{}).id,id={tbShop:'navShop',tbStores:'navStores',tbOrders:'navOrders',accSelling:'navSelling',accVerify:'verifyBtn',accPw:'pwBtn',accAdmin:'adminBtn',accOut:'signOut'}[id0]||id0;
+  if(/^acc/.test(id0)&&$('#accDlg').open)$('#accDlg').close();
+  if(id0==='tbMe')openAccount();
+  if(id0==='tbSell'){S.user&&S.user.role==='vendor'?(myStore()?storePage(myStore().id):view('stores')):$('#sellBtn').click()}
   if(id==='bagBtn')openCart();
   if(id==='goCheckout')openCheckout();
   if(id==='sellBtn'||id==='sellHero'||id==='sellEmpty'){const f=$('#form').elements;f.seller.value=S.user.name;f.phone.value=S.user.phone;wireBankVerify($('#form'));$('#sell').showModal()}
@@ -495,6 +604,11 @@ document.addEventListener('click',e=>{
   if(id==='addItem')$('#itemDlg').showModal();
   if(id==='shopNow'){$('#browse').scrollIntoView()}
 });
+function openAccount(){const u=S.user,d=$('#accDlg');if(!u)return;const ns=NEWS.filter(x=>x.side==='sell').length;
+  const row=(id,ic,l,sub)=>`<button class="line" id="${id}" style="width:100%;background:none;border:0;border-bottom:1px solid var(--line);text-align:left;font:inherit;color:inherit"><div class="mini" style="background:var(--bg2);width:44px;height:44px;border-radius:14px;font-size:20px">${ic}</div><div class="t"><b>${l}</b>${sub?`<span class="meta">${sub}</span>`:''}</div><span class="meta">›</span></button>`;
+  d.innerHTML=`<div class="pad"><div style="display:flex;gap:14px;align-items:center"><div class="sav" style="width:60px;height:60px;margin:0;font-size:26px;border:0;background:var(--bg2)">${esc((u.name||'?')[0])}</div><div><h2 style="margin:0;font-size:22px">${esc(u.name)}</h2><p class="meta">${u.role==='vendor'?'Campus vendor':esc(u.matric||'')} ${u.verified?VB:''}</p></div></div>
+   <div style="margin-top:14px">${row('accSelling','📦','Orders to fulfil',ns?ns+' new':'Things people bought from you')}${u.verified?'':row('accVerify','✅','Get verified','Show buyers a ✓ badge')}${row('accPw','🔒','Change password','')}${u.admin||u.reviewer?row('accAdmin','🛠️',u.admin?'Admin':'Review payments',''):''}${row('accOut','↩︎','Sign out','')}</div>
+   <div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;d.showModal()}
 function openVerify(){const d=$('#verDlg'),u=S.user,st=u.verify;
   d.innerHTML=`<div class="pad"><h2>Verified seller ✓</h2><p class="meta">A green ${VB} badge on your listings and store tells buyers Stall has checked who you are. One-off fee of ${naira(PRICE.verify)}, paid only after we approve you.</p>
    ${u.verified?`<p style="margin-top:14px">You're verified. Your badge is showing.</p><div class="acts"><button class="pill alt" data-close>Close</button></div>`
@@ -536,8 +650,12 @@ function renderStores(){
 function storePage(id){
   cur=id;const s=allStores().find(x=>x.id===id);if(!s)return view('stores');
   const own=!!s.owner&&s.owner===uid(),qty=k=>S.cart.filter(x=>x===k).length;
-  $('#store').innerHTML=`<div class="wrap" style="padding-top:28px;max-width:760px"><button class="link" id="backStores">← All stores</button>
-   <div class="shead"><div class="sem" style="background:${ci(s.cat).c}">${s.emoji}</div><div><h2 style="font-size:34px;letter-spacing:-.03em">${esc(s.name)}</h2>${s.verified?VB:''}<p class="meta">${esc(s.desc)}</p><p class="meta">${esc(s.spot)} · <b style="color:${s.open?'var(--green)':'#E5484D'}">${s.open?'Open now':'Closed'}</b>${s.vendor?' · Campus vendor':''}</p></div></div>
+  const swa=String(s.phone||'').replace(/\D/g,'').replace(/^0/,'234'),avl=s.items.filter(x=>x.avail).length;
+  $('#store').innerHTML=`<div class="shero"><button class="link back" id="backStores" aria-label="All stores">←</button>
+   <div class="sav" style="background:${ci(s.cat).c}">${s.emoji}</div><h2>${esc(s.name)}</h2>${s.verified?'<div>'+VB+'</div>':''}<p class="sst"><i class="${s.open?'on':''}"></i>${s.open?'Open now':'Closed'}${s.vendor?' · Campus vendor':''}</p>
+   <div class="sstats"><div><b>${avl}</b><span>Available</span></div><div><b>${s.items.length}</b><span>Items</span></div><div><b>${esc(ci(s.cat).name)}</b><span>Category</span></div></div>
+   ${swa&&!own?`<div class="sbtn"><a class="pill acc" href="https://wa.me/${swa}" target="_blank" rel="noopener">Chat on WhatsApp</a></div>`:''}</div>
+   <div class="wrap" style="padding-top:18px;max-width:760px"><p style="color:var(--muted)">${esc(s.desc)}</p><p class="meta">📍 ${esc(s.spot)}</p>
    ${own?`<div class="acts"><button class="pill sm" id="addItem">Add item</button><button class="pill sm alt" data-toggle="1">${s.open?'Close store':'Open store'}</button><button class="pill sm red" data-delstore="1">Delete store</button></div>${boostBox(s.id,'store',s.featured,s.featuredUntil)}`:''}
    <div style="margin-top:14px">${s.items.length?s.items.map(it=>{const q=qty(it.id),ok=s.open&&it.avail,t2={...it,cat:s.cat,se:s.emoji};return `<div class="line"><div class="mini" data-item="${it.id}" style="${cv(t2)};cursor:pointer">${ic(t2)}</div><div class="t"><b>${esc(it.title)}</b><span class="meta">${esc(it.desc||'')}</span><span class="price" style="font-size:17px">${naira(it.price)}</span></div>
     ${ok?(q?`<span class="step"><button data-dec="${it.id}" aria-label="Remove one">−</button><b>${q}</b><button data-inc="${it.id}" aria-label="Add one">+</button></span>`:`<button class="pill sm" data-inc="${it.id}">Add</button>`):`<span class="meta">${s.open?'Sold out':'Closed'}</span>`}
@@ -601,7 +719,7 @@ function markSeen(k){seenK()[k]=Date.now();save();NEWS=NEWS.filter(x=>x.side!==(
 const newsText=x=>{const t='“'+esc(x.title)+'”';return x.side==='buy'?(x.status==='verified'?`Payment confirmed for ${t}. Your release code is ready. Give it to the seller when you collect.`:x.status==='rejected'?`Your payment for ${t} was not accepted${x.note?': '+esc(x.note):''}. The order was cancelled.`:`Your order for ${t} expired because payment was not made in time.`)
   :(x.status==='verified'?`New paid order: ${t} from ${esc(x.buyerName)} (${naira(x.amount)}). Hand it over when they give you their release code.`:`Order complete: ${esc(x.buyerName)} collected ${t}.`)};
 function drawNews(){const nb=NEWS.filter(x=>x.side==='buy').length,ns=NEWS.length-nb,dO=$('#navOrders .ndot'),dS=$('#navSelling .ndot'),el=$('#notice');
-  if(dO)dO.hidden=!nb;if(dS)dS.hidden=!ns;const onO=!$('#orders').hidden||!$('#selling').hidden;
+  if(dO)dO.hidden=!nb;if(dS)dS.hidden=!ns;$('#tbOrders .ndot').hidden=!nb;$('#tbMe .ndot').hidden=!ns;const onO=!$('#orders').hidden||!$('#selling').hidden;
   const va=S.user&&S.user.verify==='approved'&&!S.user.verified;if(va&&!NEWS.length){el.hidden=false;el.innerHTML=`<div><span>Your verification was approved. Pay ${naira(PRICE.verify)} to switch on your ✓ Verified badge.</span><button class="pill sm" id="verifyGo">Get badge</button></div>`;return}
   el.hidden=!NEWS.length||onO;if(NEWS.length&&!onO)el.innerHTML=`<div><span>${newsText(NEWS[0])}${NEWS.length>1?` <b>+${NEWS.length-1} more</b>`:''}</span><button class="pill sm" id="noticeGo">View</button></div>`}
 async function pollNews(){if(!S.user)return;const k=seenK();const r=await fetchJ(`/api/orders/news?sb=${k.b}&ss=${k.s}`).catch(()=>null);if(r&&r.news){NEWS=r.news;drawNews()}}
@@ -764,7 +882,7 @@ function gate(){
 }
 S.cart=S.cart.filter(id=>get(id));render();badge();$('#badge').classList.remove('bump');gate();
 refreshMe();setInterval(pollPub,20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollPub()});
-$('#hchips').innerHTML=CATS.map(c=>`<button class="hc" data-hc="${c.id}">${c.e} ${c.name}</button>`).join('');
+$('#hchips').innerHTML=`<button class="hc" data-hc="all"><span style="background:var(--card)">✨</span>All</button>`+CATS.map(c=>`<button class="hc" data-hc="${c.id}"><span style="background:${c.c}">${c.e}</span>${c.name}</button>`).join('');
 document.addEventListener('click',e=>{const b=e.target.closest('[data-hc]');if(b){cat=b.dataset.hc;render();loadPub();$('#browse').scrollIntoView()}});
 (async()=>{const ref=new URLSearchParams(location.search).get('reference');if(!ref)return;history.replaceState(null,'','/');
   const p=JSON.parse(sessionStorage.getItem('stall:pending')||'null');sessionStorage.removeItem('stall:pending');
