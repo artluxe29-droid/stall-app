@@ -133,6 +133,46 @@ label input,label select,label textarea{display:block;width:100%;margin-top:5px;
 .hc{border:1px solid rgba(255,241,220,.3);background:rgba(255,241,220,.1);color:#FFF1DC;border-radius:980px;padding:7px 14px;font-size:14px}.hc:hover{background:rgba(255,241,220,.24)}
 .trust{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.trust div{padding:10px 14px;font-size:14px;font-weight:600}.trust small{display:block;font-weight:400;font-size:12px;color:#F3D9B8}
 #browse{padding-top:12px}
+dialog.adm{width:min(1000px,calc(100% - 20px));max-width:none;height:calc(100% - 20px);overflow:hidden}
+dialog.adm[open]{display:flex;flex-direction:column}
+.ah{padding:16px 20px 0;border-bottom:1px solid var(--line);flex:none}
+.ah .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ah h2{font-size:26px;font-weight:700;letter-spacing:-.03em}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin-top:8px}
+.tab{flex:none;border:0;background:none;padding:10px 12px;font-size:15px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent}
+.tab[aria-selected="true"]{color:var(--ink);border-color:var(--ink)}
+.tab i{font-style:normal;font-size:11px;font-weight:700;background:#E5484D;color:#fff;border-radius:9px;padding:1px 6px;margin-left:6px;vertical-align:1px}
+.ab{flex:1;overflow:auto;padding:16px 20px 30px}
+.atools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.atools .search{padding:10px 16px}
+.fchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0 8px}
+.fchip{flex:none;border:0;background:var(--bg2);border-radius:980px;padding:6px 14px;font-size:14px}
+.fchip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.arow{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line)}
+.arow .t{flex:1;min-width:0}
+.arow small{display:block;color:var(--muted);font-size:13px;margin-top:3px;overflow-wrap:anywhere}
+.arow small b{color:var(--ink);font-weight:600}
+.ttl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ttl b{font-weight:600}
+.aacts{display:flex;gap:6px;flex-wrap:wrap;flex:none}
+.badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:980px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.b-warn{color:#B25E00;border-color:#E8A25A}.badge.b-ok{color:var(--green);border-color:var(--green)}.badge.b-bad{color:#E5484D;border-color:#E5484D}
+.arow .flag,.flag{color:#E5484D}
+.rimg{width:76px;height:76px;object-fit:cover;border-radius:12px;cursor:zoom-in;flex:none;background:var(--bg2)}
+.rimg.big{width:min(420px,100%);height:auto;cursor:zoom-out;order:9;flex-basis:100%}
+.arow:has(.rimg.big){flex-wrap:wrap}
+.rjf{margin-top:10px;display:grid;gap:8px;max-width:420px}
+.rjf select,.rjf input,.codebox input{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg2)}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:16px;font-size:14px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:8px}
+.stat{background:var(--bg2);border-radius:16px;padding:14px 16px;text-align:left;border:0;width:100%}
+.stat:hover{filter:brightness(.97)}
+.stat b{display:block;font-size:28px;font-weight:700;letter-spacing:-.02em}
+.stat span{font-size:14px;color:var(--muted)}
+.stat.hot b{color:#E5484D}
+.codebox{background:var(--bg2);border-radius:16px;padding:14px 16px;margin:6px 0 12px}
+.codebox small{color:var(--muted)}.codebox b{display:block;font-size:26px;letter-spacing:1px;margin:2px 0 10px}
+@media (max-width:560px){dialog.adm{width:100%;height:100%;max-height:100%;border-radius:0}.ah,.ab{padding-left:16px;padding-right:16px}.arow{flex-wrap:wrap}.arow .aacts{width:100%}.arow .aacts .pill{flex:1}}
 </style>
 </head>
 <body>
@@ -525,34 +565,80 @@ let PV=-1;
 async function pollPub(){if(!S.user||document.hidden)return;const r=await fetchJ('/api/listings/ver').catch(()=>null);if(r&&typeof r.v==='number'&&r.v!==PV){PV=r.v;loadPub()}}
 async function loadPub(){if(!S.user)return;const[a,b]=await Promise.all([fetchJ('/api/listings').catch(()=>null),fetchJ('/api/stores').catch(()=>null)]);if(a&&a.listings)PUB=a.listings;if(b&&b.stores)STORES=b.stores;if((a&&a.listings)||(b&&b.stores)){refresh();renderStores()}}
 function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub()}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
-async function openAdmin(){const d=$('#adminDlg');d.innerHTML='<div class="pad"><h2>Admin</h2><p class="meta">Loading...</p></div>';d.showModal();
-  d.onclick=async e=>{const b=e.target.closest('[data-off],[data-vs],[data-ok],[data-no],[data-rvoff],[data-bankok]');if(!b)return;
-    if(b.dataset.off)await apiPost('admin/code-off',{code:b.dataset.off});
-    else if(b.dataset.vs)await apiPost('admin/status',{id:+b.dataset.vs,status:b.dataset.to});
-    else if(b.dataset.ok)await apiPost('admin/orders/decide',{id:+b.dataset.ok,approve:true});
-    else if(b.dataset.no){const why=prompt('Reason for rejecting this payment?')||'Rejected by admin';await apiPost('admin/orders/decide',{id:+b.dataset.no,approve:false,reason:why})}
-    else if(b.dataset.rvoff)await apiPost('admin/reviewers',{phone:b.dataset.rvoff,add:false});
-    else if(b.dataset.bankok){const parts=b.dataset.bankok.split(':');await apiPost('admin/bank-confirm',{kind:parts[0],id:parts[1]})}
-    adminDraw()};
-  adminDraw()}
-async function adminDraw(){const d=$('#adminDlg'),o=await fetchJ('/api/admin/orders').catch(()=>({}));
-  if(!o.orders){d.innerHTML='<div class="pad"><h2>Admin</h2><p class="meta">Not allowed.</p><div class="acts"><button class="pill alt" data-close>Close</button></div></div>';return}
-  const queueHtml=`<p class="lb">Payments needing review (${o.orders.length})</p>${o.orders.map(x=>`<div class="line"><div class="t"><b>${esc(x.title)}</b> · Order total ${naira(x.amount)}<br><small>${esc(x.buyerName)} → ${esc(x.sellerName)}</small><br><small>Buyer said they sent ${naira(x.rAmount||0)}, ref "${esc(x.rRef||'')}"</small><br><small style="color:#E5484D">${esc(x.note||'')}</small><br>${x.receipt?`<img src="${x.receipt}" style="max-width:220px;border-radius:8px;margin-top:6px">`:'<span class="meta">No photo attached.</span>'}</div><div class="acts" style="flex-direction:column;gap:6px"><button class="pill sm" data-ok="${x.id}">Approve</button><button class="pill sm alt" data-no="${x.id}">Reject</button></div></div>`).join('')||'<p class="meta">Nothing needs review right now.</p>'}`;
-  if(!S.user.admin){d.innerHTML=`<div class="pad"><h2>Review orders</h2>${queueHtml}<div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;return}
-  const c=await fetchJ('/api/admin/codes').catch(()=>({})),v=await fetchJ('/api/admin/vendors').catch(()=>({})),rv=await fetchJ('/api/admin/reviewers').catch(()=>({})),bk=await fetchJ('/api/admin/banks').catch(()=>({}));
-  const st=x=>x.status==='active'?'Approved':x.status==='pending'?'Waiting for approval':'Suspended';
-  d.innerHTML=`<div class="pad"><h2>Admin</h2>
-   ${queueHtml}
-   <form id="codeForm" style="margin-top:20px"><label>New vendor code for<input name="label" maxlength="40" placeholder="Shop or vendor name"></label><span class="err" id="codeErr"></span><div class="acts"><button class="pill" type="submit">Create code</button></div></form><div id="codeOut"></div>
-   <p class="lb" style="margin-top:20px">Payout details awaiting confirmation (${(bk.items||[]).length})</p>${(bk.items||[]).map(x=>`<div class="line"><div class="t"><b>${esc(x.name)}</b> · ${x.kind==="store"?"Store":"Person"}<br><small>${esc(x.bank_name||x.bank||"")} · ${esc(x.acct_no||x.acct||"")} · Name given: ${esc(x.acct_name)}</small></div><button class="pill sm" data-bankok="${x.kind}:${x.id}">Confirm</button></div>`).join("")||"<p class=\"meta\">Nothing waiting here.</p>"}
-   <p class="lb" style="margin-top:20px">Vendors (${v.vendors.length})</p>${v.vendors.map(x=>`<div class="line"><div class="t"><b>${esc(x.biz)}</b> · ${st(x)}<br><small>${esc(x.name)} · ${esc(x.phone)} · ${esc(x.place||'')}</small></div>${x.status==='active'?`<button class="pill sm alt" data-vs="${x.id}" data-to="suspended">Suspend</button>`:`<button class="pill sm" data-vs="${x.id}" data-to="active">${x.status==='pending'?'Approve':'Reactivate'}</button>`}</div>`).join('')||'<p class="meta">No vendors yet.</p>'}
-   <p class="lb" style="margin-top:20px">Codes</p>${c.codes.map(x=>`<div class="line"><div class="t"><b>${esc(x.label||'Old code')}</b><br><small>${esc(x.code)} · ${x.biz?'Used by '+esc(x.biz):x.active?'Not used yet':'Turned off'}</small></div>${x.active&&!x.biz?`<button class="pill sm alt" data-off="${esc(x.code)}">Turn off</button>`:''}</div>`).join('')||'<p class="meta">No codes yet.</p>'}
-   <p class="lb" style="margin-top:20px">Second reviewers (${(rv.reviewers||[]).length})</p>${(rv.reviewers||[]).map(x=>`<div class="line"><div class="t">${esc(x.name)} · ${esc(x.phone)}</div><button class="pill sm alt" data-rvoff="${esc(x.phone)}">Remove</button></div>`).join('')||'<p class="meta">Nobody else can review payments yet.</p>'}
-   <form id="rvForm"><label>Add a reviewer by their Stall phone number<input name="phone" placeholder="080..."></label><span class="err" id="rvErr"></span><div class="acts"><button class="pill sm" type="submit">Add reviewer</button></div></form>
-   <div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;
-  $('#codeForm').onsubmit=async e=>{e.preventDefault();const r=await apiPost('admin/codes',{label:e.target.elements.label.value});if(r.error){$('#codeErr').textContent=r.error;return}
-    await adminDraw();$('#codeOut').innerHTML=`<p class="meta" style="margin-top:12px">Code for ${esc(r.label)}:</p><p style="font-size:26px;font-weight:700;letter-spacing:1px">${esc(r.code)}</p><a class="pill sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Your Stall vendor code is '+r.code+'. Sign up as a shop at '+location.origin)}">Send on WhatsApp</a>`}
-  $('#rvForm').onsubmit=async e=>{e.preventDefault();const r=await apiPost('admin/reviewers',{phone:e.target.elements.phone.value,add:true});if(r.error){$('#rvErr').textContent=r.error;return}adminDraw()}}
+const AD={tab:'overview',st:{},sum:{},n:0},OST={pending:['Waiting for payment',''],under_review:['Needs review','warn'],verified:['Paid, awaiting delivery','warn'],released:['Delivered','ok'],expired:['Expired',''],rejected:['Rejected','bad']};
+const ATABS=[['overview','Overview'],['payments','Payments','review'],['orders','Orders'],['vendors','Vendors','vendorsPending'],['payouts','Payouts','banks'],['users','People'],['codes','Codes']];
+const AF={orders:[['all','All'],['verified','Awaiting delivery'],['under_review','Needs review'],['pending','Waiting for payment'],['released','Delivered'],['rejected','Rejected'],['expired','Expired']],vendors:[['all','All'],['pending','Waiting'],['active','Approved'],['suspended','Suspended']],users:[['all','Everyone'],['student','Students'],['vendor','Vendors'],['reviewer','Reviewers']],codes:[['all','All'],['unused','Not used'],['used','Used'],['off','Turned off']]};
+const AQ={payments:'Search order #, name, phone or reference',orders:'Search order #, name, phone or reference',vendors:'Search shop, name or phone',users:'Search name, matric, phone or email',codes:'Search code or shop name'};
+const aAgo=t=>{if(!t)return'';const s=(Date.now()-t)/1e3;return s<60?'just now':s<3600?Math.floor(s/60)+' min ago':s<86400?Math.floor(s/3600)+' h ago':new Date(t).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})};
+const wa=p=>{p=String(p||'');return p?`<a class="link" target="_blank" rel="noopener" href="https://wa.me/${p[0]==='0'?'234'+p.slice(1):p}">${esc(p)}</a>`:''};
+const bdg=(l,k)=>`<span class="badge ${k?'b-'+k:''}">${esc(l)}</span>`;
+const ast=k=>AD.st[k]=AD.st[k]||{q:'',f:(AF[k]||[[''] ])[0][0],page:0};
+async function openAdmin(){const d=$('#adminDlg');AD.rev=!S.user.admin;if(AD.rev)AD.tab='payments';d.className='adm';
+  d.innerHTML=`<div class="ah"><div class="top"><h2>${AD.rev?'Review payments':'Admin'}</h2><button class="pill sm alt" data-close>Close</button></div>${AD.rev?'':`<div class="tabs" role="tablist">${ATABS.map(([k,l])=>`<button class="tab" role="tab" data-tab="${k}">${l}<i hidden></i></button>`).join('')}</div>`}</div><div class="ab" id="ab"></div>`;
+  d.showModal();
+  d.onclick=async e=>{const t=e.target,c=s=>t.closest(s),S0=ast(AD.tab);let b;
+    if(b=c('[data-tab]'))return adminTab(b.dataset.tab);
+    if(b=c('[data-go]')){const[k,f]=b.dataset.go.split(':');if(f)Object.assign(ast(k),{f,page:0,q:''});return adminTab(k)}
+    if(b=c('[data-af]')){S0.f=b.dataset.af;S0.page=0;return adminTab(AD.tab)}
+    if(b=c('[data-pg]')){S0.page+=+b.dataset.pg;$('#ab').scrollTop=0;return adminLoad()}
+    if(b=c('[data-zoom]'))return b.classList.toggle('big');
+    if(b=c('[data-rj]')){const f=$('#rj'+b.dataset.rj);f.hidden=!f.hidden;return}
+    if(b=c('[data-copy]')){navigator.clipboard&&navigator.clipboard.writeText(b.dataset.copy);return toast('Copied')}
+    let r,msg;b=c('[data-aok],[data-avs],[data-abank],[data-aoff],[data-arv]');if(!b)return;
+    if(b.dataset.aok){r=await apiPost('admin/orders/decide',{id:+b.dataset.aok,approve:true});msg='Payment approved, release code sent to buyer'}
+    else if(b.dataset.avs){const to=b.dataset.to;if(to==='suspended'&&!confirm('Suspend this vendor? Their shop will stop working until you reactivate it.'))return;r=await apiPost('admin/status',{id:+b.dataset.avs,status:to});msg=to==='active'?'Vendor approved':'Vendor suspended'}
+    else if(b.dataset.abank){const[kind,id]=b.dataset.abank.split(':');r=await apiPost('admin/bank-confirm',{kind,id});msg='Payout details confirmed'}
+    else if(b.dataset.aoff){r=await apiPost('admin/code-off',{code:b.dataset.aoff});msg='Code turned off'}
+    else if(b.dataset.arv){const add=b.dataset.add==='1';if(!add&&!confirm('Remove this person as a payment reviewer?'))return;r=await apiPost('admin/reviewers',{phone:b.dataset.arv,add});msg=add?'Reviewer added':'Reviewer removed'}
+    if(r&&r.error)return toast(r.error);toast(msg);adminSum();adminLoad()};
+  d.onsubmit=async e=>{const f=e.target;e.preventDefault();
+    if(f.dataset.rjf){const why=[f.elements.why.value,f.elements.more.value.trim()].filter(Boolean).join('. ');const r=await apiPost('admin/orders/decide',{id:+f.dataset.rjf,approve:false,reason:why||'Rejected by admin'});if(r.error)return toast(r.error);toast('Payment rejected');adminSum();adminLoad()}
+    if(f.id==='codeForm'){const r=await apiPost('admin/codes',{label:f.elements.label.value});if(r.error)return $('#codeErr').textContent=r.error;f.reset();$('#codeErr').textContent='';
+      $('#codeOut').innerHTML=`<div class="codebox"><small>Code for ${esc(r.label)}</small><b>${esc(r.code)}</b><div class="aacts"><button class="pill sm alt" type="button" data-copy="${esc(r.code)}">Copy</button><a class="pill sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Your Stall vendor code is '+r.code+'. Sign up as a shop at '+location.origin)}">Send on WhatsApp</a></div></div>`;ast('codes').page=0;adminLoad()}};
+  d.oninput=e=>{if(!e.target.classList.contains('asearch'))return;const S0=ast(AD.tab);S0.q=e.target.value;S0.page=0;clearTimeout(AD.qt);AD.qt=setTimeout(adminLoad,300)};
+  adminSum();adminTab(AD.tab)}
+async function adminSum(){const s=await fetchJ('/api/admin/summary').catch(()=>null);if(!s||s.error)return;AD.sum=s;
+  ATABS.forEach(([k,,n])=>{const i=document.querySelector(`#adminDlg [data-tab="${k}"] i`);if(i&&n){i.textContent=s[n]>99?'99+':s[n];i.hidden=!s[n]}});
+  if(AD.tab==='overview')adminLoad()}
+function adminTab(k){AD.tab=k;const S0=ast(k);document.querySelectorAll('#adminDlg [data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===k));
+  const tb=document.querySelector(`#adminDlg [data-tab="${k}"]`);if(tb)tb.scrollIntoView({block:'nearest',inline:'nearest'});
+  $('#ab').innerHTML=(k==='codes'?`<form id="codeForm" class="atools"><input class="search" name="label" maxlength="40" placeholder="New code for which shop or vendor?" required><button class="pill sm" type="submit">Create code</button></form><span class="err" id="codeErr"></span><div id="codeOut"></div>`:'')
+   +(AQ[k]?`<div class="atools"><input class="search asearch" type="search" placeholder="${AQ[k]}" value="${esc(S0.q)}"></div>`:'')
+   +(AF[k]?`<div class="fchips">${AF[k].map(([v,l])=>`<button class="fchip" data-af="${v}" aria-pressed="${S0.f===v}">${l}</button>`).join('')}</div>`:'')
+   +'<div id="alist"><p class="meta">Loading...</p></div>';
+  $('#ab').scrollTop=0;adminLoad()}
+async function adminLoad(){const k=AD.tab,S0=ast(k),n=++AD.n,el=()=>n===AD.n&&$('#alist'),qs=p=>'?'+new URLSearchParams({q:S0.q,page:S0.page,...p});
+  if(k==='overview'){const s=AD.sum,card=(n,l,go,hot)=>`<${go?`button data-go="${go}"`:'div'} class="stat${hot&&n?' hot':''}"><b>${n==null?'–':n.toLocaleString()}</b><span>${l}</span></${go?'button':'div'}>`,todo=(s.review||0)+(s.vendorsPending||0)+(s.banks||0);
+    if(el())el().innerHTML=`<p class="lb">Needs your attention</p>${todo?'':'<p class="meta">All caught up. Nothing is waiting on you.</p>'}<div class="stats">${card(s.review,'Payments to review','payments',1)}${card(s.vendorsPending,'Vendors waiting for approval','vendors:pending',1)}${card(s.banks,'Payout details to confirm','payouts',1)}${card(s.delivery,'Paid, waiting for delivery','orders:verified')}</div>
+     <p class="lb" style="margin-top:22px">Stall at a glance</p><div class="stats">${card(s.students,'Students','users:student')}${card(s.vendors,'Vendors','vendors:all')}${card(s.stores,'Stores')}${card(s.released,'Orders delivered','orders:released')}${card(s.today,'Orders today','orders:all')}</div>`;return}
+  const url={payments:'/api/admin/orders'+qs({status:'under_review'}),orders:'/api/admin/orders'+qs({status:S0.f}),vendors:'/api/admin/vendors'+qs({status:S0.f}),users:'/api/admin/users'+qs({role:S0.f}),codes:'/api/admin/codes'+qs({f:S0.f}),payouts:'/api/admin/banks'}[k];
+  const r=await fetchJ(url).catch(()=>({error:'Could not reach Stall. Check your connection.'}));if(!el())return;
+  if(r.error)return el().innerHTML=`<p class="err">${esc(r.error)}</p>`;
+  const R={payments:aOrder,orders:aOrder,vendors:aVendor,users:aUser,codes:aCode,payouts:aBank}[k],E={payments:'No payments waiting for review. You are all caught up.',payouts:'No payout details waiting for confirmation.'}[k]||(S0.q?'Nothing matches your search.':'Nothing here yet.');
+  const a=S0.page*r.ps+1,z=S0.page*r.ps+r.items.length;
+  el().innerHTML=(r.items.length?r.items.map(R).join(''):`<p class="meta" style="padding:30px 0;text-align:center">${E}</p>`)
+   +(r.total>r.items.length||S0.page?`<div class="pager"><button class="pill sm alt" data-pg="-1" ${S0.page?'':'disabled'}>Previous</button><span>${a.toLocaleString()}–${z.toLocaleString()} of ${r.total.toLocaleString()}</span><button class="pill sm alt" data-pg="1" ${z<r.total?'':'disabled'}>Next</button></div>`:r.items.length?`<p class="meta" style="margin-top:12px">${r.total.toLocaleString()} total</p>`:'')}
+function aOrder(x){const[l,kk]=OST[x.status]||[x.status,''],rev=x.status==='under_review',mis=x.rAmount!=null&&x.rAmount!==x.amount,left=Math.round((x.deadline-Date.now())/6e4);
+  return `<div class="arow">${x.hasReceipt?`<img class="rimg" data-zoom src="/api/admin/receipt/${x.id}" alt="Receipt for order ${x.id}" loading="lazy">`:''}<div class="t">
+   <div class="ttl"><b>#${x.id} · ${esc(x.title)}</b>${bdg(l,kk)}</div>
+   <small>Order total <b>${naira(x.amount)}</b>${x.rAmount!=null?` · buyer says they sent <b${mis?' class="flag"':''}>${naira(x.rAmount)}</b>`:''}${x.rRef?` · ref <b>${esc(x.rRef)}</b>`:''}</small>
+   <small>Buyer: ${esc(x.buyerName)} ${wa(x.buyerPhone)}</small><small>Seller: ${esc(x.sellerName)} ${wa(x.sellerPhone)} · pays to ${esc(x.bank||'')} ${esc(x.acct||'')} (${esc(x.acctName||'')})</small>
+   ${x.note?`<small class="flag">${esc(x.note)}</small>`:''}
+   <small>Updated ${aAgo(x.updated||x.created)}${rev?(left>0?` · <span class="flag">auto-expires in ${left} min</span>`:' · <span class="flag">past its deadline</span>'):''}${x.status==='verified'?' · release code not used yet':''}${x.status==='released'?' · release code used':''}${rev&&!x.hasReceipt?' · no photo attached':''}</small>
+   ${rev?`<form id="rj${x.id}" data-rjf="${x.id}" class="rjf" hidden><select name="why"><option>Amount does not match the order</option><option>Receipt photo is not a real payment</option><option>Reference was already used</option><option>Seller did not receive the money</option><option value="">Other reason</option></select><input name="more" maxlength="120" placeholder="Extra note for the buyer (optional)"><div class="aacts"><button class="pill sm red" type="submit">Reject payment</button><button class="pill sm alt" type="button" data-rj="${x.id}">Cancel</button></div></form>`:''}
+  </div>${rev?`<div class="aacts"><button class="pill sm" data-aok="${x.id}">Approve</button><button class="pill sm alt" data-rj="${x.id}">Reject</button></div>`:''}</div>`}
+function aVendor(x){const[l,kk]={active:['Approved','ok'],pending:['Waiting for approval','warn'],suspended:['Suspended','bad']}[x.status]||[x.status,''];
+  return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.biz||x.name)}</b>${bdg(l,kk)}</div><small>${esc(x.name)} · ${wa(x.phone)}${x.place?' · '+esc(x.place):''}${x.cat?' · '+esc(x.cat):''}</small><small>Joined ${aAgo(x.created)}</small></div>
+   <div class="aacts">${x.status==='active'?`<button class="pill sm alt" data-avs="${x.id}" data-to="suspended">Suspend</button>`:`<button class="pill sm" data-avs="${x.id}" data-to="active">${x.status==='pending'?'Approve':'Reactivate'}</button>`}</div></div>`}
+function aUser(x){const st=x.role==='vendor';
+  return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(st&&x.biz?x.biz+' ('+x.name+')':x.name)}</b>${bdg(st?'Vendor':'Student')}${x.is_admin?bdg('Admin','ok'):''}${x.reviewer?bdg('Reviewer','ok'):''}${x.status&&x.status!=='active'?bdg(x.status==='pending'?'Waiting for approval':'Suspended','warn'):''}</div>
+   <small>${x.matric?esc(x.matric)+' · ':''}${wa(x.phone)}${x.email?' · '+esc(x.email):''}${x.place?' · '+esc(x.place):''}</small><small>Joined ${aAgo(x.created)}</small></div>
+   <div class="aacts">${x.is_admin?'':`<button class="pill sm alt" data-arv="${esc(x.phone)}" data-add="${x.reviewer?0:1}">${x.reviewer?'Remove reviewer':'Make reviewer'}</button>`}</div></div>`}
+function aCode(x){const[l,kk]=x.biz?['Used by '+x.biz,'ok']:x.active?['Not used yet','warn']:['Turned off',''];
+  return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.label||'Old code')}</b>${bdg(l,kk)}</div><small><b>${esc(x.code)}</b>${x.created?' · created '+ago(x.created):''}</small></div>
+   <div class="aacts">${x.active&&!x.biz?`<button class="pill sm alt" data-copy="${esc(x.code)}">Copy</button><button class="pill sm alt" data-aoff="${esc(x.code)}">Turn off</button>`:''}</div></div>`}
+function aBank(x){return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.name)}</b>${bdg(x.kind==='store'?'Store':'Person')}</div><small>${esc(x.bank_name||x.bank||'')} · <b>${esc(x.acct_no||x.acct||'')}</b></small><small>Name they gave: <b>${esc(x.acct_name||'')}</b>${x.phone?' · '+wa(x.phone):''}</small><small>Check this name matches the account in your bank app before confirming.</small></div>
+   <div class="aacts"><button class="pill sm" data-abank="${x.kind}:${x.id}">Confirm</button></div></div>`}
 async function regSend(f,body){const b=f.querySelector('[type=submit]');b.disabled=true;const r=await apiPost('register',body);b.disabled=false;
   if(r.error){f.querySelectorAll('[data-e]').forEach(x=>x.textContent='');(f.querySelector('[data-e="'+r.field+'"]')||f.querySelector('[data-e="ok"]')).textContent=r.error;return}
   S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();loadPub();view('shop');toast('Welcome to Stall, '+(S.user.biz||S.user.name.split(' ')[0]))}
