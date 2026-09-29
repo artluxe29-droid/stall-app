@@ -34,10 +34,16 @@ async function sweep(env){const now=Date.now();
   await env.DB.batch(ids.map(id=>env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=?").bind(now,id)));
   if(lids.length){const ph2=lids.map(()=>'?').join(',');await env.DB.prepare(`UPDATE listings SET sold=0 WHERE id IN (${ph2})`).bind(...lids).run()}}
 let ready=false;
-const ensure=async env=>{if(ready)return;await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)'].map(q=>env.DB.prepare(q)));ready=true};
+const ensure=async env=>{if(ready)return;await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
+  'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
+  'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
+  for(const q of ['ALTER TABLE listings ADD COLUMN featured_until INTEGER','ALTER TABLE stores ADD COLUMN featured_until INTEGER','ALTER TABLE users ADD COLUMN verified INTEGER NOT NULL DEFAULT 0'])await env.DB.prepare(q).run().catch(()=>{});
+  ready=true};
+// Prices in naira. Change them here.
+const PRICE={listing:{3:300,7:500},store:{3:500,7:1000},verify:1000};
 const getK=async(env,k)=>{await ensure(env);const r=await env.DB.prepare('SELECT v FROM settings WHERE k=?').bind(k).first();return r?r.v:null};
 const setK=async(env,k,v)=>{await ensure(env);await env.DB.prepare('INSERT INTO settings(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').bind(k,String(v)).run()};
-const logA=async(env,a,kind,action,target,o={})=>{await ensure(env);await env.DB.prepare('INSERT INTO admin_log(t,uid,who,kind,action,oid,target,detail) VALUES(?,?,?,?,?,?,?,?)').bind(Date.now(),a?a.id:null,a?a.name+(a.is_admin?' (admin)':' (reviewer)'):'Automatic',kind,action,o.oid||null,String(target||'').slice(0,120),o.detail?String(o.detail).slice(0,300):null).run()};
+const logA=async(env,a,kind,action,target,o={})=>{await ensure(env);await env.DB.prepare('INSERT INTO admin_log(t,uid,who,kind,action,oid,target,detail) VALUES(?,?,?,?,?,?,?,?)').bind(Date.now(),a?a.id:null,o.who||(a?a.name+(a.is_admin?' (admin)':' (reviewer)'):'Automatic'),kind,action,o.oid||null,String(target||'').slice(0,120),o.detail?String(o.detail).slice(0,300):null).run()};
 // Frees space: receipts 60 days after an order closes, sold listings older than 30 days, orphaned photos, old sessions.
 const RECEIPT_DAYS=60,SOLD_DAYS=30;
 async function cleanup(env,a){const now=Date.now(),D=864e5;
@@ -52,7 +58,7 @@ async function cleanup(env,a){const now=Date.now(),D=864e5;
 const dailyCleanup=async env=>{try{const t=+(await getK(env,'cleanup_at'))||0;if(Date.now()-t>864e5){await setK(env,'cleanup_at',Date.now());await cleanup(env,null)}}catch(e){}};
 
 const phoneN=p=>{let d=String(p||'').replace(/\D/g,'');if(d.startsWith('234')&&d.length===13)d='0'+d.slice(3);return d};
-const pub=u=>u.role==='vendor'?{role:'vendor',id:'V-'+u.phone,name:u.name,biz:u.biz,phone:u.phone,where:u.place||'',cat:u.cat,status:u.status,admin:!!u.is_admin,reviewer:!!u.reviewer,acctSet:!!(u.acct_no&&u.acct_name)}:{role:'student',id:u.matric,name:u.name,matric:u.matric,email:u.email,phone:u.phone,where:u.place||'',status:u.status,admin:!!u.is_admin,reviewer:!!u.reviewer,acctSet:!!(u.acct_no&&u.acct_name)};
+const pub=u=>u.role==='vendor'?{role:'vendor',id:'V-'+u.phone,name:u.name,biz:u.biz,phone:u.phone,where:u.place||'',cat:u.cat,status:u.status,admin:!!u.is_admin,reviewer:!!u.reviewer,verified:!!u.verified,acctSet:!!(u.acct_no&&u.acct_name)}:{role:'student',id:u.matric,name:u.name,matric:u.matric,email:u.email,phone:u.phone,where:u.place||'',status:u.status,admin:!!u.is_admin,reviewer:!!u.reviewer,verified:!!u.verified,acctSet:!!(u.acct_no&&u.acct_name)};
 const cookie=(r,n)=>((r.headers.get('cookie')||'').match(new RegExp('(?:^|; )'+n+'=([^;]*)'))||[])[1];
 const me=async(env,r)=>{const t=cookie(r,'stall_s');return t?env.DB.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id=s.uid WHERE s.h=? AND s.exp>? AND IFNULL(u.status,'active')!='suspended'").bind(await sha(t),Date.now()).first():null};
 const LIVE="IFNULL(u.status,'active')!='suspended'";
@@ -99,17 +105,18 @@ export async function onRequest({request,env,params,waitUntil}){
     const salt=rnd(16),t=cookie(request,'stall_s');await env.DB.prepare('UPDATE users SET salt=?,pw=? WHERE id=?').bind(salt,await pbk(pw,salt),u.id).run();
     await env.DB.prepare('DELETE FROM sessions WHERE uid=? AND h!=?').bind(u.id,await sha(t)).run();return J({ok:true})}
   if(path==='logout'){const t=cookie(request,'stall_s');if(t)await env.DB.prepare('DELETE FROM sessions WHERE h=?').bind(await sha(t)).run();return J({ok:true},200,{'set-cookie':'stall_s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'})}
-  if(path==='me'){const u=await me(env,request);return u?J({user:pub(u)}):J({error:'Not signed in'},401)}
-  if(path==='listings'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);waitUntil(dailyCleanup(env));
+  if(path==='me'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
+    const v=await env.DB.prepare('SELECT status,reason FROM verify_requests WHERE uid=?').bind(u.id).first();return J({user:{...pub(u),verify:v?v.status:null,verifyReason:v&&v.reason}})}
+  if(path==='listings'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);await ensure(env);const NOW=Date.now();waitUntil(dailyCleanup(env));
     const sp=url.searchParams,ids=(sp.get('ids')||'').split(',').map(x=>+x.slice(1)).filter(x=>x>0).slice(0,60),w=[LIVE],v=[];let lim=Math.min(96,Math.max(1,+sp.get('n')||24)),off=Math.max(0,+sp.get('off')||0),total;
     if(ids.length){w.push(`l.id IN (${ids.map(()=>'?').join(',')})`);v.push(...ids);lim=60;off=0}
     else{w.push('(l.sold=0 OR l.created>? OR l.uid=?)');v.push(Date.now()-2*864e5,u.id);
       const q=(sp.get('q')||'').trim().slice(0,60),cat=sp.get('cat')||'all';if(cat!=='all'){w.push('l.cat=?');v.push(cat)}
       if(q){const k='%'+q+'%';w.push('(l.title LIKE ? OR l.descr LIKE ? OR l.spot LIKE ?)');v.push(k,k,k)}}
-    const wh=' FROM listings l JOIN users u ON u.id=l.uid WHERE '+w.join(' AND '),srt={lo:'l.price ASC,l.id DESC',hi:'l.price DESC,l.id DESC'}[sp.get('sort')]||'l.created DESC,l.id DESC';
+    const wh=' FROM listings l JOIN users u ON u.id=l.uid WHERE '+w.join(' AND '),srt={lo:'l.price ASC,l.id DESC',hi:'l.price DESC,l.id DESC'}[sp.get('sort')]||`(IFNULL(l.featured_until,0)>${NOW}) DESC,l.created DESC,l.id DESC`;
     if(!ids.length)total=(await env.DB.prepare('SELECT COUNT(*) c'+wh).bind(...v).first()).c;
-    const rs=(await env.DB.prepare('SELECT l.*'+wh+' ORDER BY '+srt+' LIMIT ? OFFSET ?').bind(...v,lim,off).all()).results;
-    return J({total,listings:rs.map(r=>({id:'L'+r.id,title:r.title,price:r.price,cat:r.cat,cond:r.cond,spot:r.spot,desc:r.descr,seller:r.seller,phone:r.phone,imgs:Array.from({length:r.n},(_,i)=>'/api/photo/'+r.id+'/'+i),t:r.created,sold:r.sold,mine:r.uid===u.id}))})}
+    const rs=(await env.DB.prepare('SELECT l.*,u.verified AS sv'+wh+' ORDER BY '+srt+' LIMIT ? OFFSET ?').bind(...v,lim,off).all()).results;
+    return J({total,listings:rs.map(r=>({id:'L'+r.id,title:r.title,price:r.price,cat:r.cat,cond:r.cond,spot:r.spot,desc:r.descr,seller:r.seller,phone:r.phone,imgs:Array.from({length:r.n},(_,i)=>'/api/photo/'+r.id+'/'+i),t:r.created,sold:r.sold,mine:r.uid===u.id,featured:(r.featured_until||0)>NOW,featuredUntil:r.featured_until||0,verified:!!r.sv}))})}
   if(path==='listings'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);
     if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);
     const b=await request.json().catch(()=>({})),t=k=>String(b[k]||'').trim(),price=Math.round(+b.price),imgs=Array.isArray(b.imgs)?b.imgs:[];
@@ -135,9 +142,9 @@ export async function onRequest({request,env,params,waitUntil}){
   if(path==='listings/ver')return J({v:((await env.DB.prepare('SELECT n FROM ver WHERE id=1').first())||{n:0}).n},200,{'cache-control':'no-store'});
   if(path.startsWith('photo/')){const [,l,n]=path.split('/'),r=await env.DB.prepare('SELECT data FROM photos WHERE lid=? AND n=?').bind(+l,+n).first();if(!r)return new Response('Not found',{status:404});
     const m=r.data.match(/^data:(image\/[a-z]+);base64,(.*)$/s);return new Response(Uint8Array.from(atob(m[2]),c=>c.charCodeAt(0)),{headers:{'content-type':m[1],'cache-control':'public, max-age=31536000, immutable'}})}
-  if(path==='stores'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
-    const ss=(await env.DB.prepare('SELECT s.*,u.role,u.phone AS up,u.matric FROM stores s JOIN users u ON u.id=s.uid WHERE '+LIVE+' ORDER BY s.created DESC').all()).results,its=(await env.DB.prepare('SELECT * FROM store_items ORDER BY created DESC').all()).results;
-    return J({stores:ss.map(s=>({id:'S'+s.id,owner:s.role==='vendor'?'V-'+s.up:s.matric,name:s.name,emoji:s.emoji,cat:s.cat,desc:s.descr,spot:s.spot,phone:s.phone,open:!!s.isopen,vendor:!!s.vendor,items:its.filter(i=>i.sid===s.id).map(i=>({id:'I'+i.id,title:i.title,price:i.price,desc:i.descr,avail:!!i.avail,imgs:Array.from({length:i.n},(_,k)=>'/api/photo/-'+i.id+'/'+k)}))}))})}
+  if(path==='stores'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);const NOW=Date.now();
+    const ss=(await env.DB.prepare('SELECT s.*,u.role,u.phone AS up,u.matric,u.verified AS ov FROM stores s JOIN users u ON u.id=s.uid WHERE '+LIVE+' ORDER BY (IFNULL(s.featured_until,0)>'+NOW+') DESC,s.created DESC').all()).results,its=(await env.DB.prepare('SELECT * FROM store_items ORDER BY created DESC').all()).results;
+    return J({stores:ss.map(s=>({id:'S'+s.id,owner:s.role==='vendor'?'V-'+s.up:s.matric,name:s.name,emoji:s.emoji,cat:s.cat,desc:s.descr,spot:s.spot,phone:s.phone,open:!!s.isopen,vendor:!!s.vendor,featured:(s.featured_until||0)>NOW,featuredUntil:s.featured_until||0,verified:!!s.ov,items:its.filter(i=>i.sid===s.id).map(i=>({id:'I'+i.id,title:i.title,price:i.price,desc:i.descr,avail:!!i.avail,imgs:Array.from({length:i.n},(_,k)=>'/api/photo/-'+i.id+'/'+k)}))}))})}
   if(path.startsWith('stores/')&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);
     if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);
     const b=await request.json().catch(()=>({})),mine=await env.DB.prepare('SELECT id FROM stores WHERE uid=?').bind(u.id).first(),ok=()=>bump().then(()=>J({ok:true}));
@@ -152,6 +159,7 @@ export async function onRequest({request,env,params,waitUntil}){
       const manual=!!d.bank_manual;
       if(manual)waitUntil(tg(env,'Payout details need confirming (store)\n'+t('name')+' - '+u.phone+'\nBank: '+BANKS[d.bank_code]+'\nAccount: '+t('acct')+'\nName given: '+t('acctName')));
       const r=await env.DB.prepare('INSERT INTO stores(uid,name,emoji,cat,descr,spot,phone,bank,acct,bank_code,acct_name,bank_verified,isopen,vendor,ref,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?)').bind(u.id,t('name'),t('emoji').slice(0,8),t('cat').slice(0,20),t('desc').slice(0,200),t('spot').slice(0,60),t('phone').slice(0,20)||u.phone,BANKS[d.bank_code],t('acct').slice(0,20),d.bank_code,t('acctName').slice(0,60),manual?0:1,u.role==='vendor'?1:0,ref,Date.now()).run();
+      await ensure(env);await env.DB.prepare('INSERT OR IGNORE INTO payments(ref,uid,kind,target,label,days,amount,created) VALUES(?,?,?,?,?,?,?,?)').bind(ref,u.id,'store','S'+r.meta.last_row_id,t('name'),null,5000,Date.now()).run();
       await bump();return J({ok:true,id:'S'+r.meta.last_row_id})}
     if(!mine)return J({error:'Open a store first.'},400);
     if(path==='stores/toggle'){await env.DB.prepare('UPDATE stores SET isopen=1-isopen WHERE id=?').bind(mine.id).run();return ok()}
@@ -246,8 +254,9 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     if(path==='admin/summary'){await sweep(env);waitUntil(dailyCleanup(env));const c=s=>env.DB.prepare('SELECT COUNT(*) c FROM '+s),mid=new Date();mid.setUTCHours(-1,0,0,0);
       const r=(await env.DB.batch([c("orders WHERE status='under_review'"),c("orders WHERE status='verified'"),c("users WHERE role='vendor' AND status='pending'"),c('users WHERE bank_verified=0'),c('stores WHERE bank_verified=0'),c("users WHERE role='student'"),c("users WHERE role='vendor'"),c('stores'),c("orders WHERE status='released'"),c('orders WHERE created>=?').bind(+mid)])).map(x=>x.results[0].c);
       if(!a.is_admin)return J({review:r[0]});
-      const ai=JSON.parse(await getK(env,'ai_last')||'null');
-      return J({review:r[0],delivery:r[1],vendorsPending:r[2],banks:r[3]+r[4],students:r[5],vendors:r[6],stores:r[7],released:r[8],today:r[9],aiOn:!!env.AI,aiLast:ai,psMode:!env.PAYSTACK_SECRET?'none':/^sk_live_/.test(env.PAYSTACK_SECRET)?'live':'test',bankLast:JSON.parse(await getK(env,'bank_last')||'null'),cleanupAt:+(await getK(env,'cleanup_at'))||0},200,{'cache-control':'no-store'})}
+      const ai=JSON.parse(await getK(env,'ai_last')||'null'),mo=new Date();mo.setUTCDate(1);mo.setUTCHours(-1,0,0,0);
+      const m=(await env.DB.batch([env.DB.prepare("SELECT COUNT(*) c FROM verify_requests WHERE status='pending'"),env.DB.prepare('SELECT IFNULL(SUM(amount),0) c FROM payments'),env.DB.prepare('SELECT IFNULL(SUM(amount),0) c FROM payments WHERE created>=?').bind(+mo),env.DB.prepare('SELECT (SELECT COUNT(*) FROM listings WHERE featured_until>?)+(SELECT COUNT(*) FROM stores WHERE featured_until>?) c').bind(Date.now(),Date.now()),env.DB.prepare('SELECT COUNT(*) c FROM users WHERE verified=1')])).map(x=>x.results[0].c);
+      return J({verifyPending:m[0],earned:m[1],earnedMonth:m[2],boosts:m[3],verifiedCount:m[4],review:r[0],delivery:r[1],vendorsPending:r[2],banks:r[3]+r[4],students:r[5],vendors:r[6],stores:r[7],released:r[8],today:r[9],aiOn:!!env.AI,aiLast:ai,psMode:!env.PAYSTACK_SECRET?'none':/^sk_live_/.test(env.PAYSTACK_SECRET)?'live':'test',bankLast:JSON.parse(await getK(env,'bank_last')||'null'),cleanupAt:+(await getK(env,'cleanup_at'))||0},200,{'cache-control':'no-store'})}
     if(path==='admin/orders'&&request.method==='GET'){await sweep(env);
       let st=a.is_admin?url.searchParams.get('status')||'under_review':'under_review';const w=[],v=[];
       if(st!=='all'){if(!['pending','under_review','verified','released','expired','rejected'].includes(st))st='under_review';w.push('status=?');v.push(st)}
@@ -270,7 +279,8 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     if(path==='admin/users'&&request.method==='GET'){const role=url.searchParams.get('role'),w=[],v=[];
       if(role==='student'||role==='vendor'){w.push('role=?');v.push(role)}else if(role==='reviewer')w.push('reviewer=1');
       if(q){w.push('(name LIKE ? OR matric LIKE ? OR phone LIKE ? OR email LIKE ? OR biz LIKE ?)');v.push(like,like,like,like,like)}
-      return list('users','id,role,name,matric,email,phone,biz,place,status,created,is_admin,reviewer',w,v,'created DESC')}
+      if(role==='verified')w.push('verified=1');
+      return list('users','id,role,name,matric,email,phone,biz,place,status,created,is_admin,reviewer,verified',w,v,'created DESC')}
     if(path==='admin/reviewers'&&request.method==='GET')return J({reviewers:(await env.DB.prepare('SELECT name,phone FROM users WHERE reviewer=1').all()).results});
     if(path==='admin/reviewers'&&request.method==='POST'){const ph=phoneN(b.phone);const r=await env.DB.prepare('UPDATE users SET reviewer=? WHERE phone=?').bind(b.add?1:0,ph).run();
       if(!r.meta.changes)return J({error:'No account found with that phone number.'},404);
@@ -304,7 +314,22 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       const A='abcdefghjkmnpqrstuvwxyz23456789',pw=[...crypto.getRandomValues(new Uint8Array(10))].map(x=>A[x%31]).join(''),salt=rnd(16);
       await env.DB.prepare('UPDATE users SET salt=?,pw=? WHERE id=?').bind(salt,await pbk(pw,salt),t.id).run();await env.DB.prepare('DELETE FROM sessions WHERE uid=?').bind(t.id).run();
       await logA(env,a,'account','reset password',t.name+' · '+t.phone);return J({ok:true,password:pw,name:t.name})}
-    if(path==='admin/log'&&request.method==='GET'){const k=url.searchParams.get('kind'),w=[],v=[];if(['payment','account','other'].includes(k)){w.push('kind=?');v.push(k)}
+    if(path==='admin/verify'&&request.method==='GET'){const f=url.searchParams.get('f'),w=[],v=[];if(['pending','approved','paid','rejected'].includes(f)){w.push('r.status=?');v.push(f)}
+      if(q){w.push('(u.name LIKE ? OR u.phone LIKE ? OR u.biz LIKE ? OR u.matric LIKE ?)');v.push(like,like,like,like)}
+      return list('verify_requests r JOIN users u ON u.id=r.uid','r.uid,r.note,r.status,r.reason,r.created,r.updated,u.name,u.phone,u.role,u.biz,u.matric,u.email',w,v,"r.status='pending' DESC,r.updated DESC")}
+    if(path.startsWith('admin/verify-photo/')){const r=await env.DB.prepare('SELECT photo FROM verify_requests WHERE uid=?').bind(+path.split('/')[2]).first(),m=r&&r.photo&&r.photo.match(/^data:(image\/[a-z]+);base64,(.*)$/s);
+      if(!m)return new Response('Not found',{status:404});return new Response(Uint8Array.from(atob(m[2]),c=>c.charCodeAt(0)),{headers:{'content-type':m[1],'cache-control':'private, max-age=3600'}})}
+    if(path==='admin/verify/decide'&&request.method==='POST'){const t=await env.DB.prepare("SELECT u.name,u.phone,u.biz FROM verify_requests r JOIN users u ON u.id=r.uid WHERE r.uid=? AND r.status='pending'").bind(+b.uid).first();
+      if(!t)return J({error:'This request was already handled.'},404);const why=b.approve?null:String(b.reason||'Could not confirm who you are').slice(0,200);
+      await env.DB.prepare('UPDATE verify_requests SET status=?,reason=?,updated=? WHERE uid=?').bind(b.approve?'approved':'rejected',why,Date.now(),+b.uid).run();
+      await logA(env,a,'account',b.approve?'approved verification':'rejected verification',(t.biz?t.biz+' ('+t.name+')':t.name)+' · '+t.phone,{detail:why});return J({ok:true})}
+    if(path==='admin/unverify'&&request.method==='POST'){const t=await env.DB.prepare('SELECT name,phone FROM users WHERE id=?').bind(+b.id).first();if(!t)return J({error:'Account not found.'},404);
+      await env.DB.prepare('UPDATE users SET verified=0 WHERE id=?').bind(+b.id).run();await env.DB.prepare("UPDATE verify_requests SET status='rejected',reason=?,updated=? WHERE uid=?").bind('Badge removed by Stall',Date.now(),+b.id).run();await bump();
+      await logA(env,a,'account','removed verified badge',t.name+' · '+t.phone);return J({ok:true})}
+    if(path==='admin/money'&&request.method==='GET'){const k=url.searchParams.get('kind'),w=[],v=[];if(['boost','verify','store'].includes(k)){w.push('p.kind=?');v.push(k)}
+      if(q){w.push('(u.name LIKE ? OR u.phone LIKE ? OR p.label LIKE ? OR p.ref LIKE ?)');v.push(like,like,like,like)}
+      return list('payments p LEFT JOIN users u ON u.id=p.uid','p.ref,p.kind,p.target,p.label,p.days,p.amount,p.created,u.name,u.phone',w,v,'p.created DESC')}
+    if(path==='admin/log'&&request.method==='GET'){const k=url.searchParams.get('kind'),w=[],v=[];if(['payment','account','other','money'].includes(k)){w.push('kind=?');v.push(k)}
       if(/^#?\d+$/.test(q)){w.push('oid=?');v.push(+q.replace('#',''))}else if(q){w.push('(who LIKE ? OR target LIKE ? OR action LIKE ? OR detail LIKE ?)');v.push(like,like,like,like)}
       return list('admin_log','id,t,who,kind,action,oid,target,detail',w,v,'id DESC')}
     if(path==='admin/storage'){if(request.method==='POST')await cleanup(env,a);
@@ -312,6 +337,42 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       return J({photos:r[0].c,photoBytes:r[0].b,receipts:r[1].c,receiptBytes:r[1].b,cleanupAt:+(await getK(env,'cleanup_at'))||0,receiptDays:RECEIPT_DAYS,soldDays:SOLD_DAYS},200,{'cache-control':'no-store'})}
     return J({error:'Not found'},404);
   }
+  if(path.startsWith('pay/')||path.startsWith('verify/')){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
+    const b=request.method==='POST'?await request.json().catch(()=>({})):{};
+    // What is being paid for, checked against the database. Returns {amount,label} or {error}.
+    const what=async(kind,target,days)=>{
+      if(kind==='verify'){const v=await env.DB.prepare('SELECT status FROM verify_requests WHERE uid=?').bind(u.id).first();
+        if(u.verified)return{error:'You are already verified.'};if(!v||v.status!=='approved')return{error:'Your verification has not been approved yet.'};return{amount:PRICE.verify,label:'Verified badge'}}
+      if(kind!=='boost'||![3,7].includes(days))return{error:'Choose 3 or 7 days.'};
+      const id=+String(target).slice(1);
+      if(target[0]==='L'){const l=await env.DB.prepare('SELECT title,sold FROM listings WHERE id=? AND uid=?').bind(id,u.id).first();if(!l)return{error:'Listing not found.'};if(l.sold)return{error:'This item is already sold.'};return{amount:PRICE.listing[days],label:l.title}}
+      if(target[0]==='S'){const st=await env.DB.prepare('SELECT name FROM stores WHERE id=? AND uid=?').bind(id,u.id).first();if(!st)return{error:'Store not found.'};return{amount:PRICE.store[days],label:st.name}}
+      return{error:'Nothing to feature.'}};
+    if(path==='pay/start'&&request.method==='POST'){const kind=String(b.kind||''),target=String(b.target||''),days=+b.days||0,w=await what(kind,target,days);if(w.error)return J(w,400);
+      if(!env.PAYSTACK_SECRET)return J({error:'Payments are not set up yet.'},503);
+      const r=await ps(env,'/transaction/initialize',{method:'POST',body:JSON.stringify({email:u.email||('user'+u.phone+'@stall.app'),amount:w.amount*100,currency:'NGN',callback_url:url.origin+'/',metadata:{kind,target,days,uid:u.id}})});
+      return r.status?J({url:r.data.authorization_url,ref:r.data.reference}):J({error:r.message||'Could not start payment.'},502)}
+    if(path==='pay/confirm'&&request.method==='POST'){const ref=String(b.reference||'');if(!/^[\w-]{6,80}$/.test(ref))return J({error:'Invalid payment reference.'},400);
+      if(await env.DB.prepare('SELECT 1 FROM payments WHERE ref=?').bind(ref).first())return J({ok:true,already:true});
+      const v=(await ps(env,'/transaction/verify/'+ref)).data||{},m=v.metadata||{};
+      if(v.status!=='success'||+m.uid!==u.id)return J({error:'Payment could not be confirmed. Contact Stall support with reference '+ref},402);
+      const w=await what(m.kind,String(m.target||''),+m.days||0);if(w.error&&m.kind==='boost')return J({error:w.error+' Contact Stall support with reference '+ref},400);
+      const expect=m.kind==='verify'?PRICE.verify:w.amount;if(v.amount!==expect*100)return J({error:'Payment amount did not match. Contact Stall support with reference '+ref},402);
+      const now=Date.now(),days=+m.days||0;let until=0;
+      if(m.kind==='verify'){await env.DB.prepare('UPDATE users SET verified=1 WHERE id=?').bind(u.id).run();await env.DB.prepare("UPDATE verify_requests SET status='paid',updated=? WHERE uid=?").bind(now,u.id).run()}
+      else{const tbl=m.target[0]==='L'?'listings':'stores',id=+m.target.slice(1),cur=(await env.DB.prepare('SELECT featured_until f FROM '+tbl+' WHERE id=?').bind(id).first()||{}).f||0;
+        until=Math.max(cur,now)+days*864e5;await env.DB.prepare('UPDATE '+tbl+' SET featured_until=? WHERE id=?').bind(until,id).run();await bump()}
+      await env.DB.prepare('INSERT OR IGNORE INTO payments(ref,uid,kind,target,label,days,amount,created) VALUES(?,?,?,?,?,?,?,?)').bind(ref,u.id,m.kind,m.target||null,w.label||'Verified badge',days||null,expect,now).run();
+      await logA(env,u,'money',m.kind==='verify'?'paid for verified badge':'featured '+(m.target[0]==='L'?'listing':'store')+' for '+days+' days',(w.label||u.name)+' · ₦'+expect,{who:u.name+' ('+(u.biz||u.phone)+')'});
+      return J({ok:true,kind:m.kind,until})}
+    if(path==='verify/apply'&&request.method==='POST'){if(u.verified)return J({error:'You are already verified.'},400);
+      const note=String(b.note||'').trim().slice(0,300),photo=String(b.photo||'');
+      if(note.length<5)return J({error:'Tell us briefly who you are and what you sell.'},400);
+      if(!/^data:image\/(jpeg|png|webp);base64,/.test(photo)||photo.length>450000)return J({error:'Add a clear photo of your student ID card or shop.'},400);
+      const cur=await env.DB.prepare('SELECT status FROM verify_requests WHERE uid=?').bind(u.id).first();if(cur&&['pending','approved'].includes(cur.status))return J({error:'Your request is already '+(cur.status==='pending'?'waiting for review.':'approved. Pay to activate your badge.')},400);
+      await env.DB.prepare("INSERT INTO verify_requests(uid,note,photo,status,reason,created,updated) VALUES(?,?,?,'pending',NULL,?,?) ON CONFLICT(uid) DO UPDATE SET note=excluded.note,photo=excluded.photo,status='pending',reason=NULL,updated=excluded.updated").bind(u.id,note,photo,Date.now(),Date.now()).run();
+      waitUntil(tg(env,'New verification request\n'+u.name+(u.biz?' ('+u.biz+')':'')+' - '+u.phone+'\nReview it in Admin: '+url.origin));return J({ok:true})}
+    return J({error:'Not found'},404)}
   if(path==='checkout'&&request.method==='POST'){
     const b=await request.json().catch(()=>({}));
     if(b.kind!=='store')return J({error:'Invalid order'},400);

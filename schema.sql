@@ -2,7 +2,7 @@
 -- Matches every table and column the app in functions/api/[[path]].js uses.
 -- Safe to run on a new database. On an existing one, CREATE ... IF NOT EXISTS skips tables that are already there
 -- (it does not add missing columns to them).
--- admin_log and settings are also created automatically by the app the first time they are needed.
+-- admin_log, settings, payments, verify_requests and the featured/verified columns are also created automatically by the app the first time they are needed.
 
 CREATE TABLE IF NOT EXISTS users(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS users(
   is_admin INTEGER NOT NULL DEFAULT 0,
   reviewer INTEGER NOT NULL DEFAULT 0,     -- can review payments
   bank_code TEXT, bank_name TEXT, acct_no TEXT, acct_name TEXT,
-  bank_verified INTEGER                    -- 0 = typed in by hand, waiting for an admin to confirm
+  bank_verified INTEGER,                   -- 0 = typed in by hand, waiting for an admin to confirm
+  verified INTEGER NOT NULL DEFAULT 0      -- paid verified-seller badge
 );
 CREATE TABLE IF NOT EXISTS sessions(h TEXT PRIMARY KEY, uid INTEGER NOT NULL, exp INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS attempts(k TEXT NOT NULL, t INTEGER NOT NULL);
@@ -36,7 +37,8 @@ CREATE TABLE IF NOT EXISTS listings(
   seller TEXT, phone TEXT,
   n INTEGER NOT NULL DEFAULT 0,            -- number of photos
   created INTEGER NOT NULL,
-  sold INTEGER NOT NULL DEFAULT 0
+  sold INTEGER NOT NULL DEFAULT 0,
+  featured_until INTEGER                   -- paid feature ends at this time (ms)
 );
 -- Photos as data URLs. lid > 0 is a listing id; lid < 0 is minus a store item id.
 CREATE TABLE IF NOT EXISTS photos(lid INTEGER NOT NULL, n INTEGER NOT NULL, data TEXT NOT NULL);
@@ -49,7 +51,8 @@ CREATE TABLE IF NOT EXISTS stores(
   isopen INTEGER NOT NULL DEFAULT 1,
   vendor INTEGER NOT NULL DEFAULT 0,
   ref TEXT,                                -- Paystack reference for the store fee
-  created INTEGER NOT NULL
+  created INTEGER NOT NULL,
+  featured_until INTEGER
 );
 CREATE TABLE IF NOT EXISTS store_items(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,6 +79,11 @@ CREATE TABLE IF NOT EXISTS order_items(oid INTEGER NOT NULL, kind TEXT NOT NULL,
 
 CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, uid INTEGER, who TEXT, kind TEXT, action TEXT, oid INTEGER, target TEXT, detail TEXT);
 CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY, v TEXT);
+-- Money Stall earns: kind 'store' (opening fee), 'boost' (featured listing/store), 'verify' (badge). amount in naira.
+CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY, uid INTEGER, kind TEXT, target TEXT, label TEXT, days INTEGER, amount INTEGER, created INTEGER);
+CREATE INDEX IF NOT EXISTS payments_created ON payments(created);
+-- Verified-badge requests: pending -> approved (then paid) or rejected.
+CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY, note TEXT, photo TEXT, status TEXT, reason TEXT, created INTEGER, updated INTEGER);
 
 -- Indexes (same as indexes.sql)
 CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid);
