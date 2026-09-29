@@ -201,7 +201,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
   if(path.startsWith('admin/')){
     const a=await me(env,request);if(!a||(!a.is_admin&&!a.reviewer))return J({error:'Not allowed'},403);
     const b=request.method==='POST'?await request.json().catch(()=>({})):{};
-    if(path==='admin/orders'&&request.method==='GET')return J({orders:(await env.DB.prepare("SELECT * FROM orders WHERE status='under_review' ORDER BY created ASC LIMIT 100").all()).results.map(oRow)});
+    if(path==='admin/orders'&&request.method==='GET')return J({orders:(await env.DB.prepare("SELECT * FROM orders WHERE status='under_review' ORDER BY created ASC LIMIT 100").all()).results.map(r=>({...oRow(r),receipt:r.receipt,rAmount:r.r_amount,rRef:r.r_ref}))});
     if(path==='admin/orders/decide'&&request.method==='POST'){const o=await env.DB.prepare("SELECT * FROM orders WHERE id=? AND status='under_review'").bind(+b.id).first();if(!o)return J({error:'Order not found.'},404);
       if(b.approve){const code=relCode();await env.DB.prepare("UPDATE orders SET status='verified',code=?,updated=? WHERE id=?").bind(code,Date.now(),o.id).run()}
       else await env.DB.prepare("UPDATE orders SET status='rejected',note=?,updated=? WHERE id=?").bind(String(b.reason||'Rejected by admin').slice(0,200),Date.now(),o.id).run();
