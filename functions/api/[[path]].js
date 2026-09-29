@@ -17,7 +17,7 @@ const aiCheckReceipt=async(env,dataUrl,amount,ref)=>{
       +'NO if the image is not a payment receipt or alert at all (for example a random unrelated photo), or clearly shows a different amount or a failed transaction. '
       +'UNSURE if you cannot tell either way.';
     const M='@cf/meta/llama-3.2-11b-vision-instruct',go=()=>env.AI.run(M,{image:[...bytes],prompt,max_tokens:6});
-    let r;try{r=await go()}catch(e){if(!/agree|licen[cs]e|5016/i.test(String(e&&e.message)))throw e;await env.AI.run(M,{prompt:'agree'});r=await go()}
+    let r;try{r=await go()}catch(e){if(!/agree|licen[cs]e|5016/i.test(String(e&&e.message)))throw e;await env.AI.run(M,{prompt:'agree'}).catch(()=>{});r=await go()}
     const txt=String(r&&(r.response||r.description)||'').toUpperCase();await setK(env,'ai_last',JSON.stringify({t:Date.now(),ok:true}));
     if(txt.includes('YES'))return{ok:true};
     if(txt.includes('NO'))return{ok:false,why:"The photo doesn't look like a matching payment receipt."};
