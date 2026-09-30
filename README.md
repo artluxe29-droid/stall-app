@@ -21,6 +21,8 @@ Single-page web app (`index.html`) with an API running as a Cloudflare Pages Fun
 
 Paystack dashboard → Settings → API Keys & Webhooks → Webhook URL: `https://<your-domain>/api/paystack/webhook`
 
+Orders are paid with Paystack split payments: each seller's checked payout account gets a Paystack subaccount, Stall keeps 5% of the order (max ₦2,000, set in `COMMISSION`) and pays Paystack's fee from it, and Paystack settles the rest to the seller. Sellers whose account name was typed by hand are paid by bank transfer until an admin confirms them in Payouts.
+
 For heavy traffic use the Workers Paid plan (the free plan allows 100,000 requests a day) and a custom domain
 (Cloudflare's edge cache, used for photos and shop pages, works on custom domains).
 

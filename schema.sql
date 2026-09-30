@@ -83,15 +83,19 @@ CREATE TABLE IF NOT EXISTS orders(
   deadline INTEGER NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL,
   code TEXT, code_used INTEGER,            -- release code
   note TEXT,                               -- why it needs review / was rejected
-  receipt TEXT, r_amount INTEGER, r_ref TEXT
+  receipt TEXT, r_amount INTEGER, r_ref TEXT,
+  bank_code TEXT, bank_ok INTEGER NOT NULL DEFAULT 0,  -- bank_ok=1: seller's account was checked, so the buyer can pay through Paystack
+  fee INTEGER, paid_via TEXT               -- Stall's sale fee (5%, max 2,000); paid_via 'paystack' when paid by split payment
 );
+-- Paystack subaccount for each payout bank account ('bank_code:acct_no'), made the first time a buyer pays that seller.
+CREATE TABLE IF NOT EXISTS ps_subs(k TEXT PRIMARY KEY, code TEXT NOT NULL, name TEXT, created INTEGER);
 CREATE TABLE IF NOT EXISTS order_items(oid INTEGER NOT NULL, kind TEXT NOT NULL, ref_id INTEGER NOT NULL, title TEXT, price INTEGER, q INTEGER NOT NULL DEFAULT 1);
 -- Schools across Nigeria (seeded from lib/schools.js; active=0 means requested by a user, waiting for admin approval).
 CREATE TABLE IF NOT EXISTS schools(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, short TEXT, state TEXT NOT NULL, kind TEXT, active INTEGER NOT NULL DEFAULT 1, created INTEGER);
 
 CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, uid INTEGER, who TEXT, kind TEXT, action TEXT, oid INTEGER, target TEXT, detail TEXT);
 CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY, v TEXT);
--- Money Stall earns: kind 'store' (opening fee), 'boost' (featured listing/store), 'verify' (badge). amount in naira.
+-- Money Stall earns: kind 'store' (opening fee), 'boost' (featured listing/store), 'verify' (badge), 'reach', 'commission' (sale fee on an order). amount in naira.
 -- Every Paystack payment is recorded here before the payer is sent to Paystack, then finished exactly once
 -- by the return page or the Paystack webhook (done: 0 waiting, 2 finishing, 1 finished).
 CREATE TABLE IF NOT EXISTS pending_pay(ref TEXT PRIMARY KEY, uid INTEGER NOT NULL, kind TEXT NOT NULL, data TEXT, amount INTEGER NOT NULL, label TEXT, created INTEGER NOT NULL, done INTEGER NOT NULL DEFAULT 0, result TEXT);
