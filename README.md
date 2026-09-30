@@ -1,14 +1,27 @@
-# Stall – ACU campus marketplace
+# Stall – student marketplace for schools across Nigeria
 
-Single-page marketplace (`index.html`) with a Paystack checkout backend running as a Cloudflare Pages Function.
+Single-page web app (`index.html`) with an API running as a Cloudflare Pages Function (`functions/api/[[path]].js`).
 
 ## Structure
-- `index.html` – the app
-- `manifest.webmanifest`, `sw.js`, `icons/` – PWA install + offline shell
-- `functions/api/[[path]].js` – `/api/checkout` and `/api/verify` (Paystack)
+- `index.html` – the app; `install.html` – install page with QR code and poster (`qr.js`)
+- `rules.html`, `terms.html`, `privacy.html` (+ `policy.css`, `policy.js`) – policies
+- `functions/api/[[path]].js` – all API routes; `lib/schools.js` – starter list of Nigerian schools
+- `manifest.webmanifest`, `sw.js`, `icons/` – installable app
+- `_headers` – security headers for every page
+- `schema.sql` – full database schema (the app also creates missing tables/columns itself); `indexes.sql` – extra indexes
 
-## Deploy (Cloudflare Pages)
-1. Connect this repo in Cloudflare Pages (no build command, output directory `/`).
-2. Add the environment secret `PAYSTACK_SECRET` (`sk_test_...` first, `sk_live_...` when going live).
+## Cloudflare Pages setup (Settings → Bindings / Variables, Production)
+| Name | Type | Needed for |
+|---|---|---|
+| `DB` | D1 database | everything |
+| `PAYSTACK_SECRET` | Secret | payments and bank account-name checks (`sk_live_...` for real money) |
+| `AI` | Workers AI | automatic receipt and listing-photo checks |
+| `PHOTOS` | R2 bucket | photo storage (recommended; without it photos stay in D1) |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Secrets | admin alerts (optional) |
+
+Paystack dashboard → Settings → API Keys & Webhooks → Webhook URL: `https://<your-domain>/api/paystack/webhook`
+
+For heavy traffic use the Workers Paid plan (the free plan allows 100,000 requests a day) and a custom domain
+(Cloudflare's edge cache, used for photos and shop pages, works on custom domains).
 
 Never commit secret keys to this repo.

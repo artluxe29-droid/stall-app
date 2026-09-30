@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS users(
 );
 CREATE TABLE IF NOT EXISTS sessions(h TEXT PRIMARY KEY, uid INTEGER NOT NULL, exp INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS attempts(k TEXT NOT NULL, t INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS attempts_k ON attempts(k,t);   -- rate limits (logins, sign-ups, uploads, payments)
 CREATE TABLE IF NOT EXISTS vendor_codes(code TEXT PRIMARY KEY, active INTEGER NOT NULL DEFAULT 1, label TEXT, created INTEGER, used_by INTEGER);
 CREATE TABLE IF NOT EXISTS ver(id INTEGER PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0);
 INSERT OR IGNORE INTO ver(id,n) VALUES(1,0);
@@ -44,7 +45,8 @@ CREATE TABLE IF NOT EXISTS listings(
   qty INTEGER NOT NULL DEFAULT 1, qty_left INTEGER,           -- stock: how many listed / still available
   review TEXT NOT NULL DEFAULT 'live', review_note TEXT       -- photo check: checking, review, live or rejected
 );
--- Photos as data URLs. lid > 0 is a listing id; lid < 0 is minus a store item id.
+-- Photos. lid > 0 is a listing id; lid < 0 is minus a store item id. data is either the image as a data URL,
+-- or 'r2:<content-type>' when the image is stored in the R2 bucket (binding PHOTOS) under p/<lid>/<n>.
 CREATE TABLE IF NOT EXISTS photos(lid INTEGER NOT NULL, n INTEGER NOT NULL, data TEXT NOT NULL);
 
 CREATE TABLE IF NOT EXISTS stores(
@@ -90,6 +92,9 @@ CREATE TABLE IF NOT EXISTS schools(id INTEGER PRIMARY KEY AUTOINCREMENT, name TE
 CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, uid INTEGER, who TEXT, kind TEXT, action TEXT, oid INTEGER, target TEXT, detail TEXT);
 CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY, v TEXT);
 -- Money Stall earns: kind 'store' (opening fee), 'boost' (featured listing/store), 'verify' (badge). amount in naira.
+-- Every Paystack payment is recorded here before the payer is sent to Paystack, then finished exactly once
+-- by the return page or the Paystack webhook (done: 0 waiting, 2 finishing, 1 finished).
+CREATE TABLE IF NOT EXISTS pending_pay(ref TEXT PRIMARY KEY, uid INTEGER NOT NULL, kind TEXT NOT NULL, data TEXT, amount INTEGER NOT NULL, label TEXT, created INTEGER NOT NULL, done INTEGER NOT NULL DEFAULT 0, result TEXT);
 CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY, uid INTEGER, kind TEXT, target TEXT, label TEXT, days INTEGER, amount INTEGER, created INTEGER);
 CREATE INDEX IF NOT EXISTS payments_created ON payments(created);
 -- Verified-badge requests: pending -> approved (then paid) or rejected.
