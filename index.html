@@ -306,6 +306,88 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
 .naija-line{margin-top:10px!important;font-size:15px!important;color:#fff!important;display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}.naija-line .flag{width:24px;height:16px}
 .confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60}
 @media (prefers-reduced-motion:reduce){.flag.wave,html.naija .promo::before{animation:none}}
+/* ===== Onboarding ===== */
+#gate.obg{padding:0;background:#070B16;overflow:hidden}
+.ob{position:fixed;inset:0;color:#fff;overflow:hidden;display:flex;flex-direction:column;touch-action:pan-y;user-select:none;-webkit-user-select:none;background:#070B16}
+.blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;animation:blob 16s ease-in-out infinite alternate;pointer-events:none}
+.b1{width:70vmax;height:70vmax;left:-25vmax;top:-30vmax;background:radial-gradient(circle,#FF9F1C 0,transparent 65%)}
+.b2{width:60vmax;height:60vmax;right:-25vmax;top:10vmax;background:radial-gradient(circle,#3B82F6 0,transparent 65%);animation-duration:19s}
+.b3{width:55vmax;height:55vmax;left:5vmax;bottom:-30vmax;background:radial-gradient(circle,#A855F7 0,transparent 65%);animation-duration:23s}
+.ob-naija .b1,.ob-naija .b3{background:radial-gradient(circle,#00A862 0,transparent 65%)}.ob-naija .b2{background:radial-gradient(circle,#E8F5EE 0,transparent 60%);opacity:.25}
+@keyframes blob{50%{transform:translate(8vmax,6vmax) scale(1.12)}100%{transform:translate(-6vmax,10vmax) scale(.95)}}
+.obtop{position:relative;z-index:3;display:flex;align-items:center;gap:12px;padding:calc(14px + env(safe-area-inset-top,0px)) 18px 0}
+.bars{flex:1;display:flex;gap:6px}.bars i{flex:1;height:3.5px;border-radius:3px;background:rgba(255,255,255,.22);overflow:hidden}
+.bars i b{display:block;height:100%;width:0;background:#fff;border-radius:3px}.bars i.done b{width:100%}
+.bars i.run b{animation:bar 5.5s linear forwards}.ob.hold .bars i.run b{animation-play-state:paused}@keyframes bar{to{width:100%}}
+.obskip{background:rgba(255,255,255,.12);border:0;color:#fff;font-weight:700;font-size:14px;padding:7px 14px;border-radius:999px}
+.obtrack{position:relative;z-index:2;flex:1;display:flex;transition:transform .7s cubic-bezier(.7,0,.2,1)}
+.obs{flex:0 0 100%;display:flex;flex-direction:column;justify-content:center;padding:10px 26px;min-height:0}
+.obscene{flex:1;display:grid;place-items:center;min-height:0;transform:scale(.88);opacity:0;transition:transform .9s cubic-bezier(.2,.8,.2,1),opacity .6s}
+.obs.on .obscene{transform:none;opacity:1}
+.obtxt{max-width:520px;margin:0 auto;width:100%;padding-bottom:8px}
+.obtxt h1{font-size:clamp(34px,9vw,52px);line-height:1.02;letter-spacing:-.045em;font-weight:800;opacity:0;transform:translateY(24px);transition:all .7s cubic-bezier(.2,.8,.2,1) .15s}
+.obtxt h1 em{font-style:normal;background:linear-gradient(90deg,#FFB547,#FF7A59 50%,#F472B6);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ob-naija .obtxt h1 em{background:linear-gradient(90deg,#7CF29A,#FFFFFF 60%,#7CF29A);-webkit-background-clip:text;background-clip:text}
+.obtxt p{color:rgba(255,255,255,.72);font-size:17px;line-height:1.45;margin-top:14px;opacity:0;transform:translateY(18px);transition:all .7s cubic-bezier(.2,.8,.2,1) .3s}
+.obs.on .obtxt h1,.obs.on .obtxt p{opacity:1;transform:none}
+.obbot{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;gap:12px;padding:10px 26px calc(22px + env(safe-area-inset-bottom,0px))}
+.obgo{width:min(520px,100%);padding:17px;font-size:17px;background:#fff;color:#0F172A;border-radius:18px;transition:transform .2s,background .3s,box-shadow .3s}
+.ob.last .obgo{background:linear-gradient(90deg,#FF9F1C,#FF6A3D);color:#1A1206;box-shadow:0 12px 40px rgba(255,140,40,.45);animation:pulse 1.8s ease-in-out infinite}
+.ob-naija.last .obgo{background:linear-gradient(90deg,#00A862,#0B6E3F);color:#fff;box-shadow:0 12px 40px rgba(0,168,98,.45)}
+@keyframes pulse{50%{transform:scale(1.03)}}.obin{color:rgba(255,255,255,.8);font-weight:600}
+/* scene: campus orbit */
+.sc{position:relative;width:min(340px,82vw);aspect-ratio:1}
+.sc-campus .ring{position:absolute;inset:8%;border:1.5px dashed rgba(255,255,255,.18);border-radius:50%;animation:spin 26s linear infinite}
+.sc-campus .r2{inset:24%;animation-duration:18s;animation-direction:reverse}
+.sc-campus .ring span{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px;border-radius:50%;display:grid;place-items:center;box-shadow:0 10px 30px rgba(0,0,0,.35);
+  transform:rotate(var(--a)) translate(calc(min(340px,82vw)*.42)) rotate(calc(-1*var(--a)))}
+.sc-campus .r2 span{transform:rotate(var(--a)) translate(calc(min(340px,82vw)*.26)) rotate(calc(-1*var(--a)))}
+.sc-campus .ring span .ic{width:26px;height:26px;animation:spin 26s linear infinite reverse}.sc-campus .r2 span .ic{animation-duration:18s;animation-direction:normal}
+@keyframes spin{to{transform:rotate(360deg)}}
+.core{position:absolute;left:50%;top:50%;width:96px;height:96px;margin:-48px;border-radius:28px;display:grid;place-items:center;font-weight:800;font-size:48px;letter-spacing:-.05em;
+  background:linear-gradient(145deg,#1E293B,#0F172A);box-shadow:0 0 0 1px rgba(255,255,255,.12),0 0 60px rgba(255,159,28,.45);animation:glow 3s ease-in-out infinite}
+.core i{font-style:normal;color:#FF9F1C}.ob-naija .core i{color:#00A862}@keyframes glow{50%{box-shadow:0 0 0 1px rgba(255,255,255,.2),0 0 90px rgba(255,159,28,.7)}}
+.chipf{position:absolute;font-size:11px;font-weight:800;letter-spacing:.04em;padding:5px 9px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);
+  left:var(--x);top:var(--y);animation:drift 7s ease-in-out calc(var(--i) * -.9s) infinite alternate}
+@keyframes drift{to{transform:translate(10px,-14px)}}
+/* scene: find */
+.sc-find{display:flex;flex-direction:column;gap:14px;justify-content:center;aspect-ratio:auto;height:100%;max-height:380px}
+.sbar{display:flex;align-items:center;gap:10px;background:#fff;color:#0F172A;border-radius:18px;padding:15px 16px;font-weight:600;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.sbar .ic{color:#94A3B8}.caret{width:2px;height:20px;background:#FF9F1C;animation:blink 1s steps(1) infinite}@keyframes blink{50%{opacity:0}}
+.pc{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:18px;padding:10px;
+  opacity:0;transform:translateY(30px) scale(.96)}
+.obs.on .pc{animation:rise .7s cubic-bezier(.2,.8,.2,1) calc(.5s + var(--i) * .18s) forwards,bob 4s ease-in-out calc(1.4s + var(--i) * .4s) infinite}
+@keyframes rise{to{opacity:1;transform:none}}@keyframes bob{50%{transform:translateY(-5px)}}
+.pc .pi,.lcard .pi{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;flex:none}.pc .pi .ic,.lcard .pi .ic{width:28px;height:28px}
+.pc b,.lcard b{display:block;font-size:15px}.pc span,.lcard span{font-size:14px;color:rgba(255,255,255,.75);font-weight:700}
+.pc em{display:inline-block;margin-left:8px;font-style:normal;font-size:11px;font-weight:800;color:#1A1206;background:#FF9F1C;border-radius:6px;padding:2px 6px}
+/* scene: safe */
+.sc-safe{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.paid{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:999px;padding:9px 16px;font-size:14px;opacity:0}
+.paid b{font-size:17px}.paid i{font-style:normal;font-weight:800;color:#4ADE80}.obs.on .paid{animation:rise .6s .3s forwards}
+.shield{width:132px;height:132px;stroke:#4ADE80;filter:drop-shadow(0 0 24px rgba(74,222,128,.55))}
+.shield .sh{stroke-dasharray:70;stroke-dashoffset:70}.shield .tk{stroke-dasharray:14;stroke-dashoffset:14;stroke-width:2.2}
+.obs.on .shield .sh{animation:draw 1.1s .7s cubic-bezier(.6,0,.2,1) forwards}.obs.on .shield .tk{animation:draw .5s 1.7s forwards}@keyframes draw{to{stroke-dashoffset:0}}
+.code{display:flex;gap:4px}.code span{width:22px;height:32px;display:grid;place-items:center;border-radius:8px;background:#fff;color:#0F172A;font-weight:800;font-size:17px;opacity:0;transform:rotateX(90deg)}
+.obs.on .code span{animation:flip .45s calc(2.1s + var(--i) * .07s) cubic-bezier(.2,.8,.2,1) forwards}@keyframes flip{to{opacity:1;transform:none}}
+.code span:nth-child(-n+6){background:#FF9F1C;color:#1A1206}.ob-naija .code span:nth-child(-n+6){background:#00A862;color:#fff}
+.codecap{font-size:13px;color:rgba(255,255,255,.6);opacity:0}.obs.on .codecap{animation:rise .5s 3s forwards}
+/* scene: sell */
+.sc-sell{display:flex;flex-direction:column;justify-content:center;gap:14px;aspect-ratio:auto}
+.earn{background:linear-gradient(135deg,rgba(255,255,255,.14),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.16);border-radius:22px;padding:18px 20px}
+.earn span{font-size:13px;color:rgba(255,255,255,.7);font-weight:600}.earn b{display:block;font-size:40px;letter-spacing:-.04em;font-weight:800;font-variant-numeric:tabular-nums}
+.lcard{position:relative;display:flex;align-items:center;gap:12px;background:#fff;color:#0F172A;border-radius:18px;padding:10px;opacity:0;transform:translateY(24px)}
+.lcard span{color:#64748B}.obs.on .lcard{animation:rise .6s .5s forwards}
+.feat{position:absolute;right:10px;top:-10px;font-style:normal;font-size:11px;font-weight:800;background:#FF9F1C;color:#1A1206;border-radius:8px;padding:4px 8px;transform:scale(0) rotate(-12deg)}
+.obs.on .feat{animation:pop2 .5s 1.6s cubic-bezier(.3,1.6,.5,1) forwards}@keyframes pop2{to{transform:scale(1) rotate(-6deg)}}
+.vbadge{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;background:rgba(74,222,128,.14);color:#4ADE80;border:1px solid rgba(74,222,128,.4);border-radius:999px;padding:7px 12px;font-weight:800;font-size:14px;transform:scale(0)}
+.obs.on .vbadge{animation:pop3 .5s 2.1s cubic-bezier(.3,1.6,.5,1) forwards}@keyframes pop3{to{transform:scale(1)}}
+.spark{position:absolute;width:8px;height:8px;border-radius:50%;background:#FF9F1C;opacity:0}.s1{left:8%;top:12%}.s2{right:10%;top:40%;background:#4ADE80}.s3{left:40%;bottom:6%;background:#F472B6}
+.obs.on .spark{animation:twinkle 2.4s ease-in-out infinite}.obs.on .s2{animation-delay:.8s}.obs.on .s3{animation-delay:1.6s}@keyframes twinkle{30%{opacity:1;transform:scale(1.6)}60%{opacity:0;transform:scale(.6)}}
+@media (min-width:900px){.obs{flex-direction:row;align-items:center;gap:40px;padding:10px 8vw}.obscene{flex:1}.obtxt{flex:1}}
+@media (max-height:700px){.sc{width:min(260px,70vw)}.obtxt h1{font-size:30px}.obtxt p{font-size:15px;margin-top:8px}}
+@media (prefers-reduced-motion:reduce){.blob,.ring,.core,.chipf,.pc,.caret,.spark,.ob.last .obgo{animation:none!important}.obtrack{transition:none}
+  .pc,.paid,.lcard,.codecap,.code span,.feat,.vbadge{opacity:1!important;transform:none!important}.shield .sh,.shield .tk{stroke-dashoffset:0}}
 </style>
 </head>
 <body>
@@ -641,11 +723,11 @@ document.addEventListener('click',e=>{
   if(id==='goCheckout')openCheckout();
   if(id==='sellBtn'||id==='sellHero'||id==='sellEmpty'){const f=$('#form').elements;f.seller.value=S.user.name;f.phone.value=S.user.phone;wireBankVerify($('#form'));$('#sell').showModal()}
   if(id==='gNext'){si++;gate()}
-  if(id==='toIn'){authMode='in';gate()}
+  if(id==='toIn'){authMode='in';S.obSeen=1;save();clearTimeout(obT);$('#gate').classList.remove('obg');gate()}
   if(id==='toUp'){authMode='up';gate()}
   if(id==='rtStudent'){rt='student';gate()}
   if(id==='rtVendor'){rt='vendor';gate()}
-  if(id==='gSkip'){si=SL.length;gate()}
+  if(id==='gSkip'){si=SL.length;S.obSeen=1;save();clearTimeout(obT);$('#gate').classList.remove('obg');gate()}
   if(id==='pendRefresh')refreshMe();
   if(id==='adminBtn')openAdmin();
   if(b=c('[data-feat]')){startFeature({kind:'boost',target:b.dataset.feat,days:+b.dataset.days},b);return}
@@ -798,11 +880,52 @@ function openSchoolPick(force){const d=$('#schDlg');d.innerHTML=`<form class="pa
     d.close();toast('School saved');S.scope='school';await refreshMe();loadPub()}}
 function drawHelp(){const h=$('#helpLinks');if(!h)return;const w=String(CFG.phone||'').replace(/\D/g,'').replace(/^0/,'234');
   h.innerHTML=`<a href="/rules">Buyer protection</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a>${w?` · <a href="https://wa.me/${w}" target="_blank" rel="noopener">WhatsApp support</a>`:''}${CFG.email?` · <a href="mailto:${esc(CFG.email)}">${esc(CFG.email)}</a>`:''}`}
+// Onboarding: four animated "story" slides. Tap right/left or swipe to move, press and hold to pause.
 const SL=[
- {e:'cap',c:CATS[1].c,k:CATS[1].k,h:'Your campus marketplace',p:'Buy and sell with students and campus shops at your school, in your state, or anywhere in Nigeria.'},
- {e:'book',c:CATS[0].c,k:CATS[0].k,h:'Find what you need',p:'Textbooks, gadgets, hostel gear and meals from students and campus stores.'},
- {e:'handshake',c:CATS[3].c,k:CATS[3].k,h:'Pay online, collect on campus',p:'Pay securely online, then meet the seller on campus to collect and check your item.'}];
-let si=S.user?SL.length:0,rt='student';
+ {k:'campus',h:'Your campus.<br><em>One marketplace.</em>',p:'Buy and sell with students and campus shops at your school, across your state, or anywhere in Nigeria.'},
+ {k:'find',h:'Find it<br><em>in seconds.</em>',p:'Textbooks, gadgets, fashion, hostel gear and hot meals, from people on your campus.'},
+ {k:'safe',h:'Pay safe.<br><em>Collect on campus.</em>',p:'Stall confirms every payment and gives you a release code. Hand it over only when the item is in your hands.'},
+ {k:'sell',h:'Sell anything.<br><em>Get paid.</em>',p:'List in a minute, open a store, get verified, and let buyers from your school find you.'}];
+const OB_SCENES={
+ campus:()=>`<div class="sc sc-campus"><div class="ring r1">${['book','headphones','shirt'].map((k,i)=>`<span style="--a:${i*120}deg;background:${CATS[i].c};color:${CATS[i].k}">${ico(k)}</span>`).join('')}</div>
+   <div class="ring r2">${['bed','bowl','scissors'].map((k,i)=>`<span style="--a:${i*120+60}deg;background:${CATS[i+3].c};color:${CATS[i+3].k}">${ico(k)}</span>`).join('')}</div>
+   <div class="core">S<i>.</i></div>${[['UNILAG',0,3],['OAU',78,1],['UNN',2,52],['ABU',82,46],['UNIBEN',4,90],['LASU',74,92]].map(([x,l,t],i)=>`<b class="chipf" style="--i:${i};--x:${l}%;--y:${t}%">${x}</b>`).join('')}</div>`,
+ find:()=>`<div class="sc sc-find"><div class="sbar">${ico('book')}<span class="typed"></span><i class="caret"></i></div>
+   <div class="pcards">${[['book','Engineering Maths (Stroud)','₦6,500','Only 2 left',0],['headphones','Wireless earbuds','₦14,000','',1],['bowl','Jollof & chicken','₦2,500','Hot now',3]].map(([k,t,pr,tag,c],i)=>`<div class="pc" style="--i:${i}"><div class="pi" style="background:${CATS[c].c};color:${CATS[c].k}">${ico(k)}</div><div><b>${t}</b><span>${pr}</span>${tag?`<em>${tag}</em>`:''}</div></div>`).join('')}</div></div>`,
+ safe:()=>`<div class="sc sc-safe"><div class="paid"><span>Payment</span><b>₦12,500</b><i>Confirmed</i></div>
+   <svg class="shield" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path class="sh" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path class="tk" d="m8.5 12 2.5 2.5 4.5-5"/></svg>
+   <div class="code">${'STALL-7K2Q9M'.split('').map((c,i)=>`<span style="--i:${i}">${c}</span>`).join('')}</div><p class="codecap">Your release code</p></div>`,
+ sell:()=>`<div class="sc sc-sell"><div class="earn"><span>Earned this month</span><b class="count">₦0</b></div>
+   <div class="lcard"><div class="pi" style="background:${CATS[2].c};color:${CATS[2].k}">${ico('shirt')}</div><div><b>Vintage denim jacket</b><span>₦9,000 · 12 available</span></div><em class="feat">Featured</em></div>
+   <div class="vbadge">${ico('badge')} Verified seller</div><div class="spark s1"></div><div class="spark s2"></div><div class="spark s3"></div></div>`};
+let obI=0,obT=null,obHold=false;const OB_MS=5500;
+function onboard(g){g.classList.add('obg');
+  g.innerHTML=`<div class="ob${NAIJA?' ob-naija':''}"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+   <div class="obtop"><div class="bars">${SL.map((_,k)=>`<i><b></b></i>`).join('')}</div><button class="obskip" id="gSkip">Skip</button></div>
+   <div class="obtrack">${SL.map((x,k)=>`<section class="obs" data-k="${k}"><div class="obscene">${OB_SCENES[x.k]()}</div><div class="obtxt"><h1>${x.h}</h1><p>${x.p}</p></div></section>`).join('')}</div>
+   <div class="obbot"><button class="pill obgo" id="obNext">Next</button><button class="link obin" id="toIn">I already have an account</button></div></div>`;
+  const ob=g.querySelector('.ob'),track=ob.querySelector('.obtrack');
+  const go=n=>{if(n<0)n=0;if(n>=SL.length){si=SL.length;S.obSeen=1;save();g.classList.remove('obg');clearTimeout(obT);gate();return}obI=n;
+    track.style.transform=`translateX(${-100*n}%)`;ob.querySelectorAll('.obs').forEach((x,k)=>x.classList.toggle('on',k===n));
+    ob.querySelectorAll('.bars i').forEach((x,k)=>{x.className=k<n?'done':k===n?'run':'';const b=x.querySelector('b');b.style.animation='none';b.offsetWidth;b.style.animation=''});
+    ob.querySelector('#obNext').textContent=n===SL.length-1?'Get started':'Next';ob.classList.toggle('last',n===SL.length-1);sceneLive(ob.querySelectorAll('.obs')[n],SL[n].k);
+    clearTimeout(obT);if(!CALM)obT=setTimeout(tick,OB_MS)};
+  const tick=()=>{if(!document.contains(ob))return;if(obHold||document.hidden){obT=setTimeout(tick,400);return}if(obI<SL.length-1)go(obI+1)};
+  ob.querySelector('#obNext').onclick=e=>{e.stopPropagation();go(obI+1)};
+  // tap left/right thirds, swipe, press-and-hold to pause
+  let x0=null,y0=0,t0=0;ob.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;x0=e.clientX;y0=e.clientY;t0=Date.now();obHold=true;ob.classList.add('hold')});
+  ob.addEventListener('pointerup',e=>{obHold=false;ob.classList.remove('hold');if(x0===null)return;const dx=e.clientX-x0,dy=e.clientY-y0,dt=Date.now()-t0;const sx=x0;x0=null;
+    if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy))return go(obI+(dx<0?1:-1));if(dt<300&&Math.abs(dx)<10)go(obI+(sx<innerWidth*.33?-1:1))});
+  ob.addEventListener('pointercancel',()=>{obHold=false;x0=null;ob.classList.remove('hold')});
+  go(Math.min(obI,SL.length-1))}
+// Small live bits inside scenes: typing searches and the earnings counter.
+function sceneLive(sec,k){if(k==='find'){const el=sec.querySelector('.typed'),Q=['Stroud engineering maths','iPhone charger','jollof rice near me','hostel mattress','hair braiding'];let qi=0,ci=0,del=false;
+    clearInterval(sec._t);el.textContent='';if(CALM){el.textContent=Q[0];return}
+    sec._t=setInterval(()=>{if(!document.contains(sec)||!sec.classList.contains('on'))return clearInterval(sec._t);const w=Q[qi];
+      if(!del){ci++;el.textContent=w.slice(0,ci);if(ci>=w.length){del=true;sec._p=10}}else if(sec._p>0)sec._p--;else{ci--;el.textContent=w.slice(0,ci);if(ci<=0){del=false;qi=(qi+1)%Q.length}}},70)}
+  if(k==='sell'){const el=sec.querySelector('.count'),end=48500,t0=performance.now();if(CALM){el.textContent=naira(end);return}
+    (function f(t){if(!document.contains(sec))return;const p=Math.min(1,(t-t0-500)/1600);el.textContent=naira(Math.max(0,Math.round(end*(1-Math.pow(1-Math.max(0,p),3))/100)*100));if(p<1)requestAnimationFrame(f)})(t0)}}
+let si=S.user||S.obSeen?SL.length:0,rt='student';
 let authMode='up';const apiPost=(p,b)=>fetch('/api/'+p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json()).catch(()=>({error:'Could not reach Stall. Check your connection.'}));
 const SEG=()=>`<div class="seg"><button type="button" id="rtStudent" aria-pressed="${rt==='student'}">I'm a student</button><button type="button" id="rtVendor" aria-pressed="${rt==='vendor'}">I run a shop</button></div>`;
 function vendorGate(g){
@@ -992,10 +1115,8 @@ function gate(){
   if(S.user){g.hidden=true;return}
   g.hidden=false;g.scrollTo(0,0);
   if(authMode==='in'){loginGate(g);return}
-  if(si<SL.length){const s=SL[si];
-    g.innerHTML=`<div class="gin" key="${si}"><div class="gt" style="background:${s.c};color:${s.k}">${ico(s.e)}</div><h1>${s.h}</h1><p>${s.p}</p>
-    <div class="dots">${SL.map((_,k)=>`<i class="${k===si?'on':''}"></i>`).join('')}</div>
-    <div class="acts"><button class="pill" id="gNext">${si<SL.length-1?'Continue':'Get started'}</button></div><p style="margin-top:14px"><button class="link" id="gSkip">Skip</button></p></div>`;return}
+  if(si<SL.length){onboard(g);return}
+  g.classList.remove('obg');
   if(rt==='vendor'){vendorGate(g);return}
   g.innerHTML=`<div class="gin" style="text-align:left"><h1 style="font-size:36px">Create your account</h1>
    <p style="margin-bottom:6px">For students and campus shops at schools across Nigeria.</p>${SEG()}
