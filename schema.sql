@@ -85,7 +85,11 @@ CREATE TABLE IF NOT EXISTS orders(
   note TEXT,                               -- why it needs review / was rejected
   receipt TEXT, r_amount INTEGER, r_ref TEXT,
   bank_code TEXT, bank_ok INTEGER NOT NULL DEFAULT 0,  -- bank_ok=1: seller's account was checked, so the buyer can pay through Paystack
-  fee INTEGER, paid_via TEXT               -- Stall's sale fee (5%, max 2,000); paid_via 'paystack' when paid by split payment
+  fee INTEGER, paid_via TEXT,              -- Stall's sale fee (5%, max 2,000, on items only); paid_via 'paystack' when paid by split payment
+  sub INTEGER,                             -- items total; amount = sub + delivery fee when delivered
+  d_on INTEGER NOT NULL DEFAULT 0, d_fee INTEGER NOT NULL DEFAULT 0, d_note TEXT, pickup TEXT,  -- seller's delivery offer and pickup spot when ordered
+  method TEXT, addr TEXT, dphone TEXT,     -- 'pickup' or 'delivery' (and where to), chosen at payment
+  dstage TEXT, track TEXT                  -- paid, packed, on_way / ready, done; track = JSON list of {s,t}
 );
 -- Paystack subaccount for each payout bank account ('bank_code:acct_no'), made the first time a buyer pays that seller.
 CREATE TABLE IF NOT EXISTS ps_subs(k TEXT PRIMARY KEY, code TEXT NOT NULL, name TEXT, created INTEGER);
