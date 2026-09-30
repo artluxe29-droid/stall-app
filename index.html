@@ -433,6 +433,11 @@ function mkPicker(root){
   th.onclick=e=>{const b=e.target.closest('[data-x]');if(b){a.splice(+b.dataset.x,1);draw()}};
   draw();return{get:()=>a.slice(),clear:()=>{a=[];draw()},err:m=>{er.textContent=m}};
 }
+// Before sending a form with payout details: accept a typed-in name, or point at the Verify button.
+function needAcct(f){const E=f.elements;if(E.acctName.value)return true;const mn=f.querySelector('.manualName');
+  if(mn&&mn.value.trim().length>=3){E.acctName.value=mn.value.trim();E.bankManual.value='1';return true}
+  const ok=f.querySelector('.bankok');ok.style.color='#E5484D';ok.textContent=/^\d{10}$/.test(E.acct.value.trim())?'Tap "Verify account" first.':'Enter your 10-digit account number, then tap "Verify account".';
+  f.querySelector('[data-verify-bank]').scrollIntoView({block:'center',behavior:'smooth'});return false}
 function wireBankVerify(root){
   const btn=root.querySelector('[data-verify-bank]');if(!btn||btn.dataset.wired)return;btn.dataset.wired=1;
   const f=root.closest('form')||root.querySelector('form')||root,bank=f.elements.bank_code,acct=f.elements.acct,nm=f.elements.acctName,mn=f.elements.bankManual,ok=f.querySelector('.bankok');
@@ -442,9 +447,9 @@ function wireBankVerify(root){
     const r=await apiPost('bank/resolve',{bank_code:bank.value,acct_no:acct.value});
     btn.disabled=false;btn.textContent='Verify account';
     if(r.error){fails++;ok.style.color='#E5484D';ok.textContent=r.error;
-      if(fails>=2&&!f.querySelector('.manualBank')){
+      if(!f.querySelector('.manualBank')){
         const div=document.createElement('div');div.className='manualBank';
-        div.innerHTML='<p class="meta" style="margin-top:8px">Still not going through? Type the name on the account yourself, and the Stall team will confirm it before you get paid.</p><label>Account holder\'s name<input class="manualName" maxlength="60"></label><button type="button" class="pill sm alt manualUse">Use this name</button>';
+        div.innerHTML='<p class="meta" style="margin-top:8px">Could not check it automatically? That is fine. Type the name on the account exactly as your bank shows it, then tap <b>Use this name</b>. The Stall team confirms it before you get paid.</p><label>Account holder\'s name<input class="manualName" maxlength="60"></label><button type="button" class="pill sm alt manualUse">Use this name</button>';
         ok.insertAdjacentElement('afterend',div);
         div.querySelector('.manualUse').onclick=()=>{const v=div.querySelector('.manualName').value.trim();if(v.length<3)return toast('Enter the name on the account');
           nm.value=v;mn.value='1';ok.style.color='';ok.innerHTML='⏳ Using "'+esc(v)+'" — pending confirmation';div.remove()}}
@@ -664,7 +669,7 @@ $('#sort').onchange=e=>{sort=e.target.value;loadPub()};
 $('#catSel').innerHTML=CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
 $('#form').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),imgs=pk1.get();
   if(!imgs.length)return pk1.err('Add at least one photo.');
-  if(!S.user.acctSet&&!f.get('acctName'))return toast('Verify your payout account first.');
+  if(!S.user.acctSet&&!needAcct(e.target))return;
   const sb=e.target.querySelector('[type=submit]');sb.disabled=true;const r=await apiPost('listings',{title:f.get('title'),price:f.get('price'),cat:f.get('cat'),cond:f.get('cond'),spot:f.get('spot'),desc:f.get('desc'),qty:f.get('qty'),seller:f.get('seller'),phone:f.get('phone'),imgs,bank_code:f.get('bank_code'),acct_no:f.get('acct'),acct_name:f.get('acctName'),bank_manual:f.get('bankManual')});sb.disabled=false;
   if(r.error)return toast(r.error);
   if(f.get('acctName'))S.user.acctSet=true;
@@ -702,7 +707,7 @@ async function makeStore(d,ref){const r=await apiPost('stores/create',{reference
   if(r.error)return toast(r.error);
   await loadPub();renderStores();storePage(r.id);toast('Store fee paid. Your store is open')}
 $('#storeForm').onsubmit=e=>{e.preventDefault();const E=e.target.elements;
-  if(!E.acctName.value)return toast('Verify your payout account first.');
+  if(!needAcct(e.target))return;
   const d={name:E.name.value.trim(),emoji:E.emoji.value,cat:E.cat.value,desc:E.desc.value.trim(),spot:E.spot.value.trim(),phone:E.phone.value.trim(),bank_code:E.bank_code.value,acct:E.acct.value.trim(),acctName:E.acctName.value,bank_manual:E.bankManual.value};
   startFeature({kind:'store',d},e.target.querySelector('[type=submit]'))};
 $('#itemForm').onsubmit=async e=>{e.preventDefault();const f=e.target,E=f.elements,s=myStore(),imgs=pk2.get();

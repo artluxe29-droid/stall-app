@@ -10,7 +10,8 @@ const ipOf=r=>r.headers.get('cf-connecting-ip')||r.headers.get('x-forwarded-for'
 // Allows `max` actions per `win` ms for a key (user, IP or order). Returns false when the limit is reached.
 const allow=async(env,key,max,win)=>{const now=Date.now();if((await env.DB.prepare('SELECT COUNT(*) c FROM attempts WHERE k=? AND t>?').bind(key,now-win).first()).c>=max)return false;
   await env.DB.prepare('INSERT INTO attempts(k,t) VALUES(?,?)').bind(key,now).run();return true};
-const SLOW=J({error:'Too many tries. Please wait a little and try again.'},429);
+// Built fresh for each request: Cloudflare doesn't allow creating responses when the Worker starts, and a response can only be sent once.
+const slow=()=>J({error:'Too many tries. Please wait a little and try again.'},429);
 // A photo must be a real JPEG, PNG or WebP data URL under ~330 KB, not just text claiming to be one.
 const imgOk=x=>{if(typeof x!=='string'||x.length>450000)return false;const m=x.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]{16})/);if(!m)return false;
   let h;try{h=atob(m[2].slice(0,16))}catch(e){return false}const c=i=>h.charCodeAt(i);
@@ -175,7 +176,7 @@ export async function onRequest({request,env,params,waitUntil}){
   const bump=()=>bumpVer(env);
   if(request.method!=='GET'&&request.method!=='HEAD'&&path!=='paystack/webhook'){const o=request.headers.get('origin');if(o&&o!==url.origin)return J({error:'Request blocked.'},403)}
   if(!env.DB&&(['register','login','logout','me'].includes(path)||path.startsWith('admin/')||path.startsWith('listings')||path.startsWith('stores')||path.startsWith('orders')||path.startsWith('bank')||path==='banks'||path.startsWith('photo/')))return J({error:'Accounts are not set up yet.'},500);
-  if(path==='register'&&request.method==='POST'){await ensure(env);if(!await allow(env,'reg:'+ipOf(request),120,36e5))return SLOW; // generous: many students share one mobile-network or campus address
+  if(path==='register'&&request.method==='POST'){await ensure(env);if(!await allow(env,'reg:'+ipOf(request),120,36e5))return slow(); // generous: many students share one mobile-network or campus address
     const b=await request.json().catch(()=>({})),t=k=>String(b[k]||'').trim(),bad=(field,error)=>J({error,field},400);
     const sc=await pickSchool(env,b);if(sc.error)return bad('school',sc.error);
     const vendor=b.role==='vendor',phone=phoneN(b.phone),name=t('name'),pass=String(b.password||'');
@@ -200,7 +201,7 @@ export async function onRequest({request,env,params,waitUntil}){
   if(path==='login'&&request.method==='POST'){
     const b=await request.json().catch(()=>({})),raw=String(b.id||'').trim(),m=raw.toUpperCase(),p=phoneN(raw),k='l:'+(m||p),now=Date.now();
     if((await env.DB.prepare('SELECT COUNT(*) c FROM attempts WHERE k=? AND t>?').bind(k,now-9e5).first()).c>=8)return J({error:'Too many attempts. Try again in 15 minutes.'},429);
-    if(!await allow(env,'lip:'+ipOf(request),300,9e5))return SLOW;
+    if(!await allow(env,'lip:'+ipOf(request),300,9e5))return slow();
     const u=await env.DB.prepare('SELECT * FROM users WHERE matric=? OR phone=?').bind(m,p).first();
     if(!u||await pbk(String(b.password||''),u.salt)!==u.pw){await env.DB.prepare('INSERT INTO attempts(k,t) VALUES(?,?)').bind(k,now).run();return J({error:'Wrong matric number, phone or password.'},401)}
     await env.DB.prepare('DELETE FROM attempts WHERE t<?').bind(now-9e5).run();
@@ -209,7 +210,7 @@ export async function onRequest({request,env,params,waitUntil}){
   }
   if(path==='password'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);
     const b=await request.json().catch(()=>({})),pw=String(b.password||'');
-    if(!await allow(env,'pw:'+u.id,8,36e5))return SLOW;
+    if(!await allow(env,'pw:'+u.id,8,36e5))return slow();
     if(await pbk(String(b.old||''),u.salt)!==u.pw)return J({error:'Your current password is wrong.'},400);
     if(pw.length<8||pw.length>100)return J({error:'Use at least 8 characters.'},400);
     const salt=rnd(16),t=cookie(request,'stall_s');await env.DB.prepare('UPDATE users SET salt=?,pw=? WHERE id=?').bind(salt,await pbk(pw,salt),u.id).run();
@@ -249,7 +250,7 @@ export async function onRequest({request,env,params,waitUntil}){
     if(t('title').length<3||t('title').length>80)return J({error:'Enter a title of 3 to 80 characters.'},400);
     if(!(price>=1&&price<=10000000))return J({error:'Enter a valid price.'},400);
     if(imgs.length<1||imgs.length>8||!imgs.every(imgOk))return J({error:'Add 1 to 8 photos (JPEG, PNG or WebP).'},400);
-    if(!await allow(env,'post:'+u.id,40,36e5))return SLOW;
+    if(!await allow(env,'post:'+u.id,40,36e5))return slow();
     const qty=Math.round(+b.qty||1);if(!(qty>=1&&qty<=100000))return J({error:'Enter how many you have (1 or more).'},400);
     if(!u.school_id)return J({error:'Choose your school first.'},400);await ensure(env);
     const r=await env.DB.prepare("INSERT INTO listings(uid,title,price,cat,cond,spot,descr,seller,phone,n,created,school_id,state,qty,qty_left,review) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'checking')").bind(u.id,t('title'),price,t('cat').slice(0,20),t('cond').slice(0,20),t('spot').slice(0,60),t('desc').slice(0,500),t('seller').slice(0,50)||u.name,t('phone').slice(0,20)||u.phone,imgs.length,Date.now(),u.school_id,u.state,qty,qty).run();
@@ -302,7 +303,7 @@ export async function onRequest({request,env,params,waitUntil}){
       if(t('title').length<3||t('title').length>80)return J({error:'Enter a title of 3 to 80 characters.'},400);
       if(!(price>=1&&price<=10000000))return J({error:'Enter a valid price.'},400);
       if(imgs.length<1||imgs.length>8||!imgs.every(imgOk))return J({error:'Add 1 to 8 photos (JPEG, PNG or WebP).'},400);
-      if(!await allow(env,'post:'+u.id,60,36e5))return SLOW;
+      if(!await allow(env,'post:'+u.id,60,36e5))return slow();
       const qs=b.qty===''||b.qty==null?null:Math.round(+b.qty);if(qs!==null&&!(qs>=0&&qs<=100000))return J({error:'Enter how many you have, or leave it empty for no limit.'},400);
       await ensure(env);const cat=(await env.DB.prepare('SELECT cat FROM stores WHERE id=?').bind(mine.id).first()||{}).cat||'';
       const r=await env.DB.prepare("INSERT INTO store_items(sid,title,price,descr,avail,n,created,qty_left,review) VALUES(?,?,?,?,1,?,?,?,'checking')").bind(mine.id,t('title'),price,t('desc').slice(0,300),imgs.length,Date.now(),qs).run(),id=r.meta.last_row_id;
@@ -318,7 +319,7 @@ export async function onRequest({request,env,params,waitUntil}){
   }
 const naira=n=>'₦'+Number(n||0).toLocaleString('en-NG');
 const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.acct_no,acctName:r.acct_name,status:r.status,deadline:r.deadline,code:r.status==='verified'?r.code:null,note:r.note,updated:r.updated,buyerName:r.buyer_name,buyerPhone:r.buyer_phone,sellerName:r.seller_name,sellerPhone:r.seller_phone});
-  if(path==='orders/create'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);if(!await allow(env,'ord:'+u.id,30,36e5))return SLOW;
+  if(path==='orders/create'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);if(!await allow(env,'ord:'+u.id,30,36e5))return slow();
     await sweep(env);
     const b=await request.json().catch(()=>({})),ids=Array.isArray(b.items)?b.items.slice(0,60):[];
     if(!ids.length)return J({error:'Your bag is empty.'},400);
@@ -369,7 +370,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     if(!(amt>0))return J({error:'Enter the amount you sent.'},400);
     if(ref.length<3||ref.length>60)return J({error:'Enter the transaction reference from your bank app.'},400);
     if(!imgOk(img))return J({error:'Add a photo of your receipt (JPEG, PNG or WebP).'},400);
-    if(!await allow(env,'rcpt:'+u.id,15,36e5))return SLOW;
+    if(!await allow(env,'rcpt:'+u.id,15,36e5))return slow();
     const dup=await env.DB.prepare("SELECT 1 FROM orders WHERE r_ref=? AND id!=? AND status IN ('verified','released')").bind(ref,id).first();
     const reasons=[];if(amt!==o.amount)reasons.push('Amount does not match the order.');if(dup)reasons.push('This reference has already been used.');
     if(!reasons.length){const ai=await aiCheckReceipt(env,img,amt,ref);if(ai.ok!==true)reasons.push(ai.why||'The receipt photo could not be confirmed automatically.')}
@@ -524,7 +525,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       if(target[0]==='S'){const st=await env.DB.prepare('SELECT name FROM stores WHERE id=? AND uid=?').bind(id,u.id).first();if(!st)return{error:'Store not found.'};return{amount:PRICE.store[days],label:st.name}}
       return{error:'Nothing to feature.'}};
     if(path==='pay/start'&&request.method==='POST'){const kind=String(b.kind||''),target=String(b.target||''),days=+b.days||0;
-      if(!env.PAYSTACK_SECRET)return J({error:'Payments are not set up yet.'},503);if(!await allow(env,'pay:'+u.id,20,36e5))return SLOW;
+      if(!env.PAYSTACK_SECRET)return J({error:'Payments are not set up yet.'},503);if(!await allow(env,'pay:'+u.id,20,36e5))return slow();
       let w,data={target,days};
       if(kind==='store'){const d=b.d||{},bad=storeBad(d);if(bad)return J({error:bad},400);if(await env.DB.prepare('SELECT 1 FROM stores WHERE uid=?').bind(u.id).first())return J({error:'You already have a store.'},409);
         if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);w={amount:STORE_FEE,label:'Store: '+clean(d.name,40)};data={d}}
@@ -553,7 +554,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       const note=String(b.note||'').trim().slice(0,300),photo=String(b.photo||'');
       if(note.length<5)return J({error:'Tell us briefly who you are and what you sell.'},400);
       if(!imgOk(photo))return J({error:'Add a clear photo of your student ID card or shop.'},400);
-      if(!await allow(env,'vapp:'+u.id,5,864e5))return SLOW;
+      if(!await allow(env,'vapp:'+u.id,5,864e5))return slow();
       const cur=await env.DB.prepare('SELECT status FROM verify_requests WHERE uid=?').bind(u.id).first();if(cur&&['pending','approved'].includes(cur.status))return J({error:'Your request is already '+(cur.status==='pending'?'waiting for review.':'approved. Pay to activate your badge.')},400);
       await env.DB.prepare("INSERT INTO verify_requests(uid,note,photo,status,reason,created,updated) VALUES(?,?,?,'pending',NULL,?,?) ON CONFLICT(uid) DO UPDATE SET note=excluded.note,photo=excluded.photo,status='pending',reason=NULL,updated=excluded.updated").bind(u.id,note,photo,Date.now(),Date.now()).run();
       waitUntil(tg(env,'New verification request\n'+u.name+(u.biz?' ('+u.biz+')':'')+' - '+u.phone+'\nReview it in Admin: '+url.origin));return J({ok:true})}
@@ -573,7 +574,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
   if(path==='bank/resolve'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
     const b=await request.json().catch(()=>({})),code=String(b.bank_code||''),acct=String(b.acct_no||'').replace(/\D/g,'');
     if(!BANKS[code]||acct.length!==10)return J({error:'Choose a bank and enter a 10-digit account number.'},400);
-    if(!await allow(env,'bank:'+u.id,12,36e5))return SLOW;
+    if(!await allow(env,'bank:'+u.id,12,36e5))return slow();
     if(!env.PAYSTACK_SECRET){await setK(env,'bank_last',JSON.stringify({t:Date.now(),ok:false,err:'PAYSTACK_SECRET is not set in Cloudflare.'}));return J({error:'Account checking is not set up yet. Type the name on the account below instead.'},503)}
     const r=await ps(env,'/bank/resolve?account_number='+acct+'&bank_code='+code).catch(e=>({status:false,message:'Could not reach Paystack: '+(e&&e.message||e)}));
     if(!r.status||!r.data||!r.data.account_name){await setK(env,'bank_last',JSON.stringify({t:Date.now(),ok:false,err:String(r.message||'No account name returned').slice(0,200),bank:BANKS[code]}));
