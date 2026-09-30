@@ -411,7 +411,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
         <div class="row"><button class="pill acc" id="shopNow">Shop now</button><button class="pill ghost" id="sellHero">Sell something</button></div></div>
       <div class="pa" aria-hidden="true" id="promoArt"></div>
     </div>
-    <div class="trust"><div><i data-ico="cap"></i><span>Students only<small>Schools across Nigeria</small></span></div><div><i data-ico="shield"></i><span>Checked payments<small>Stall confirms every transfer</small></span></div><div><i data-ico="pin"></i><span>Collect on campus<small>Meet at a spot you choose</small></span></div></div>
+    <div class="trust"><div><i data-ico="cap"></i><span>Students only<small>Schools across Nigeria</small></span></div><div><i data-ico="shield"></i><span>Checked payments<small>Stall confirms every payment</small></span></div><div><i data-ico="pin"></i><span>Collect on campus<small>Meet at a spot you choose</small></span></div></div>
     <div class="appcard" id="appCard" hidden><img src="/icons/icon-192-v2.png" alt=""><div><b>Get the Stall app</b><small>Free · on your home screen</small></div><button class="pill sm" id="installGo">Install</button><button class="x" id="installX" aria-label="Hide">×</button></div>
     <div class="sec"><h3>Categories</h3><button class="see" id="toStores">Browse stores →</button></div>
     <div class="cats" id="hchips"></div>
@@ -432,7 +432,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
 <section id="store" hidden></section>
 <section id="orders" hidden><div class="wrap" style="padding-top:36px;max-width:720px"><h2 style="font-size:40px;letter-spacing:-.035em;margin-bottom:18px">Your orders</h2><div id="orderList"></div></div></section>
 <section id="selling" hidden><div class="wrap" style="padding-top:36px;max-width:720px"><h2 style="font-size:40px;letter-spacing:-.035em;margin-bottom:18px">Orders to fulfil</h2><div id="sellingList"></div></div></section>
-<footer><p id="helpLinks" style="margin-bottom:8px"></p><span id="who"></span> <button class="link" id="verifyBtn" hidden>Get verified</button> <button class="link" id="pwBtn" hidden>Change password</button> <button class="link" id="signOut" hidden>Sign out</button> <button class="link" id="adminBtn" hidden>Admin</button><br>Stall connects students and campus shops across Nigeria. Buyers pay through Paystack or by bank transfer, and Stall confirms each payment before issuing a release code. Never hand over an item, or accept one, without a valid Stall release code.</footer>
+<footer><p id="helpLinks" style="margin-bottom:8px"></p><span id="who"></span> <button class="link" id="verifyBtn" hidden>Get verified</button> <button class="link" id="pwBtn" hidden>Change password</button> <button class="link" id="signOut" hidden>Sign out</button> <button class="link" id="adminBtn" hidden>Admin</button><br>Stall connects students and campus shops across Nigeria. Buyers pay through Paystack, and Stall confirms each payment before issuing a release code. Never hand over an item, or accept one, without a valid Stall release code.</footer>
 
 <dialog id="itemDlg"><div class="pad"><h2>Add item</h2><form id="itemForm" method="dialog">
  <label>Item name<input name="title" required maxlength="60" placeholder="e.g. Jollof rice and chicken"></label>
@@ -561,7 +561,7 @@ function wireBankVerify(root){
     if(r.error){fails++;ok.style.color='#E5484D';ok.textContent=r.error;
       if(!f.querySelector('.manualBank')){
         const div=document.createElement('div');div.className='manualBank';
-        div.innerHTML='<p class="meta" style="margin-top:8px">Could not check it automatically? That is fine. Type the name on the account exactly as your bank shows it, then tap <b>Use this name</b>. The Stall team confirms it before you get paid.</p><label>Account holder\'s name<input class="manualName" maxlength="60"></label><button type="button" class="pill sm alt manualUse">Use this name</button>';
+        div.innerHTML='<p class="meta" style="margin-top:8px">Could not check it automatically? That is fine. Type the name on the account exactly as your bank shows it, then tap <b>Use this name</b>. Buyers can pay you once the Stall team confirms it, usually within a day.</p><label>Account holder\'s name<input class="manualName" maxlength="60"></label><button type="button" class="pill sm alt manualUse">Use this name</button>';
         ok.insertAdjacentElement('afterend',div);
         div.querySelector('.manualUse').onclick=()=>{const v=div.querySelector('.manualName').value.trim();if(v.length<3)return toast('Enter the name on the account');
           nm.value=v;mn.value='1';ok.style.color='';ok.innerHTML='⏳ Using "'+esc(v)+'" — pending confirmation';div.remove()}}
@@ -639,31 +639,14 @@ function orderScreen(o){const d=$('#checkout');
   const left=o.deadline-Date.now();
   d.innerHTML=`<div class="pad">${PAYTOTAL>1?`<p class="meta">Seller ${PAYIDX} of ${PAYTOTAL}</p>`:''}<h2>Pay ${esc(o.sellerName)}</h2>
    <div class="sum"><span>Amount</span><span>${naira(o.amount)}</span></div>
-   ${o.card?`<div class="pscard"><p class="meta">Pay by card, bank transfer or USSD on Paystack's secure page. Stall confirms it straight away and gives you your release code. No receipt needed.</p>
+   ${o.card?`<p class="meta">Pay by card, bank transfer or USSD on Paystack's secure page. Stall confirms it straight away and gives you your release code.</p>
     <div class="acts"><button class="pill" id="psPay">Pay ${naira(o.amount)} securely</button></div>
-    <p class="meta" style="text-align:center;margin-top:10px"><button type="button" class="link" id="manPay">Pay into the seller's account instead</button></p></div>`:''}
-   <div id="manBox" ${o.card?'hidden':''}>
-   <p class="meta">Transfer exactly this amount to:</p>
-   <p><b>${esc(o.bank)}</b><br>${esc(o.acctName)}<br><span id="acctNo" style="font-size:20px;font-weight:700;letter-spacing:1px">${esc(o.acct)}</span> <button type="button" class="pill sm alt" id="copyAcct">Copy</button></p>
-   <p class="meta">Only pay into the account shown above, and check the recipient name matches before you send. Complete payment within <b id="cdown">${clock(left)}</b>.</p>
-   <div class="acts"><button class="pill" id="paidBtn">I've paid</button></div>
-   <form id="rcForm" hidden><label>Amount you sent<input name="amt" type="number" value="${o.amount}" required></label>
-    <label>Transaction reference<input name="ref" maxlength="60" placeholder="From your bank app or receipt" required></label>
-    <label>Receipt photo<input name="file" type="file" accept="image/*" required></label>
-    <span class="err" id="rcErr"></span>
-    <div class="acts"><button class="pill" type="submit">Submit for review</button></div></form></div></div>`;
-  if(o.card){$('#psPay').onclick=e=>startFeature({kind:'order',target:String(o.id)},e.currentTarget);$('#manPay').onclick=()=>{$('#manBox').hidden=false;$('.pscard').hidden=true}}
-  $('#copyAcct').onclick=()=>{navigator.clipboard?.writeText(o.acct).then(()=>toast('Account number copied'))};
-  $('#paidBtn').onclick=()=>{$('#paidBtn').hidden=true;$('#rcForm').hidden=false};
-  const tk=setInterval(()=>{const l=o.deadline-Date.now();const el=$('#cdown');if(!el){clearInterval(tk);return}if(l<=0){clearInterval(tk);loadOne(o.id).then(oo=>orderScreen(oo))}else el.textContent=clock(l)},1000);
-  $('#rcForm').onsubmit=async e=>{e.preventDefault();const f=e.target,file=f.file.files[0];if(!file)return;
-    const sb=f.querySelector('[type=submit]');sb.disabled=true;$('#rcErr').textContent='';
-    try{const img=await shrinkReceipt(file);
-      const r=await apiPost('orders/receipt',{id:o.id,amount:f.amt.value,ref:f.ref.value,receipt:img});
-      if(r.error){sb.disabled=false;$('#rcErr').textContent=r.error;return}
-      if(r.verified)markSeen('b');const oo=await loadOne(o.id);orderScreen(oo)}
-    catch(x){sb.disabled=false;$('#rcErr').textContent='Could not read that photo. Try another.'}}}
-function shrinkReceipt(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.8))};im.onerror=rej;im.src=r.result};r.onerror=rej;r.readAsDataURL(file)})}
+    <p class="meta">Complete payment within <b id="cdown">${clock(left)}</b>.</p>`
+    :`<p class="meta">This order was placed before online payment started. Add the item to your bag again to buy it.</p>`}</div>`;
+  if(o.card)$('#psPay').onclick=e=>startFeature({kind:'order',target:String(o.id)},e.currentTarget);
+  const tk=setInterval(()=>{const l=o.deadline-Date.now();const el=$('#cdown');if(!el){clearInterval(tk);return}if(l<=0){clearInterval(tk);loadOne(o.id).then(oo=>orderScreen(oo))}else el.textContent=clock(l)},1000)}
+// Shrinks a photo (ID card or shop) before upload.
+function shrinkPhoto(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.8))};im.onerror=rej;im.src=r.result};r.onerror=rej;r.readAsDataURL(file)})}
 async function loadOne(id){const r=await fetchJ('/api/orders/mine');return (r.orders||[]).find(x=>x.id===id)}
 function payAdvance(){const nx=PAYQ.shift();if(!nx){$('#checkout').close();S.cart=[];save();badge();render();view('orders');return}PAYIDX++;orderScreen(nx)}
 async function startCheckout(items){const b=$('#goPay');if(b){b.disabled=true;b.textContent='Placing order…'}
@@ -675,7 +658,7 @@ function orderCard(o,seller){const badge=o.status==='pending'?'Awaiting payment'
   return `<div class="order"><div class="top"><b>${esc(o.title)} · ${esc(seller?o.buyerName:o.sellerName)}</b><span class="status ${o.status==='released'?'done':''}">${badge}</span></div>
    <div class="meta">${naira(o.amount)} · ${ago(o.deadline-19*60*1000)}</div>
    ${o.status==='rejected'?`<div class="onote bad">Payment not accepted${o.note?': '+esc(o.note):''}.${seller?'':' If you did pay, contact the seller or the Stall team.'}</div>`:''}
-   ${o.status==='under_review'?`<div class="onote">${seller?'The buyer has sent a receipt. Stall is checking the payment. Don\'t hand over the item yet.':'Stall is checking your receipt. You will see the result here, usually within a few hours.'}</div>`:''}
+   ${o.status==='under_review'?`<div class="onote">${seller?'Stall is checking this order. Don\'t hand over the item yet.':'Stall is checking this order. You will see the result here, usually within a few hours.'}</div>`:''}
    ${seller&&o.status==='verified'?'<div class="onote">Payment confirmed by Stall. Hand over the item when the buyer gives you their release code.</div>':''}
    ${seller&&o.paidVia==='paystack'&&['verified','released'].includes(o.status)?`<div class="onote">Paid through Paystack. You get <b>${naira(o.amount-o.fee)}</b> (Stall's 5% fee: ${naira(o.fee)}). Paystack sends it to your bank, usually the next working day.</div>`:''}
    ${!seller&&o.status==='pending'?`<div class="acts"><button class="pill sm" data-payid="${o.id}">Pay now</button></div>`:''}
@@ -803,7 +786,7 @@ function openVerify(){const d=$('#verDlg'),u=S.user,st=u.verify;
     <div class="acts"><button class="pill" type="submit">Send for review</button><button class="pill alt" type="button" data-close>Cancel</button></div></form>`}</div>`;
   d.showModal();const pb=$('#verPay');if(pb)pb.onclick=()=>startFeature({kind:'verify'},pb);
   const f=$('#verForm');if(f)f.onsubmit=async e=>{e.preventDefault();const sb=f.querySelector('[type=submit]');sb.disabled=true;
-    try{const photo=await shrinkReceipt(f.elements.photo.files[0]);const r=await apiPost('verify/apply',{note:f.elements.note.value,photo});sb.disabled=false;
+    try{const photo=await shrinkPhoto(f.elements.photo.files[0]);const r=await apiPost('verify/apply',{note:f.elements.note.value,photo});sb.disabled=false;
       if(r.error)return $('#verErr').textContent=r.error;S.user.verify='pending';save();d.close();toast('Sent. We will review it soon.')}
     catch(x){sb.disabled=false;$('#verErr').textContent='Could not read that photo. Try another.'}}}
 $('#pwForm').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('[type=submit]');b.disabled=true;const r=await apiPost('password',{old:f.elements.old.value,password:f.elements.pw.value});b.disabled=false;
@@ -982,7 +965,7 @@ async function loadPub(more){if(!S.user)return;const n=++PQ,mo=more===true,need=
   if(a&&a.listings){a.listings.forEach(own);PUB=mo?[...PUB,...a.listings]:a.listings;PTOT=a.total;PLD=1}if(b&&b.stores){STORES=b.stores;if(mS&&mS.stores)mS.stores.forEach(m=>{const k=STORES.findIndex(x=>x.id===m.id);k>=0?STORES[k]=m:STORES.unshift(m)})}if((a&&a.listings)||(b&&b.stores)){refresh();renderStores()}}
 function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub();pollNews();if(!r.user.schoolInfo&&!$('#schDlg').open)openSchoolPick(true)}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
 const AD={tab:'overview',st:{},sum:{},n:0},OST={pending:['Waiting for payment',''],under_review:['Needs review','warn'],verified:['Paid, awaiting delivery','warn'],released:['Delivered','ok'],expired:['Expired',''],rejected:['Rejected','bad']};
-const ATABS=[['overview','Overview'],['payments','Payments','review'],['orders','Orders'],['vendors','Vendors','vendorsPending'],['payouts','Payouts','banks'],['items','Photo check','itemsReview'],['verify','Verify','verifyPending'],['schools','Schools','schoolsPending'],['users','People'],['codes','Codes'],['money','Earnings'],['log','Activity'],['settings','Settings']];
+const ATABS=[['overview','Overview'],['payments','Flagged','review'],['orders','Orders'],['vendors','Vendors','vendorsPending'],['payouts','Payouts','banks'],['items','Photo check','itemsReview'],['verify','Verify','verifyPending'],['schools','Schools','schoolsPending'],['users','People'],['codes','Codes'],['money','Earnings'],['log','Activity'],['settings','Settings']];
 const AF={orders:[['all','All'],['verified','Awaiting delivery'],['under_review','Needs review'],['pending','Waiting for payment'],['released','Delivered'],['rejected','Rejected'],['expired','Expired']],vendors:[['all','All'],['pending','Waiting'],['active','Approved'],['suspended','Suspended']],users:[['all','Everyone'],['student','Students'],['vendor','Vendors'],['verified','Verified'],['reviewer','Reviewers']],items:[['review','Needs a look'],['rejected','Rejected'],['live','Approved']],schools:[['pending','Requested'],['active','All schools']],verify:[['pending','Waiting'],['approved','Approved, not paid'],['paid','Verified'],['rejected','Not approved'],['all','All']],money:[['all','All'],['boost','Featured'],['reach','Store reach'],['verify','Verified badges'],['store','Store fees'],['commission','Sale fees']],codes:[['all','All'],['unused','Not used'],['used','Used'],['off','Turned off']],log:[['all','Everything'],['payment','Payments'],['account','Accounts'],['money','Earnings'],['other','Other']]};
 const AQ={payments:'Search order #, name, phone or reference',orders:'Search order #, name, phone or reference',vendors:'Search shop, name or phone',users:'Search name, matric, phone or email',codes:'Search code or shop name',log:'Search person, order # or action',items:'Search title or seller',schools:'Search school, short name or state',verify:'Search name, phone or shop',money:'Search name, item or reference'};
 const aAgo=t=>{if(!t)return'';const s=(Date.now()-t)/1e3;return s<60?'just now':s<3600?Math.floor(s/60)+' min ago':s<86400?Math.floor(s/3600)+' h ago':new Date(t).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})};
@@ -990,7 +973,7 @@ const wa=p=>{p=String(p||'');return p?`<a class="link" target="_blank" rel="noop
 const bdg=(l,k)=>`<span class="badge ${k?'b-'+k:''}">${esc(l)}</span>`;
 const ast=k=>AD.st[k]=AD.st[k]||{q:'',f:(AF[k]||[[''] ])[0][0],page:0};
 async function openAdmin(){const d=$('#adminDlg');AD.rev=!S.user.admin;if(AD.rev)AD.tab='payments';d.className='adm';
-  d.innerHTML=`<div class="ah"><div class="top"><h2>${AD.rev?'Review payments':'Admin'}</h2><button class="pill sm alt" data-close>Close</button></div>${AD.rev?'':`<div class="tabs" role="tablist">${ATABS.map(([k,l])=>`<button class="tab" role="tab" data-tab="${k}">${l}<i hidden></i></button>`).join('')}</div>`}</div><div class="ab" id="ab"></div>`;
+  d.innerHTML=`<div class="ah"><div class="top"><h2>${AD.rev?'Flagged orders':'Admin'}</h2><button class="pill sm alt" data-close>Close</button></div>${AD.rev?'':`<div class="tabs" role="tablist">${ATABS.map(([k,l])=>`<button class="tab" role="tab" data-tab="${k}">${l}<i hidden></i></button>`).join('')}</div>`}</div><div class="ab" id="ab"></div>`;
   d.showModal();
   d.onclick=async e=>{const t=e.target,c=s=>t.closest(s),S0=ast(AD.tab);let b;
     if(b=c('[data-tab]'))return adminTab(b.dataset.tab);
@@ -1045,12 +1028,12 @@ function adminTab(k){AD.tab=k;const S0=ast(k);document.querySelectorAll('#adminD
   $('#ab').scrollTop=0;adminLoad()}
 async function adminLoad(){const k=AD.tab,S0=ast(k),n=++AD.n,el=()=>n===AD.n&&$('#alist'),qs=p=>'?'+new URLSearchParams({q:S0.q,page:S0.page,...p});
   if(k==='overview'){const s=AD.sum,card=(n,l,go,hot)=>`<${go?`button data-go="${go}"`:'div'} class="stat${hot&&n?' hot':''}"><b>${n==null?'–':typeof n==='string'?n:n.toLocaleString()}</b><span>${l}</span></${go?'button':'div'}>`,todo=(s.review||0)+(s.vendorsPending||0)+(s.banks||0)+(s.verifyPending||0)+(s.itemsReview||0)+(s.schoolsPending||0);
-    if(el())el().innerHTML=`<p class="lb">Needs your attention</p>${todo?'':'<p class="meta">All caught up. Nothing is waiting on you.</p>'}<div class="stats">${card(s.review,'Payments to review','payments',1)}${card(s.vendorsPending,'Vendors waiting for approval','vendors:pending',1)}${card(s.banks,'Payout details to confirm','payouts',1)}${card(s.itemsReview,'Listings to check','items',1)}${card(s.verifyPending,'Verification requests','verify',1)}${card(s.schoolsPending,'New schools to approve','schools',1)}${card(s.delivery,'Paid, waiting for delivery','orders:verified')}</div>
+    if(el())el().innerHTML=`<p class="lb">Needs your attention</p>${todo?'':'<p class="meta">All caught up. Nothing is waiting on you.</p>'}<div class="stats">${card(s.review,'Orders flagged for a look','payments',1)}${card(s.vendorsPending,'Vendors waiting for approval','vendors:pending',1)}${card(s.banks,'Payout details to confirm','payouts',1)}${card(s.itemsReview,'Listings to check','items',1)}${card(s.verifyPending,'Verification requests','verify',1)}${card(s.schoolsPending,'New schools to approve','schools',1)}${card(s.delivery,'Paid, waiting for delivery','orders:verified')}</div>
      <p class="lb" style="margin-top:22px">Earnings</p><div class="stats">${card(s.earnedMonth!=null?naira(s.earnedMonth):null,'Earned this month','money')}${card(s.earned!=null?naira(s.earned):null,'Earned in total','money')}${card(s.boosts,'Featured right now','money:boost')}${card(s.verifiedCount,'Verified sellers','users:verified')}</div>
      <p class="lb" style="margin-top:22px">Stall at a glance</p><div class="stats">${card(s.students,'Students','users:student')}${card(s.vendors,'Vendors','vendors:all')}${card(s.stores,'Stores')}${card(s.released,'Orders delivered','orders:released')}${card(s.today,'Orders today','orders:all')}</div>
      <p class="lb" style="margin-top:22px">System</p>
-     <div class="arow"><div class="t"><div class="ttl"><b>Automatic receipt check</b>${!s.aiOn?bdg('Off','bad'):s.aiLast&&!s.aiLast.ok?bdg('Failing','bad'):bdg(s.aiLast?'Working':'On','ok')}</div>
-      <small>${!s.aiOn?'Not connected, so every receipt waits for a person. In Cloudflare open stall-app → Settings → Bindings, add a Workers AI binding named <b>AI</b> for Production, then redeploy.':s.aiLast?(s.aiLast.ok?'Last receipt checked '+aAgo(s.aiLast.t)+'.':'Last check failed '+aAgo(s.aiLast.t)+': '+esc(s.aiLast.err||'unknown error')+'. Receipts are coming to you for review until it works again.'):'Connected. No receipt has been checked yet.'}</small></div></div>
+     <div class="arow"><div class="t"><div class="ttl"><b>Automatic photo check</b>${!s.aiOn?bdg('Off','bad'):s.aiLast&&!s.aiLast.ok?bdg('Failing','bad'):bdg(s.aiLast?'Working':'On','ok')}</div>
+      <small>${!s.aiOn?'Not connected, so every new listing waits for a person in Photo check. In Cloudflare open stall-app → Settings → Bindings, add a Workers AI binding named <b>AI</b> for Production, then redeploy.':s.aiLast?(s.aiLast.ok?'Last listing photo checked '+aAgo(s.aiLast.t)+'.':'Last check failed '+aAgo(s.aiLast.t)+': '+esc(s.aiLast.err||'unknown error')+'. New listings are coming to you in Photo check until it works again.'):'Connected. No listing photo has been checked yet.'}</small></div></div>
      <div class="arow"><div class="t"><div class="ttl"><b>Bank account check (Paystack)</b>${s.psMode==='none'?bdg('Not set up','bad'):s.bankLast&&!s.bankLast.ok?bdg('Failing','bad'):bdg(s.bankLast?'Working':'Not used yet','ok')}${s.psMode==='test'?bdg('Test key','warn'):s.psMode==='live'?bdg('Live key','ok'):''}</div>
       <small>${s.psMode==='none'?'PAYSTACK_SECRET is missing in Cloudflare, so sellers must type their account name and you confirm it in Payouts.':s.bankLast?(s.bankLast.ok?'Last account verified '+aAgo(s.bankLast.t)+'.':'Last check failed '+aAgo(s.bankLast.t)+(s.bankLast.bank?' ('+esc(s.bankLast.bank)+')':'')+'. Paystack said: <b>'+esc(s.bankLast.err||'')+'</b>'):'No seller has verified an account yet.'}${s.psMode==='test'?' With a test key Paystack only allows a few account checks a day; switch to your live key to check real accounts.':''}</small></div></div>
      <div class="arow"><div class="t"><div class="ttl"><b>Split payments (Paystack)</b>${s.psMode==='none'?bdg('Not set up','bad'):s.splitLast&&!s.splitLast.ok?bdg('Failing','bad'):bdg(s.splitLast?'Working':'Not used yet','ok')}</div>
@@ -1073,9 +1056,9 @@ function aOrder(x){const[l,kk]=OST[x.status]||[x.status,''],rev=x.status==='unde
    <small>Buyer: ${esc(x.buyerName)} ${wa(x.buyerPhone)}</small><small>Seller: ${esc(x.sellerName)} ${wa(x.sellerPhone)} · pays to ${esc(x.bank||'')} ${esc(x.acct||'')} (${esc(x.acctName||'')})</small>
    ${x.note?`<small class="flag">${esc(x.note)}</small>`:''}
    ${x.decidedBy?`<small>${x.decision==='approved'?'Approved':'Rejected'} by <b>${esc(x.decidedBy)}</b> · ${new Date(x.decidedAt).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'})}</small>`:''}
-   <small>${rev?'Receipt sent':'Updated'} ${aAgo(x.updated||x.created)}${x.status==='verified'?' · release code not used yet':''}${x.status==='released'?' · release code used':''}${rev&&!x.hasReceipt?' · no photo attached':''}</small>
-   ${rev?`<form id="rj${x.id}" data-rjf="${x.id}" class="rjf" hidden><select name="why"><option>Amount does not match the order</option><option>Receipt photo is not a real payment</option><option>Reference was already used</option><option>Seller did not receive the money</option><option value="">Other reason</option></select><input name="more" maxlength="120" placeholder="Extra note for the buyer (optional)"><div class="aacts"><button class="pill sm red" type="submit">Reject payment</button><button class="pill sm alt" type="button" data-rj="${x.id}">Cancel</button></div></form>`:''}
-  </div>${rev?`<div class="aacts"><button class="pill sm" data-aok="${x.id}">Approve</button><button class="pill sm alt" data-rj="${x.id}">Reject</button></div>`:''}</div>`}
+   <small>${rev?'Flagged':'Updated'} ${aAgo(x.updated||x.created)}${x.status==='verified'?' · release code not used yet':''}${x.status==='released'?' · release code used':''}</small>
+   ${rev?`<form id="rj${x.id}" data-rjf="${x.id}" class="rjf" hidden><select name="why"><option>Item sold out, buyer refunded</option><option>Buyer paid twice, refunded</option><option>Seller could not fulfil the order</option><option value="">Other reason</option></select><input name="more" maxlength="120" placeholder="Extra note for the buyer (optional)"><div class="aacts"><button class="pill sm red" type="submit">Cancel order</button><button class="pill sm alt" type="button" data-rj="${x.id}">Cancel</button></div></form>`:''}
+  </div>${rev?`<div class="aacts"><button class="pill sm" data-aok="${x.id}">Issue release code</button><button class="pill sm alt" data-rj="${x.id}">Cancel order</button></div>`:''}</div>`}
 function aVendor(x){const[l,kk]={active:['Approved','ok'],pending:['Waiting for approval','warn'],suspended:['Suspended','bad']}[x.status]||[x.status,''];
   return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.biz||x.name)}</b>${bdg(l,kk)}</div><small>${esc(x.name)} · ${wa(x.phone)}${x.place?' · '+esc(x.place):''}${x.cat?' · '+esc(x.cat):''}</small><small>Joined ${aAgo(x.created)}</small></div>
    <div class="aacts">${x.status==='active'?`<button class="pill sm alt" data-avs="${x.id}" data-to="suspended">Suspend</button>`:`<button class="pill sm" data-avs="${x.id}" data-to="active">${x.status==='pending'?'Approve':'Reactivate'}</button>`}</div></div>`}

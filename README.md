@@ -15,13 +15,13 @@ Single-page web app (`index.html`) with an API running as a Cloudflare Pages Fun
 |---|---|---|
 | `DB` | D1 database | everything |
 | `PAYSTACK_SECRET` | Secret | payments and bank account-name checks (`sk_live_...` for real money) |
-| `AI` | Workers AI | automatic receipt and listing-photo checks |
+| `AI` | Workers AI | automatic listing-photo and verification checks |
 | `PHOTOS` | R2 bucket | photo storage (recommended; without it photos stay in D1) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Secrets | admin alerts (optional) |
 
 Paystack dashboard → Settings → API Keys & Webhooks → Webhook URL: `https://<your-domain>/api/paystack/webhook`
 
-Orders are paid with Paystack split payments: each seller's checked payout account gets a Paystack subaccount, Stall keeps 5% of the order (max ₦2,000, set in `COMMISSION`) and pays Paystack's fee from it, and Paystack settles the rest to the seller. Sellers whose account name was typed by hand are paid by bank transfer until an admin confirms them in Payouts.
+Orders are paid only through Paystack split payments: each seller's checked payout account gets a Paystack subaccount, Stall keeps 5% of the order (max ₦2,000, set in `COMMISSION`) and pays Paystack's fee from it, and Paystack settles the rest to the seller. There is no bank-transfer or receipt option. Sellers whose account name was typed by hand can't be bought from until an admin confirms them in Payouts.
 
 For heavy traffic use the Workers Paid plan (the free plan allows 100,000 requests a day) and a custom domain
 (Cloudflare's edge cache, used for photos and shop pages, works on custom domains).

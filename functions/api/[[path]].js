@@ -32,25 +32,6 @@ async function delPhotos(env,lids){if(!lids.length)return 0;const ph=lids.map(()
   return(await env.DB.prepare(`DELETE FROM photos WHERE lid IN (${ph})`).bind(...lids).run()).meta.changes}
 const clean=(v,n)=>String(v||'').replace(/[<>]/g,'').trim().slice(0,n);
 const hmac512=async(key,msg)=>{const k=await crypto.subtle.importKey('raw',E.encode(key),{name:'HMAC',hash:'SHA-512'},false,['sign']);return hex(await crypto.subtle.sign('HMAC',k,E.encode(msg)))};
-const aiCheckReceipt=async(env,dataUrl,amount,ref)=>{
-  if(!env.AI)return{ok:null,why:'Photo checking is not connected yet.'};
-  try{
-    const m=dataUrl.match(/^data:image\/[a-z]+;base64,(.*)$/s);if(!m)return{ok:null,why:'Could not read that photo.'};
-    const bytes=Uint8Array.from(atob(m[1]),c=>c.charCodeAt(0));
-    const prompt='You are checking a Nigerian bank transfer receipt or alert screenshot, submitted as proof of payment. '
-      +'The sender claims they paid NGN '+amount+' with reference or narration "'+ref+'". '
-      +'Look only at what is in the image. Reply with exactly one word: '
-      +'YES if the image clearly shows a successful bank transfer or payment alert for an amount that reasonably matches NGN '+amount+'. '
-      +'NO if the image is not a payment receipt or alert at all (for example a random unrelated photo), or clearly shows a different amount or a failed transaction. '
-      +'UNSURE if you cannot tell either way.';
-    const M='@cf/meta/llama-3.2-11b-vision-instruct',go=()=>env.AI.run(M,{image:[...bytes],prompt,max_tokens:6});
-    let r;try{r=await go()}catch(e){if(!/agree|licen[cs]e|5016/i.test(String(e&&e.message)))throw e;await env.AI.run(M,{prompt:'agree'}).catch(()=>{});r=await go()}
-    const txt=String(r&&(r.response||r.description)||'').toUpperCase();await setK(env,'ai_last',JSON.stringify({t:Date.now(),ok:true}));
-    if(txt.includes('YES'))return{ok:true};
-    if(txt.includes('NO'))return{ok:false,why:"The photo doesn't look like a matching payment receipt."};
-    return{ok:null,why:'Could not confidently read the receipt photo.'};
-  }catch(e){await setK(env,'ai_last',JSON.stringify({t:Date.now(),ok:false,err:String(e&&e.message||e).slice(0,200)})).catch(()=>{});return{ok:null,why:'Receipt photo check was unavailable.'}}
-};
 const PAY_WINDOW=20*60*1000;
 const BANKS={'044':'Access Bank','070':'Fidelity Bank','011':'First Bank','214':'FCMB','058':'GTBank','50211':'Kuda','50515':'Moniepoint','999992':'OPay','999991':'PalmPay','221':'Stanbic IBTC','232':'Sterling Bank','033':'UBA','032':'Union Bank','035':'Wema Bank','057':'Zenith Bank'};
 const relCode=()=>{const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return 'STALL-'+[...crypto.getRandomValues(new Uint8Array(6))].map(x=>A[x%32]).join('')};
@@ -102,9 +83,9 @@ const aiCheckListing=async(env,dataUrl,title,cat,desc)=>{
       +'NO if it shows something different, is a blank/unrelated/meme/screenshot image, or shows weapons, drugs, alcohol for sale, explicit or adult content, or exam papers. UNSURE if you cannot tell.';
     const M='@cf/meta/llama-3.2-11b-vision-instruct',go=()=>env.AI.run(M,{image:[...bytes],prompt,max_tokens:6});
     let r;try{r=await go()}catch(e){if(!/agree|licen[cs]e|5016/i.test(String(e&&e.message)))throw e;await env.AI.run(M,{prompt:'agree'}).catch(()=>{});r=await go()}
-    const txt=String(r&&(r.response||r.description)||'').toUpperCase();
+    const txt=String(r&&(r.response||r.description)||'').toUpperCase();await setK(env,'ai_last',JSON.stringify({t:Date.now(),ok:true}));
     if(txt.includes('YES'))return{ok:true};if(txt.includes('NO'))return{ok:false,why:"The photo doesn't seem to match the title, or shows something not allowed."};
-    return{ok:null,why:'The photo check could not decide.'}}catch(e){return{ok:null,why:'The photo check was unavailable.'}}};
+    return{ok:null,why:'The photo check could not decide.'}}catch(e){await setK(env,'ai_last',JSON.stringify({t:Date.now(),ok:false,err:String(e&&e.message||e).slice(0,200)})).catch(()=>{});return{ok:null,why:'The photo check was unavailable.'}}};
 // Runs after a listing or store item is saved. Clear matches go live; anything else waits for an admin.
 const reviewItem=async(env,tbl,id,dataUrl,title,cat,desc)=>{const r=await aiCheckListing(env,dataUrl,title,cat,desc);
   await env.DB.prepare('UPDATE '+tbl+' SET review=?,review_note=? WHERE id=?').bind(r.ok===true?'live':'review',r.ok===true?null:r.why,id).run();
@@ -366,8 +347,11 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
           if(!tk.meta.changes)return fail(I.qty_left>0?'Only '+I.qty_left+' of "'+I.title+'" left. Reduce the quantity in your bag.':'"'+I.title+'" just sold out.');taken.push(['item',rid,q])}
         const gk='S'+I.sid;(groups[gk]=groups[gk]||{seller:0,sname:I.sname,sphone:I.sphone,bank:I.bank,acct:acctNo,acctName:I.acct_name,bcode:I.bcode,bok:I.bok,items:[]}).items.push({kind:'item',ref_id:I.id,title:I.title,price:I.price,q})}}
     for(const gk in groups)if(groups[gk].seller===0){const s=await env.DB.prepare('SELECT uid FROM stores WHERE id=?').bind(+gk.slice(1)).first();groups[gk].seller=s.uid;if(s.uid===u.id)return fail("You can't buy from your own store.")}
-    // Card payment needs a payout account Paystack can pay into: a known bank, 10 digits, and a name that was checked.
+    // Every order is paid through Paystack, so the seller needs a payout account Paystack can pay into: a known bank, 10 digits, and a name that was checked.
     const now=Date.now(),made=[],okCard=g=>!!(BANKS[g.bcode]&&/^\d{10}$/.test(g.acct||'')&&g.bok);
+    if(!env.PAYSTACK_SECRET)return fail('Payments are not set up yet. Please try again later.');
+    for(const gk in groups){const g=groups[gk];if(!okCard(g)){waitUntil(tg(env,'A buyer could not pay '+g.sname+' ('+(g.sphone||'')+'): their payout account is not confirmed yet. Check Payouts in Admin.'));
+      return fail('"'+g.items[0].title+'" can\'t be bought yet. The seller\'s bank account is still being checked. Remove it from your bag or try again later.')}}
     for(const gk in groups){const g=groups[gk],amount=g.items.reduce((s,i)=>s+i.price*i.q,0);
       const title=g.items.length===1?(g.items[0].q>1?g.items[0].q+' × ':'')+g.items[0].title:g.items.length+' items';
       const r=await env.DB.prepare('INSERT INTO orders(buyer,seller,buyer_name,buyer_phone,seller_name,seller_phone,title,amount,bank_name,acct_no,acct_name,status,deadline,created,updated,bank_code,bank_ok,fee) VALUES(?,?,?,?,?,?,?,?,?,?,?,\'pending\',?,?,?,?,?,?)')
@@ -386,26 +370,8 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     const sb=+url.searchParams.get('sb')||Date.now(),ss=+url.searchParams.get('ss')||Date.now();
     const rs=(await env.DB.prepare("SELECT id,title,amount,status,note,buyer,buyer_name,seller_name,updated FROM orders WHERE (buyer=? AND updated>? AND status IN ('verified','rejected','expired')) OR (seller=? AND updated>? AND status IN ('verified','released')) ORDER BY updated DESC LIMIT 20").bind(u.id,sb,u.id,ss).all()).results;
     return J({news:rs.map(r=>({id:r.id,title:r.title,amount:r.amount,status:r.status,note:r.note,side:r.buyer===u.id?'buy':'sell',buyerName:r.buyer_name,sellerName:r.seller_name,updated:r.updated}))},200,{'cache-control':'no-store'})}
-  if(path==='orders/receipt'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);
-    const b=await request.json().catch(()=>({})),id=+b.id,amt=Math.round(+b.amount),ref=String(b.ref||'').trim(),img=String(b.receipt||'');
-    const o=await env.DB.prepare('SELECT * FROM orders WHERE id=? AND buyer=?').bind(id,u.id).first();
-    if(!o)return J({error:'Order not found.'},404);
-    if(o.status!=='pending')return J({error:'This order is not awaiting a receipt.'},400);
-    if(Date.now()>o.deadline)return J({error:'Your payment window has expired.'},400);
-    if(!(amt>0))return J({error:'Enter the amount you sent.'},400);
-    if(ref.length<3||ref.length>60)return J({error:'Enter the transaction reference from your bank app.'},400);
-    if(!imgOk(img))return J({error:'Add a photo of your receipt (JPEG, PNG or WebP).'},400);
-    if(!await allow(env,'rcpt:'+u.id,15,36e5))return slow();
-    const dup=await env.DB.prepare("SELECT 1 FROM orders WHERE r_ref=? AND id!=? AND status IN ('verified','released')").bind(ref,id).first();
-    const reasons=[];if(amt!==o.amount)reasons.push('Amount does not match the order.');if(dup)reasons.push('This reference has already been used.');
-    if(!reasons.length){const ai=await aiCheckReceipt(env,img,amt,ref);if(ai.ok!==true)reasons.push(ai.why||'The receipt photo could not be confirmed automatically.')}
-    const now=Date.now();
-    if(!reasons.length){const code=relCode();
-      await env.DB.prepare("UPDATE orders SET receipt=?,r_amount=?,r_ref=?,status='verified',code=?,updated=? WHERE id=?").bind(img,amt,ref,code,now,id).run();
-      return J({ok:true,verified:true,code})}
-    await env.DB.prepare("UPDATE orders SET receipt=?,r_amount=?,r_ref=?,status='under_review',note=?,updated=? WHERE id=?").bind(img,amt,ref,reasons.join(' '),now,id).run();
-    waitUntil(tg(env,'Order needs review\n'+o.title+' - '+naira(o.amount)+'\nBuyer: '+o.buyer_name+'\n'+reasons.join(' ')+'\nOrder #'+id));
-    return J({ok:true,verified:false})}
+  // Receipts are no longer used: every order is paid through Paystack.
+  if(path==='orders/receipt')return J({error:'Pay for this order through Paystack from your Orders page.'},410);
   if(path==='orders/code'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
     const b=await request.json().catch(()=>({})),id=+b.id,code=String(b.code||'').trim().toUpperCase();
     const o=await env.DB.prepare('SELECT * FROM orders WHERE id=? AND seller=?').bind(id,u.id).first();
@@ -555,8 +521,9 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       let split=null;
       if(kind==='order'){const o=await env.DB.prepare('SELECT * FROM orders WHERE id=? AND buyer=?').bind(+target,u.id).first();if(!o)return J({error:'Order not found.'},404);
         if(o.status!=='pending'||Date.now()>o.deadline)return J({error:o.status==='pending'?'Your payment window has expired.':'This order is not waiting for payment.'},400);
-        if(!o.bank_ok||!o.bank_code)return J({error:'This seller can only be paid by bank transfer.'},400);
-        const sub=await subFor(env,o.bank_code,o.acct_no,o.acct_name);if(sub.error)return J({error:'Card payment is not available for this seller right now. Pay by bank transfer instead.'},502);
+        if(!o.bank_ok||!o.bank_code)return J({error:'This seller can\'t take payments yet. Their bank account is still being checked.'},400);
+        const sub=await subFor(env,o.bank_code,o.acct_no,o.acct_name);if(sub.error){waitUntil(tg(env,'Paystack would not set up payouts for '+o.seller_name+' ('+o.seller_phone+'): '+sub.error+'\nOrder #'+o.id+'. Ask them to check their bank details.'));
+          return J({error:'This seller can\'t take payments right now. The Stall team has been told. Please try again later.'},502)}
         // Give the buyer time to finish on Paystack before the order can expire.
         await env.DB.prepare('UPDATE orders SET deadline=MAX(deadline,?) WHERE id=?').bind(Date.now()+PAY_WINDOW,o.id).run();
         w={amount:o.amount,label:o.title};data={oid:o.id};split={subaccount:sub.code,transaction_charge:feeOf(o.amount)*100,bearer:'account'}}
