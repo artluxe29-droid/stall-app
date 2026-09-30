@@ -146,7 +146,7 @@ const storeBad=d=>{const t=k=>String(d[k]||'').trim();if(t('name').length<2||t('
   if(!/^\d{10}$/.test(t('acct')))return 'Enter your 10-digit account number.';if(!t('acctName'))return 'Verify your store account number first.';if(t('spot').length<2)return 'Where can buyers find you?';return ''};
 async function makeStore(env,u,d,ref){const manual=!!d.bank_manual;
   const r=await env.DB.prepare('INSERT INTO stores(uid,name,emoji,cat,descr,spot,phone,bank,acct,bank_code,acct_name,bank_verified,isopen,vendor,ref,created,school_id,state) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?)')
-    .bind(u.id,clean(d.name,40),clean(d.emoji,8),clean(d.cat,20),clean(d.desc,200),clean(d.spot,60),clean(d.phone,20)||u.phone,BANKS[d.bank_code],String(d.acct||'').replace(/\D/g,'').slice(0,10),d.bank_code,clean(d.acctName,60),manual?0:1,u.role==='vendor'?1:0,ref,Date.now(),u.school_id,u.state).run();
+    .bind(u.id,clean(d.name,40),clean(d.emoji,12),clean(d.cat,20),clean(d.desc,200),clean(d.spot,60),clean(d.phone,20)||u.phone,BANKS[d.bank_code],String(d.acct||'').replace(/\D/g,'').slice(0,10),d.bank_code,clean(d.acctName,60),manual?0:1,u.role==='vendor'?1:0,ref,Date.now(),u.school_id,u.state).run();
   if(manual)await tg(env,'Payout details need confirming (store)\n'+clean(d.name,40)+' - '+u.phone+'\nBank: '+BANKS[d.bank_code]+'\nAccount: '+d.acct+'\nName given: '+clean(d.acctName,60));
   await bumpVer(env);return r.meta.last_row_id}
 // Finishes a Paystack payment exactly once, however it arrives: the return page, the webhook, or both.
