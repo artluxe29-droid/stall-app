@@ -47,7 +47,7 @@ async function sweep(env){await ensure(env);const now=Date.now();if(now-SWEPT<3e
   await env.DB.batch(ids.map(id=>env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,id)));
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='8';
+const SCHEMA_V='9';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -63,6 +63,10 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'CREATE INDEX IF NOT EXISTS attempts_k ON attempts(k,t)',
     'ALTER TABLE orders ADD COLUMN bank_code TEXT','ALTER TABLE orders ADD COLUMN bank_ok INTEGER NOT NULL DEFAULT 0','ALTER TABLE orders ADD COLUMN fee INTEGER','ALTER TABLE orders ADD COLUMN paid_via TEXT',
     'CREATE TABLE IF NOT EXISTS ps_subs(k TEXT PRIMARY KEY,code TEXT NOT NULL,name TEXT,created INTEGER)',
+    'ALTER TABLE users ADD COLUMN deliv_on INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN deliv_fee INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN deliv_note TEXT',
+    'ALTER TABLE stores ADD COLUMN deliv_on INTEGER NOT NULL DEFAULT 0','ALTER TABLE stores ADD COLUMN deliv_fee INTEGER NOT NULL DEFAULT 0','ALTER TABLE stores ADD COLUMN deliv_note TEXT',
+    'ALTER TABLE orders ADD COLUMN sub INTEGER','ALTER TABLE orders ADD COLUMN d_on INTEGER NOT NULL DEFAULT 0','ALTER TABLE orders ADD COLUMN d_fee INTEGER NOT NULL DEFAULT 0','ALTER TABLE orders ADD COLUMN d_note TEXT','ALTER TABLE orders ADD COLUMN pickup TEXT',
+    'ALTER TABLE orders ADD COLUMN method TEXT','ALTER TABLE orders ADD COLUMN addr TEXT','ALTER TABLE orders ADD COLUMN dphone TEXT','ALTER TABLE orders ADD COLUMN dstage TEXT','ALTER TABLE orders ADD COLUMN track TEXT',
     'CREATE INDEX IF NOT EXISTS listings_school ON listings(school_id,created)','CREATE INDEX IF NOT EXISTS listings_state ON listings(state,created)','CREATE INDEX IF NOT EXISTS listings_review ON listings(review)','CREATE INDEX IF NOT EXISTS stores_school ON stores(school_id)'])await env.DB.prepare(q).run().catch(()=>{});
   if(!(await env.DB.prepare("SELECT v FROM settings WHERE k='mig_nationwide'").first())){
     await env.DB.batch(SCHOOLS.map(([n,sh,st,k])=>env.DB.prepare('INSERT OR IGNORE INTO schools(name,short,state,kind,active,created) VALUES(?,?,?,?,1,?)').bind(n,sh,st,k,Date.now())));
@@ -94,6 +98,12 @@ const reviewItem=async(env,tbl,id,dataUrl,title,cat,desc)=>{const r=await aiChec
 const PRICE={listing:{3:300,7:500},store:{3:500,7:1000},verify:1000,reach:{state:2000,national:5000}},REACH_DAYS=30;
 // Stall's cut of each order paid through Paystack: 5%, never more than ₦2,000. Stall pays Paystack's own fee out of it.
 const COMMISSION={rate:.05,cap:2000},feeOf=a=>Math.min(Math.round(a*COMMISSION.rate),COMMISSION.cap);
+// Delivery: sellers deliver themselves for a fee they set (couriers can be added later as another method).
+// After payment the seller moves the order along these steps; the buyer's release code marks it delivered.
+const DFEE_MAX=20000,STAGES={delivery:['paid','packed','on_way'],pickup:['paid','ready']};
+const dlv=r=>({on:!!r.deliv_on,fee:r.deliv_on?r.deliv_fee||0:0,note:r.deliv_on?r.deliv_note||'':''});
+const dlvIn=b=>{const on=!!b.on,fee=Math.round(+b.fee||0);if(on&&!(fee>=0&&fee<=DFEE_MAX))return{error:'Enter a delivery fee from ₦0 to ₦'+DFEE_MAX.toLocaleString('en-NG')+'.'};return{on:on?1:0,fee:on?fee:0,note:on?clean(b.note,80):null}};
+const track=(r,st,t)=>JSON.stringify([...JSON.parse(r.track||'[]'),{s:st,t}]);
 // One Paystack subaccount per payout bank account, made the first time a buyer pays that seller. Paystack checks the account when it's created.
 async function subFor(env,code,acct,name){const k=code+':'+acct,had=await env.DB.prepare('SELECT code FROM ps_subs WHERE k=?').bind(k).first();if(had)return{code:had.code};
   const r=await ps(env,'/subaccount',{method:'POST',body:JSON.stringify({business_name:String(name||'Stall seller').slice(0,100),settlement_bank:code,account_number:acct,percentage_charge:0,description:'Stall seller'})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
@@ -117,7 +127,7 @@ async function cleanup(env,a){const now=Date.now(),D=864e5;
 const dailyCleanup=async env=>{try{const t=+(await getK(env,'cleanup_at'))||0;if(Date.now()-t>864e5){await setK(env,'cleanup_at',Date.now());await cleanup(env,null)}}catch(e){}};
 
 const phoneN=p=>{let d=String(p||'').replace(/\D/g,'');if(d.startsWith('234')&&d.length===13)d='0'+d.slice(3);return d};
-const pub=u=>({...pubBase(u),uid:u.id,school:u.school_id||null});
+const pub=u=>({...pubBase(u),uid:u.id,school:u.school_id||null,deliv:dlv(u)});
 const pubBase=u=>u.role==='vendor'?{role:'vendor',id:'V-'+u.phone,name:u.name,biz:u.biz,phone:u.phone,where:u.place||'',cat:u.cat,status:u.status,admin:!!u.is_admin,reviewer:!!u.reviewer,verified:!!u.verified,acctSet:!!(u.acct_no&&u.acct_name)}:{role:'student',id:u.matric,name:u.name,matric:u.matric,email:u.email,phone:u.phone,where:u.place||'',status:u.status,admin:!!u.is_admin,reviewer:!!u.reviewer,verified:!!u.verified,acctSet:!!(u.acct_no&&u.acct_name)};
 const cookie=(r,n)=>((r.headers.get('cookie')||'').match(new RegExp('(?:^|; )'+n+'=([^;]*)'))||[])[1];
 const me=async(env,r)=>{const t=cookie(r,'stall_s');return t?env.DB.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id=s.uid WHERE s.h=? AND s.exp>? AND IFNULL(u.status,'active')!='suspended'").bind(await sha(t),Date.now()).first():null};
@@ -152,7 +162,7 @@ async function fulfil(env,ref){await ensure(env);const p=await env.DB.prepare('S
     if(p.kind==='store'){const has=await env.DB.prepare('SELECT id FROM stores WHERE uid=?').bind(u.id).first();
       if(has){res={id:'S'+has.id,note:'You already had a store, so no new one was made. Contact Stall support for a refund with reference '+ref};act='paid store fee but already had a store (refund due)';await tg(env,'Refund due: '+u.name+' paid a store fee but already has a store. Ref '+ref)}
       else{res={id:'S'+await makeStore(env,u,d.d||{},ref)};act='opened a store'}}
-    else if(p.kind==='order'){const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(+d.oid).first(),fee=feeOf(p.amount);
+    else if(p.kind==='order'){const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(+d.oid).first(),fee=d.fee!=null?d.fee:feeOf(p.amount);
       if(!o)throw new Error('order missing');let st='verified',note=null;
       if(o.status==='expired'){// Paid after the window closed: take the stock back if it's still there, otherwise flag for a refund.
         const its=(await env.DB.prepare('SELECT kind,ref_id,IFNULL(q,1) q FROM order_items WHERE oid=?').bind(o.id).all()).results,got=[];
@@ -162,7 +172,9 @@ async function fulfil(env,ref){await ensure(env);const p=await env.DB.prepare('S
           st='under_review';note='Paid through Paystack after the order expired, and the item is no longer available. Refund the buyer (reference '+ref+').'}}
       else if(o.status!=='pending'){st=o.status;note=(o.note?o.note+' ':'')+'Also paid through Paystack (reference '+ref+'), so the buyer may have paid twice. Check and refund.'}
       const code=st==='verified'?o.code||relCode():o.code;
-      await env.DB.prepare('UPDATE orders SET status=?,code=?,note=?,paid_via=?,fee=?,r_amount=?,r_ref=?,updated=? WHERE id=?').bind(st,code,note,'paystack',fee,p.amount,ref,now,o.id).run();
+      // The order records exactly what was paid for: total, pickup or delivery, and where to.
+      await env.DB.prepare('UPDATE orders SET status=?,code=?,note=?,paid_via=?,fee=?,r_amount=?,r_ref=?,amount=?,method=?,addr=?,dphone=?,dstage=?,track=?,updated=? WHERE id=?')
+        .bind(st,code,note,'paystack',fee,p.amount,ref,p.amount,d.method||'pickup',d.addr||null,d.dphone||null,st==='verified'&&o.status!=='verified'?'paid':o.dstage,st==='verified'&&o.status!=='verified'?track(o,'paid',now):o.track,now,o.id).run();
       if(note)await tg(env,'Order needs a look\n'+o.title+' - ₦'+p.amount+'\n'+note+'\nOrder #'+o.id);
       res={oid:o.id,fee,status:st};act='paid order #'+o.id+' through Paystack (Stall fee ₦'+fee+')';label=o.title}
     else if(p.kind==='verify'){await env.DB.prepare('UPDATE users SET verified=1 WHERE id=?').bind(u.id).run();await env.DB.prepare("UPDATE verify_requests SET status='paid',updated=? WHERE uid=?").bind(now,u.id).run();act='paid for verified badge'}
@@ -223,6 +235,9 @@ export async function onRequest({request,env,params,waitUntil}){
   if(path==='logout'){const t=cookie(request,'stall_s');if(t)await env.DB.prepare('DELETE FROM sessions WHERE h=?').bind(await sha(t)).run();return J({ok:true},200,{'set-cookie':'stall_s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'})}
   if(path==='config')return J({name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES},200,{'cache-control':'public, max-age=60'});
   if(path==='schools'&&request.method==='GET'){await ensure(env);return J({schools:(await env.DB.prepare('SELECT id,name,short,state,kind FROM schools WHERE active=1 ORDER BY name').all()).results,states:STATES},200,{'cache-control':'public, max-age=3600'})}
+  if(path==='me/delivery'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
+    const d=dlvIn(await request.json().catch(()=>({})));if(d.error)return J(d,400);
+    await env.DB.prepare('UPDATE users SET deliv_on=?,deliv_fee=?,deliv_note=? WHERE id=?').bind(d.on,d.fee,d.note,u.id).run();await bumpVer(env);return J({ok:true,deliv:dlv({deliv_on:d.on,deliv_fee:d.fee,deliv_note:d.note})})}
   if(path==='me/school'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);const b=await request.json().catch(()=>({})),sc=await pickSchool(env,b);if(sc.error)return J(sc,400);
     await env.DB.prepare('UPDATE users SET school_id=?,state=? WHERE id=?').bind(sc.id,sc.state,u.id).run();return J({ok:true,school:sc})}
   if(path==='me'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
@@ -238,8 +253,8 @@ export async function onRequest({request,env,params,waitUntil}){
       if(q){const k='%'+q+'%';w.push('(l.title LIKE ? OR l.descr LIKE ? OR l.spot LIKE ?)');v.push(k,k,k)}}
     const wh=' FROM listings l JOIN users u ON u.id=l.uid LEFT JOIN schools sc ON sc.id=l.school_id WHERE '+w.join(' AND '),srt={lo:'l.price ASC,l.id DESC',hi:'l.price DESC,l.id DESC'}[sp.get('sort')]||`(IFNULL(l.featured_until,0)>${NOW}) DESC,l.created DESC,l.id DESC`;
     const feed=!ids.length&&!sp.get('mine'),run=async()=>{const total=feed?(await env.DB.prepare('SELECT COUNT(*) c'+wh).bind(...v).first()).c:undefined;
-      const rs=(await env.DB.prepare('SELECT l.*,u.verified AS sv,sc.short AS ssh,sc.name AS snm'+wh+' ORDER BY '+srt+' LIMIT ? OFFSET ?').bind(...v,lim,off).all()).results;
-      return{total,listings:rs.map(r=>({sid:r.uid,id:'L'+r.id,title:r.title,price:r.price,cat:r.cat,cond:r.cond,spot:r.spot,desc:r.descr,seller:r.seller,phone:r.phone,imgs:Array.from({length:r.n},(_,i)=>'/api/photo/'+r.id+'/'+i),t:r.created,sold:r.sold,featured:(r.featured_until||0)>NOW,featuredUntil:r.featured_until||0,verified:!!r.sv,qty:r.qty||1,qtyLeft:r.qty_left==null?(r.sold?0:1):r.qty_left,school:r.ssh||r.snm||'',state:r.state||'',review:r.review,reviewNote:feed?null:r.review_note}))}};
+      const rs=(await env.DB.prepare('SELECT l.*,u.verified AS sv,u.deliv_on,u.deliv_fee,u.deliv_note,sc.short AS ssh,sc.name AS snm'+wh+' ORDER BY '+srt+' LIMIT ? OFFSET ?').bind(...v,lim,off).all()).results;
+      return{total,listings:rs.map(r=>({sid:r.uid,id:'L'+r.id,deliv:dlv(r),title:r.title,price:r.price,cat:r.cat,cond:r.cond,spot:r.spot,desc:r.descr,seller:r.seller,phone:r.phone,imgs:Array.from({length:r.n},(_,i)=>'/api/photo/'+r.id+'/'+i),t:r.created,sold:r.sold,featured:(r.featured_until||0)>NOW,featuredUntil:r.featured_until||0,verified:!!r.sv,qty:r.qty||1,qtyLeft:r.qty_left==null?(r.sold?0:1):r.qty_left,school:r.ssh||r.snm||'',state:r.state||'',review:r.review,reviewNote:feed?null:r.review_note}))}};
     if(!feed){const o=await run();o.listings.forEach(x=>{x.mine=x.sid===u.id;if(!x.mine)x.reviewNote=null});return J(o)}
     // Everyone at the same school (or state, or nationwide) with the same filters shares one cached copy, refreshed on any change.
     return edge('feed/'+(await ver(env))+'/'+encodeURIComponent(v.join('|')+'|'+srt+'|'+lim+'|'+off),30,run)}
@@ -287,7 +302,7 @@ export async function onRequest({request,env,params,waitUntil}){
     const run=async()=>{
     const ss=(await env.DB.prepare('SELECT s.*,u.role,u.phone AS up,u.matric,u.verified AS ov,sc.short AS ssh,sc.name AS snm FROM stores s JOIN users u ON u.id=s.uid LEFT JOIN schools sc ON sc.id=s.school_id WHERE '+w.join(' AND ')+' ORDER BY (IFNULL(s.featured_until,0)>'+NOW+') DESC,(s.school_id=?) DESC,s.created DESC LIMIT 300').bind(...v,u.school_id||0).all()).results;
     const sids=ss.map(x=>x.id),its=sids.length?(await env.DB.prepare('SELECT * FROM store_items WHERE sid IN ('+sids.map(()=>'?').join(',')+")"+(mine?'':" AND review='live'")+" ORDER BY created DESC").bind(...sids).all()).results:[];
-    return{stores:ss.map(s=>({id:'S'+s.id,owner:s.role==='vendor'?'V-'+s.up:s.matric,name:s.name,emoji:s.emoji,cat:s.cat,desc:s.descr,spot:s.spot,phone:s.phone,open:!!s.isopen,vendor:!!s.vendor,featured:(s.featured_until||0)>NOW,featuredUntil:s.featured_until||0,verified:!!s.ov,school:s.ssh||s.snm||'',state:s.state||'',reach:(s.reach_until||0)>NOW?s.reach:'school',reachUntil:(s.reach_until||0)>NOW?s.reach_until:0,items:its.filter(i=>i.sid===s.id).map(i=>({id:'I'+i.id,title:i.title,price:i.price,desc:i.descr,avail:!!i.avail&&i.qty_left!==0,qtyLeft:i.qty_left,review:i.review,reviewNote:mine?i.review_note:null,imgs:Array.from({length:i.n},(_,k)=>'/api/photo/-'+i.id+'/'+k)}))}))}};
+    return{stores:ss.map(s=>({id:'S'+s.id,deliv:dlv(s),owner:s.role==='vendor'?'V-'+s.up:s.matric,name:s.name,emoji:s.emoji,cat:s.cat,desc:s.descr,spot:s.spot,phone:s.phone,open:!!s.isopen,vendor:!!s.vendor,featured:(s.featured_until||0)>NOW,featuredUntil:s.featured_until||0,verified:!!s.ov,school:s.ssh||s.snm||'',state:s.state||'',reach:(s.reach_until||0)>NOW?s.reach:'school',reachUntil:(s.reach_until||0)>NOW?s.reach_until:0,items:its.filter(i=>i.sid===s.id).map(i=>({id:'I'+i.id,title:i.title,price:i.price,desc:i.descr,avail:!!i.avail&&i.qty_left!==0,qtyLeft:i.qty_left,review:i.review,reviewNote:mine?i.review_note:null,imgs:Array.from({length:i.n},(_,k)=>'/api/photo/-'+i.id+'/'+k)}))}))}};
     return mine?J(await run()):edge('stores/'+(await ver(env))+'/'+encodeURIComponent(v.join('|')),30,run)}
   if(path.startsWith('stores/')&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
     if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);
@@ -303,6 +318,7 @@ export async function onRequest({request,env,params,waitUntil}){
       await env.DB.prepare('INSERT OR IGNORE INTO payments(ref,uid,kind,target,label,days,amount,created) VALUES(?,?,?,?,?,?,?,?)').bind(ref,u.id,'store','S'+id,'Store: '+clean(d.name,40),null,STORE_FEE,Date.now()).run();
       await logA(env,u,'money','opened a store','Store: '+clean(d.name,40)+' · ₦'+STORE_FEE,{who:u.name+' ('+(u.biz||u.phone)+')'});return J({ok:true,id:'S'+id})}
     if(!mine)return J({error:'Open a store first.'},400);
+    if(path==='stores/delivery'){const d=dlvIn(b);if(d.error)return J(d,400);await env.DB.prepare('UPDATE stores SET deliv_on=?,deliv_fee=?,deliv_note=? WHERE id=?').bind(d.on,d.fee,d.note,mine.id).run();return ok()}
     if(path==='stores/toggle'){await env.DB.prepare('UPDATE stores SET isopen=1-isopen WHERE id=?').bind(mine.id).run();return ok()}
     if(path==='stores/item'){const t=k=>String(b[k]||'').trim(),price=Math.round(+b.price),imgs=Array.isArray(b.imgs)?b.imgs:[];
       if(t('title').length<3||t('title').length>80)return J({error:'Enter a title of 3 to 80 characters.'},400);
@@ -323,7 +339,8 @@ export async function onRequest({request,env,params,waitUntil}){
       await env.DB.prepare('DELETE FROM store_items WHERE sid=?').bind(mine.id).run();await env.DB.prepare('DELETE FROM stores WHERE id=?').bind(mine.id).run();return ok()}
   }
 const naira=n=>'₦'+Number(n||0).toLocaleString('en-NG');
-const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.acct_no,acctName:r.acct_name,status:r.status,deadline:r.deadline,code:r.status==='verified'?r.code:null,note:r.note,updated:r.updated,buyerName:r.buyer_name,buyerPhone:r.buyer_phone,sellerName:r.seller_name,sellerPhone:r.seller_phone,card:!!r.bank_ok&&!!env.PAYSTACK_SECRET,fee:r.fee!=null?r.fee:feeOf(r.amount),paidVia:r.paid_via||null});
+const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.acct_no,acctName:r.acct_name,status:r.status,deadline:r.deadline,code:r.status==='verified'?r.code:null,note:r.note,updated:r.updated,buyerName:r.buyer_name,buyerPhone:r.buyer_phone,sellerName:r.seller_name,sellerPhone:r.seller_phone,card:!!r.bank_ok&&!!env.PAYSTACK_SECRET,fee:r.fee!=null?r.fee:feeOf(r.amount),paidVia:r.paid_via||null,
+  sub:r.sub!=null?r.sub:r.amount,deliv:{on:!!r.d_on,fee:r.d_fee||0,note:r.d_note||''},pickup:r.pickup||'',method:r.method||null,addr:r.addr||'',dphone:r.dphone||'',stage:r.dstage||null,track:JSON.parse(r.track||'[]')});
   if(path==='orders/create'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);if(!await allow(env,'ord:'+u.id,30,36e5))return slow();
     await sweep(env);
     const b=await request.json().catch(()=>({})),ids=Array.isArray(b.items)?b.items.slice(0,60):[];
@@ -333,19 +350,19 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       fail=async(m)=>{await undo();return J({error:m},400)};
     for(const id of Object.keys(counts)){const q=counts[id],kind=id[0]==='L'?'listing':id[0]==='I'?'item':null,rid=+id.slice(1);
       if(!kind||!rid)return fail('Invalid item in bag.');
-      if(kind==='listing'){const L=await env.DB.prepare("SELECT l.*,u.name un,u.phone up,u.acct_no,u.acct_name,u.bank_name,u.bank_code bcode,u.bank_verified bok FROM listings l JOIN users u ON u.id=l.uid WHERE l.id=? AND l.review='live' AND "+LIVE).bind(rid).first();
+      if(kind==='listing'){const L=await env.DB.prepare("SELECT l.*,u.name un,u.phone up,u.acct_no,u.acct_name,u.bank_name,u.bank_code bcode,u.bank_verified bok,u.deliv_on,u.deliv_fee,u.deliv_note FROM listings l JOIN users u ON u.id=l.uid WHERE l.id=? AND l.review='live' AND "+LIVE).bind(rid).first();
         if(L&&L.uid===u.id)return fail("You can't buy your own item.");
         if(!L||L.sold)return fail('An item in your bag is no longer available.');
         if(!L.acct_no||!L.acct_name)return fail('The seller for "'+L.title+'" has not set up payment details yet.');
         const tk=await env.DB.prepare('UPDATE listings SET qty_left=qty_left-?,sold=CASE WHEN qty_left-?<=0 THEN 1 ELSE 0 END WHERE id=? AND qty_left>=?').bind(q,q,rid,q).run();
         if(!tk.meta.changes)return fail(L.qty_left>0?'Only '+L.qty_left+' of "'+L.title+'" left. Reduce the quantity in your bag.':'"'+L.title+'" just sold out.');taken.push(['listing',rid,q]);
-        const gk='U'+L.uid;(groups[gk]=groups[gk]||{seller:L.uid,sname:L.un,sphone:L.up,bank:L.bank_name,acct:L.acct_no,acctName:L.acct_name,bcode:L.bcode,bok:L.bok,items:[]}).items.push({kind:'listing',ref_id:L.id,title:L.title,price:L.price,q,unique:true})}
-      else{const I=await env.DB.prepare('SELECT i.*,s.id sid,s.name sname,s.phone sphone,s.isopen,s.acct_no,s.acct,s.acct_name,s.bank,s.bank_code bcode,s.bank_verified bok FROM store_items i JOIN stores s ON s.id=i.sid JOIN users u ON u.id=s.uid WHERE i.id=? AND '+LIVE).bind(rid).first();
+        const gk='U'+L.uid;(groups[gk]=groups[gk]||{seller:L.uid,sname:L.un,sphone:L.up,bank:L.bank_name,acct:L.acct_no,acctName:L.acct_name,bcode:L.bcode,bok:L.bok,dl:dlv(L),pickup:L.spot||'',items:[]}).items.push({kind:'listing',ref_id:L.id,title:L.title,price:L.price,q,unique:true})}
+      else{const I=await env.DB.prepare('SELECT i.*,s.id sid,s.name sname,s.phone sphone,s.isopen,s.acct_no,s.acct,s.acct_name,s.bank,s.bank_code bcode,s.bank_verified bok,s.deliv_on,s.deliv_fee,s.deliv_note,s.spot sspot FROM store_items i JOIN stores s ON s.id=i.sid JOIN users u ON u.id=s.uid WHERE i.id=? AND '+LIVE).bind(rid).first();
         if(!I||!I.avail||!I.isopen||I.review!=='live')return fail('An item in your bag is no longer available.');
         const acctNo=I.acct_no||I.acct;if(!acctNo||!I.acct_name)return fail('The store for "'+I.title+'" has not set up payment details yet.');
         if(I.qty_left!=null){const tk=await env.DB.prepare('UPDATE store_items SET qty_left=qty_left-? WHERE id=? AND qty_left>=?').bind(q,rid,q).run();
           if(!tk.meta.changes)return fail(I.qty_left>0?'Only '+I.qty_left+' of "'+I.title+'" left. Reduce the quantity in your bag.':'"'+I.title+'" just sold out.');taken.push(['item',rid,q])}
-        const gk='S'+I.sid;(groups[gk]=groups[gk]||{seller:0,sname:I.sname,sphone:I.sphone,bank:I.bank,acct:acctNo,acctName:I.acct_name,bcode:I.bcode,bok:I.bok,items:[]}).items.push({kind:'item',ref_id:I.id,title:I.title,price:I.price,q})}}
+        const gk='S'+I.sid;(groups[gk]=groups[gk]||{seller:0,sname:I.sname,sphone:I.sphone,bank:I.bank,acct:acctNo,acctName:I.acct_name,bcode:I.bcode,bok:I.bok,dl:dlv(I),pickup:I.sspot||'',items:[]}).items.push({kind:'item',ref_id:I.id,title:I.title,price:I.price,q})}}
     for(const gk in groups)if(groups[gk].seller===0){const s=await env.DB.prepare('SELECT uid FROM stores WHERE id=?').bind(+gk.slice(1)).first();groups[gk].seller=s.uid;if(s.uid===u.id)return fail("You can't buy from your own store.")}
     // Every order is paid through Paystack, so the seller needs a payout account Paystack can pay into: a known bank, 10 digits, and a name that was checked.
     const now=Date.now(),made=[],okCard=g=>!!(BANKS[g.bcode]&&/^\d{10}$/.test(g.acct||'')&&g.bok);
@@ -354,11 +371,11 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       return fail('"'+g.items[0].title+'" can\'t be bought yet. The seller\'s bank account is still being checked. Remove it from your bag or try again later.')}}
     for(const gk in groups){const g=groups[gk],amount=g.items.reduce((s,i)=>s+i.price*i.q,0);
       const title=g.items.length===1?(g.items[0].q>1?g.items[0].q+' × ':'')+g.items[0].title:g.items.length+' items';
-      const r=await env.DB.prepare('INSERT INTO orders(buyer,seller,buyer_name,buyer_phone,seller_name,seller_phone,title,amount,bank_name,acct_no,acct_name,status,deadline,created,updated,bank_code,bank_ok,fee) VALUES(?,?,?,?,?,?,?,?,?,?,?,\'pending\',?,?,?,?,?,?)')
-        .bind(u.id,g.seller,u.name,u.phone,g.sname,g.sphone||'',title,amount,g.bank,g.acct,g.acctName,now+PAY_WINDOW,now,now,BANKS[g.bcode]?g.bcode:null,okCard(g)?1:0,feeOf(amount)).run();
+      const r=await env.DB.prepare('INSERT INTO orders(buyer,seller,buyer_name,buyer_phone,seller_name,seller_phone,title,amount,bank_name,acct_no,acct_name,status,deadline,created,updated,bank_code,bank_ok,fee,sub,d_on,d_fee,d_note,pickup) VALUES(?,?,?,?,?,?,?,?,?,?,?,\'pending\',?,?,?,?,?,?,?,?,?,?,?)')
+        .bind(u.id,g.seller,u.name,u.phone,g.sname,g.sphone||'',title,amount,g.bank,g.acct,g.acctName,now+PAY_WINDOW,now,now,BANKS[g.bcode]?g.bcode:null,okCard(g)?1:0,feeOf(amount),amount,g.dl.on?1:0,g.dl.fee,g.dl.note||null,clean(g.pickup,60)||null).run();
       const oid=r.meta.last_row_id;
       await env.DB.batch(g.items.map(i=>env.DB.prepare('INSERT INTO order_items(oid,kind,ref_id,title,price,q) VALUES(?,?,?,?,?,?)').bind(oid,i.kind,i.ref_id,i.title,i.price,i.q)));
-      made.push({id:oid,title,amount,bank:g.bank,acct:g.acct,acctName:g.acctName,sellerName:g.sname,sellerPhone:g.sphone||'',status:'pending',deadline:now+PAY_WINDOW,card:okCard(g)&&!!env.PAYSTACK_SECRET,fee:feeOf(amount)})}
+      made.push({id:oid,title,amount,bank:g.bank,acct:g.acct,acctName:g.acctName,sellerName:g.sname,sellerPhone:g.sphone||'',status:'pending',deadline:now+PAY_WINDOW,card:okCard(g)&&!!env.PAYSTACK_SECRET,fee:feeOf(amount),sub:amount,deliv:g.dl,pickup:clean(g.pickup,60),method:null,stage:null,track:[]})}
     await bump();return J({orders:made})}
   if(path==='orders/mine'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);
     const rs=(await env.DB.prepare('SELECT * FROM orders WHERE buyer=? ORDER BY created DESC LIMIT 100').bind(u.id).all()).results;
@@ -368,10 +385,16 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     return J({orders:rs.map(oRow)})}
   if(path==='orders/news'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
     const sb=+url.searchParams.get('sb')||Date.now(),ss=+url.searchParams.get('ss')||Date.now();
-    const rs=(await env.DB.prepare("SELECT id,title,amount,status,note,buyer,buyer_name,seller_name,updated FROM orders WHERE (buyer=? AND updated>? AND status IN ('verified','rejected','expired')) OR (seller=? AND updated>? AND status IN ('verified','released')) ORDER BY updated DESC LIMIT 20").bind(u.id,sb,u.id,ss).all()).results;
-    return J({news:rs.map(r=>({id:r.id,title:r.title,amount:r.amount,status:r.status,note:r.note,side:r.buyer===u.id?'buy':'sell',buyerName:r.buyer_name,sellerName:r.seller_name,updated:r.updated}))},200,{'cache-control':'no-store'})}
+    const rs=(await env.DB.prepare("SELECT id,title,amount,status,note,buyer,buyer_name,seller_name,updated,method,dstage,pickup FROM orders WHERE (buyer=? AND updated>? AND status IN ('verified','rejected','expired')) OR (seller=? AND updated>? AND (status='released' OR (status='verified' AND IFNULL(dstage,'paid')='paid'))) ORDER BY updated DESC LIMIT 20").bind(u.id,sb,u.id,ss).all()).results;
+    return J({news:rs.map(r=>({id:r.id,title:r.title,amount:r.amount,status:r.status,note:r.note,side:r.buyer===u.id?'buy':'sell',buyerName:r.buyer_name,sellerName:r.seller_name,updated:r.updated,method:r.method,stage:r.dstage,pickup:r.pickup}))},200,{'cache-control':'no-store'})}
   // Receipts are no longer used: every order is paid through Paystack.
   if(path==='orders/receipt')return J({error:'Pay for this order through Paystack from your Orders page.'},410);
+  if(path==='orders/stage'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
+    const b=await request.json().catch(()=>({})),o=await env.DB.prepare('SELECT * FROM orders WHERE id=? AND seller=?').bind(+b.id,u.id).first();
+    if(!o)return J({error:'Order not found.'},404);if(o.status!=='verified')return J({error:'Only paid orders can be updated.'},400);
+    const steps=STAGES[o.method==='delivery'?'delivery':'pickup'],nx=steps[steps.indexOf(o.dstage||'paid')+1];
+    if(!nx||b.stage!==nx)return J({error:'This order is already at that step.'},400);
+    const now=Date.now();await env.DB.prepare('UPDATE orders SET dstage=?,track=?,updated=? WHERE id=?').bind(nx,track(o,nx,now),now,o.id).run();return J({ok:true,stage:nx})}
   if(path==='orders/code'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
     const b=await request.json().catch(()=>({})),id=+b.id,code=String(b.code||'').trim().toUpperCase();
     const o=await env.DB.prepare('SELECT * FROM orders WHERE id=? AND seller=?').bind(id,u.id).first();
@@ -379,7 +402,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     if(o.status!=='verified')return J({error:'This order has no active release code.'},400);
     if(!await allow(env,'code:'+id,6,36e5))return J({error:'Too many wrong codes for this order. Try again in an hour.'},429);
     if(o.code!==code)return J({error:'That code does not match this order.'},400);
-    await env.DB.prepare("UPDATE orders SET status='released',code_used=1,updated=? WHERE id=?").bind(Date.now(),id).run();
+    await env.DB.prepare("UPDATE orders SET status='released',code_used=1,dstage='done',track=?,updated=? WHERE id=?").bind(track(o,'done',Date.now()),Date.now(),id).run();
     return J({ok:true})}
   if(path.startsWith('admin/')){
     const a=await me(env,request);if(!a||(!a.is_admin&&!a.reviewer))return J({error:'Not allowed'},403);await ensure(env);
@@ -401,8 +424,8 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       if(st!=='all'){if(!['pending','under_review','verified','released','expired','rejected'].includes(st))st='under_review';w.push('status=?');v.push(st)}
       if(/^#?\d+$/.test(q)){w.push('id=?');v.push(+q.replace('#',''))}
       else if(q){w.push('(buyer_name LIKE ? OR seller_name LIKE ? OR title LIKE ? OR r_ref LIKE ? OR buyer_phone LIKE ? OR seller_phone LIKE ?)');v.push(like,like,like,like,like,like)}
-      return list("orders LEFT JOIN (SELECT oid,who,action AS dact,t AS dt,MAX(id) AS mid FROM admin_log WHERE oid IS NOT NULL AND kind='payment' GROUP BY oid) d ON d.oid=orders.id",'id,title,amount,bank_name,acct_no,acct_name,status,deadline,note,buyer_name,buyer_phone,seller_name,seller_phone,r_amount,r_ref,created,updated,receipt IS NOT NULL AS has_r,r_amount IS NOT NULL AS sent,who,dact,dt',w,v,st==='under_review'?'created ASC':'updated DESC',
-        r=>({decidedBy:r.who,decision:r.dact,decidedAt:r.dt,sent:!!r.sent,id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.acct_no,acctName:r.acct_name,status:r.status,deadline:r.deadline,note:r.note,buyerName:r.buyer_name,buyerPhone:r.buyer_phone,sellerName:r.seller_name,sellerPhone:r.seller_phone,rAmount:r.r_amount,rRef:r.r_ref,created:r.created,updated:r.updated,hasReceipt:!!r.has_r}))}
+      return list("orders LEFT JOIN (SELECT oid,who,action AS dact,t AS dt,MAX(id) AS mid FROM admin_log WHERE oid IS NOT NULL AND kind='payment' GROUP BY oid) d ON d.oid=orders.id",'id,title,amount,bank_name,acct_no,acct_name,status,deadline,note,buyer_name,buyer_phone,seller_name,seller_phone,r_amount,r_ref,created,updated,receipt IS NOT NULL AS has_r,r_amount IS NOT NULL AS sent,who,dact,dt,method,addr,dphone,dstage',w,v,st==='under_review'?'created ASC':'updated DESC',
+        r=>({decidedBy:r.who,decision:r.dact,decidedAt:r.dt,sent:!!r.sent,id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.acct_no,acctName:r.acct_name,status:r.status,deadline:r.deadline,note:r.note,buyerName:r.buyer_name,buyerPhone:r.buyer_phone,sellerName:r.seller_name,sellerPhone:r.seller_phone,rAmount:r.r_amount,rRef:r.r_ref,created:r.created,updated:r.updated,hasReceipt:!!r.has_r,method:r.method,addr:r.addr,dphone:r.dphone,stage:r.dstage}))}
     if(path.startsWith('admin/receipt/')){const r=await env.DB.prepare('SELECT receipt FROM orders WHERE id=?').bind(+path.split('/')[2]).first(),m=r&&r.receipt&&r.receipt.match(/^data:(image\/[a-z]+);base64,(.*)$/s);
       if(!m)return new Response('Not found',{status:404});
       return new Response(Uint8Array.from(atob(m[2]),c=>c.charCodeAt(0)),{headers:{'content-type':m[1],'cache-control':'private, max-age=86400'}})}
@@ -526,7 +549,11 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
           return J({error:'This seller can\'t take payments right now. The Stall team has been told. Please try again later.'},502)}
         // Give the buyer time to finish on Paystack before the order can expire.
         await env.DB.prepare('UPDATE orders SET deadline=MAX(deadline,?) WHERE id=?').bind(Date.now()+PAY_WINDOW,o.id).run();
-        w={amount:o.amount,label:o.title};data={oid:o.id};split={subaccount:sub.code,transaction_charge:feeOf(o.amount)*100,bearer:'account'}}
+        const base=o.sub!=null?o.sub:o.amount,method=b.method==='delivery'?'delivery':'pickup',addr=clean(b.addr,160),dphone=clean(b.dphone,20)||u.phone;
+        if(method==='delivery'){if(!o.d_on)return J({error:'This seller does not deliver. Choose pickup.'},400);if(addr.length<5)return J({error:'Enter where the seller should bring your order (hostel, room, landmark).'},400)}
+        // Stall's fee is on the items only, not on the delivery fee.
+        const total=base+(method==='delivery'?o.d_fee||0:0),fee=feeOf(base);
+        w={amount:total,label:o.title};data={oid:o.id,method,addr:method==='delivery'?addr:null,dphone:method==='delivery'?dphone:null,fee};split={subaccount:sub.code,transaction_charge:fee*100,bearer:'account'}}
       else if(kind==='store'){const d=b.d||{},bad=storeBad(d);if(bad)return J({error:bad},400);if(await env.DB.prepare('SELECT 1 FROM stores WHERE uid=?').bind(u.id).first())return J({error:'You already have a store.'},409);
         if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);w={amount:STORE_FEE,label:'Store: '+clean(d.name,40)};data={d}}
       else{w=await what(kind,target,days);if(w.error)return J(w,400);data.level=w.level||null}
