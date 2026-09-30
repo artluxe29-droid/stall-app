@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS users(
   reviewer INTEGER NOT NULL DEFAULT 0,     -- can review payments
   bank_code TEXT, bank_name TEXT, acct_no TEXT, acct_name TEXT,
   bank_verified INTEGER,                   -- 0 = typed in by hand, waiting for an admin to confirm
-  verified INTEGER NOT NULL DEFAULT 0      -- paid verified-seller badge
+  verified INTEGER NOT NULL DEFAULT 0,     -- paid verified-seller badge
+  school_id INTEGER, state TEXT            -- where they study or trade
 );
 CREATE TABLE IF NOT EXISTS sessions(h TEXT PRIMARY KEY, uid INTEGER NOT NULL, exp INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS attempts(k TEXT NOT NULL, t INTEGER NOT NULL);
@@ -38,7 +39,10 @@ CREATE TABLE IF NOT EXISTS listings(
   n INTEGER NOT NULL DEFAULT 0,            -- number of photos
   created INTEGER NOT NULL,
   sold INTEGER NOT NULL DEFAULT 0,
-  featured_until INTEGER                   -- paid feature ends at this time (ms)
+  featured_until INTEGER,                  -- paid feature ends at this time (ms)
+  school_id INTEGER, state TEXT,
+  qty INTEGER NOT NULL DEFAULT 1, qty_left INTEGER,           -- stock: how many listed / still available
+  review TEXT NOT NULL DEFAULT 'live', review_note TEXT       -- photo check: checking, review, live or rejected
 );
 -- Photos as data URLs. lid > 0 is a listing id; lid < 0 is minus a store item id.
 CREATE TABLE IF NOT EXISTS photos(lid INTEGER NOT NULL, n INTEGER NOT NULL, data TEXT NOT NULL);
@@ -52,7 +56,9 @@ CREATE TABLE IF NOT EXISTS stores(
   vendor INTEGER NOT NULL DEFAULT 0,
   ref TEXT,                                -- Paystack reference for the store fee
   created INTEGER NOT NULL,
-  featured_until INTEGER
+  featured_until INTEGER,
+  school_id INTEGER, state TEXT,
+  reach TEXT NOT NULL DEFAULT 'school', reach_until INTEGER    -- paid visibility: school, state or national
 );
 CREATE TABLE IF NOT EXISTS store_items(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,7 +66,9 @@ CREATE TABLE IF NOT EXISTS store_items(
   title TEXT NOT NULL, price INTEGER NOT NULL, descr TEXT,
   avail INTEGER NOT NULL DEFAULT 1,
   n INTEGER NOT NULL DEFAULT 0,
-  created INTEGER NOT NULL
+  created INTEGER NOT NULL,
+  qty_left INTEGER,                        -- NULL = no stock limit
+  review TEXT NOT NULL DEFAULT 'live', review_note TEXT
 );
 
 CREATE TABLE IF NOT EXISTS orders(
@@ -75,7 +83,9 @@ CREATE TABLE IF NOT EXISTS orders(
   note TEXT,                               -- why it needs review / was rejected
   receipt TEXT, r_amount INTEGER, r_ref TEXT
 );
-CREATE TABLE IF NOT EXISTS order_items(oid INTEGER NOT NULL, kind TEXT NOT NULL, ref_id INTEGER NOT NULL, title TEXT, price INTEGER);
+CREATE TABLE IF NOT EXISTS order_items(oid INTEGER NOT NULL, kind TEXT NOT NULL, ref_id INTEGER NOT NULL, title TEXT, price INTEGER, q INTEGER NOT NULL DEFAULT 1);
+-- Schools across Nigeria (seeded from lib/schools.js; active=0 means requested by a user, waiting for admin approval).
+CREATE TABLE IF NOT EXISTS schools(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, short TEXT, state TEXT NOT NULL, kind TEXT, active INTEGER NOT NULL DEFAULT 1, created INTEGER);
 
 CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, uid INTEGER, who TEXT, kind TEXT, action TEXT, oid INTEGER, target TEXT, detail TEXT);
 CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY, v TEXT);
