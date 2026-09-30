@@ -389,7 +389,7 @@ const save=()=>{try{localStorage.setItem('stall:v2',JSON.stringify(S))}catch(e){
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const naira=n=>'₦'+Number(n).toLocaleString('en-NG');
 const ci=id=>CATS.find(c=>c.id===id)||CATS[0];
-let PUB=[],STORES=[],PTOT=0,PQ=0,PLD=0,SN=24,qT;const LC=new Map(),items=()=>PUB,get=id=>LC.get(id)||sItems().find(i=>i.id===id);
+let PUB=[],MY=[],STORES=[],PTOT=0,PQ=0,PLD=0,SN=24,qT;const LC=new Map(),items=()=>!q&&cat==='all'?[...MY.filter(m=>!PUB.some(p=>p.id===m.id)),...PUB]:PUB,get=id=>LC.get(id)||sItems().find(i=>i.id===id);
 const stat=i=>i.sold?'sold':(S.st[i.id]||'');
 const ago=t=>{const h=Math.round((Date.now()-t)/H);return h<1?'Just now':h<24?h+'h ago':Math.round(h/24)+'d ago'};
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;t.style.animation='none';t.offsetWidth;t.style.animation='';clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2200)}
@@ -399,7 +399,7 @@ function badge(){const n=S.cart.length,b=$('#badge');b.hidden=!n;b.textContent=n
 function renderChips(){$('#chips').innerHTML=[{id:'all',name:'All'},...CATS].map(c=>`<button class="chip" data-c="${c.id}" aria-pressed="${cat===c.id}">${esc(c.name)}</button>`).join('')}
 function render(){
   renderChips();
-  const l=items(),mo=$('#more');mo.hidden=!(PTOT>PUB.length&&l===PUB);mo.textContent=`Show more (${(PTOT-PUB.length).toLocaleString()} more)`;
+  const l=items(),mo=$('#more');mo.hidden=!(PTOT>PUB.length);mo.textContent=`Show more (${(PTOT-PUB.length).toLocaleString()} more)`;
   document.querySelectorAll('.hc').forEach(b=>b.setAttribute('aria-pressed',b.dataset.hc===cat));
   const F=!q&&cat==='all'?PUB.filter(i=>i.featured&&!stat(i)):[];
   $('#featRow').innerHTML=F.length?`<div class="sec"><h3>Featured<span class="fbadge">Promoted</span></h3></div><div class="hrow">${F.map(cardHtml).join('')}</div>`:'';
@@ -434,8 +434,8 @@ function mkPicker(root){
   draw();return{get:()=>a.slice(),clear:()=>{a=[];draw()},err:m=>{er.textContent=m}};
 }
 function wireBankVerify(root){
-  const btn=root.querySelector('[data-verify-bank]');if(!btn)return;
-  const f=root.closest('form')||root,bank=f.elements.bank_code,acct=f.elements.acct,nm=f.elements.acctName,mn=f.elements.bankManual,ok=f.querySelector('.bankok');
+  const btn=root.querySelector('[data-verify-bank]');if(!btn||btn.dataset.wired)return;btn.dataset.wired=1;
+  const f=root.closest('form')||root.querySelector('form')||root,bank=f.elements.bank_code,acct=f.elements.acct,nm=f.elements.acctName,mn=f.elements.bankManual,ok=f.querySelector('.bankok');
   let fails=0;
   [bank,acct].forEach(el=>el.addEventListener('input',()=>{nm.value='';mn.value='';fails=0;ok.innerHTML='';const mb=f.querySelector('.manualBank');if(mb)mb.remove()}));
   btn.onclick=async()=>{btn.disabled=true;btn.textContent='Checking…';
@@ -452,7 +452,7 @@ function wireBankVerify(root){
     nm.value=r.name;mn.value='';ok.style.color='';ok.textContent='✓ '+r.name}}
 const TEST_MODE=false;
 const lines=()=>{const m=new Map();S.cart.forEach(id=>m.set(id,(m.get(id)||0)+1));return[...m].map(([id,q])=>({i:get(id),q})).filter(x=>x.i)};
-const tot=L=>L.reduce((a,x)=>a+x.i.price*x.q,0),em=i=>i.se||ci(i.cat).e;
+const tot=L=>L.reduce((a,x)=>a+x.i.price*x.q,0),em=i=>i.se?esc(i.se):ci(i.cat).e;
 function openCart(){
   const L=lines(),d=$('#cart');
   d.innerHTML=`<div class="pad"><h2>Bag</h2>${L.length?L.map(({i,q})=>`<div class="line"><div class="mini" style="${cv(i)}">${ic(i)}</div><div class="t"><b>${esc(i.title)}</b><span class="meta">${esc(i.seller)} · ${esc(i.spot)}</span></div><div style="text-align:right"><b>${naira(i.price*q)}</b><br>${i.multi?`<span class="step"><button data-dec="${i.id}" aria-label="Remove one">−</button><b>${q}</b><button data-inc="${i.id}" aria-label="Add one">+</button></span>`:`<button class="link" data-rm="${i.id}" style="font-size:14px">Remove</button>`}</div></div>`).join('')
@@ -488,15 +488,10 @@ function openCheckout(){
 }
 const fetchJ=(u,o)=>fetch(u,o).then(r=>r.json());
 const payEmail=()=>S.user.email||('buyer'+String(S.user.phone||'0').replace(/\D/g,'')+'@stall.app');
-async function startPay(body,pending,b,label){
-  b.disabled=true;b.textContent='Opening secure payment…';
-  try{const r=await fetchJ('/api/checkout',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...body,email:payEmail()})});
-    if(!r.url)throw 0;sessionStorage.setItem('stall:pending',JSON.stringify(pending));location.href=r.url}
-  catch(e){b.disabled=false;b.textContent=label;toast('Could not start payment. Check your connection and try again.')}}
 const PRICE={listing:{3:300,7:500},store:{3:500,7:1000},verify:1000,reach:{state:2000,national:5000}},VB='<span class="vb">✓ Verified</span>';
 const until=t=>new Date(t).toLocaleString('en-NG',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
 async function startFeature(body,b){const lb=b.textContent;b.disabled=true;b.textContent='Opening secure payment…';
-  const r=await apiPost('pay/start',body);if(r.url){sessionStorage.setItem('stall:pending',JSON.stringify({kind:body.kind}));location.href=r.url;return}
+  const r=await apiPost('pay/start',body);if(r.url){location.href=r.url;return}
   b.disabled=false;b.textContent=lb;toast(r.error||'Could not start payment. Try again.')}
 const reachBox=s=>{const on=s.reach&&s.reach!=='school'&&s.reachUntil;const L={state:'State-wide',national:'Nationwide'};
   return `<div class="boost"><b>${on?L[s.reach]+' until '+until(s.reachUntil):'Reach more buyers'}</b><p class="meta">Your store shows to students at ${esc(s.school||'your school')}. Upgrade to show it at every school in ${esc(s.state||'your state')}, or across Nigeria, for 30 days.</p>
@@ -629,7 +624,7 @@ document.addEventListener('click',e=>{
   if(id==='navSelling')view('selling')
   if(id==='navShop'||id==='home'||id==='toShop')view('shop');
   if(id==='navStores'||id==='toStores'||id==='backStores')view('stores');
-  if(id==='openStore'){const s=myStore();if(s)storePage(s.id);else{const f=$('#storeForm').elements;f.phone.value=S.user.phone;if(S.user.biz){f.name.value=S.user.biz;f.spot.value=S.user.where;f.cat.value=S.user.cat}wireBankVerify($('#storeDlg'));$('#storeDlg').showModal()}}
+  if(id==='openStore'){const s=myStore();if(s)storePage(s.id);else{const f=$('#storeForm').elements;f.phone.value=S.user.phone;if(S.user.biz){f.name.value=S.user.biz;f.spot.value=S.user.where;f.cat.value=S.user.cat}wireBankVerify($('#storeForm'));$('#storeDlg').showModal()}}
   if(id==='addItem')$('#itemDlg').showModal();
   if(id==='shopNow'){$('#browse').scrollIntoView()}
 });
@@ -683,7 +678,7 @@ function refresh(){render();if(!$('#store').hidden)storePage(cur);if($('#cart').
 function renderStores(){
   $('#openStore').textContent=myStore()?'Manage my store':'Open your store';
   const AS=allStores(),ms=$('#moreStores');ms.hidden=AS.length<=SN;
-  $('#storeGrid').innerHTML=AS.slice(0,SN).map(s=>`<article class="card in" data-store="${s.id}"><div class="tile" style="background:${ci(s.cat).c}">${s.emoji}<span class="tag">${s.open?'Open':'Closed'}</span>${s.featured?'<span class="tag ft">Featured</span>':''}</div>
+  $('#storeGrid').innerHTML=AS.slice(0,SN).map(s=>`<article class="card in" data-store="${s.id}"><div class="tile" style="background:${ci(s.cat).c}">${esc(s.emoji||"")}<span class="tag">${s.open?'Open':'Closed'}</span>${s.featured?'<span class="tag ft">Featured</span>':''}</div>
    <div class="cb"><h3>${esc(s.name)}</h3>${s.verified?VB:''}${s.school&&S.user&&S.user.schoolInfo&&s.school!==(S.user.schoolInfo.short||S.user.schoolInfo.name)?`<div class="meta"><b>${esc(s.school)}</b>${s.reach==='national'?' · Ships nationwide':''}</div>`:''}<div class="meta">${esc(ci(s.cat).name)} · ${esc(s.spot)}${s.vendor?' · Campus vendor':''}</div><div class="meta">${s.items.filter(i=>i.avail).length} available now</div></div></article>`).join('')||`<div class="empty"><h3>No stores yet</h3><p>Campus shops and students can open a store for ₦5,000.</p></div>`;
 }
 function storePage(id){
@@ -691,7 +686,7 @@ function storePage(id){
   const own=!!s.owner&&s.owner===uid(),qty=k=>S.cart.filter(x=>x===k).length;
   const swa=String(s.phone||'').replace(/\D/g,'').replace(/^0/,'234'),avl=s.items.filter(x=>x.avail).length;
   $('#store').innerHTML=`<div class="shero"><button class="link back" id="backStores" aria-label="All stores">←</button>
-   <div class="sav" style="background:${ci(s.cat).c}">${s.emoji}</div><h2>${esc(s.name)}</h2>${s.verified?'<div>'+VB+'</div>':''}<p class="sst"><i class="${s.open?'on':''}"></i>${s.open?'Open now':'Closed'}${s.vendor?' · Campus vendor':''}</p>
+   <div class="sav" style="background:${ci(s.cat).c}">${esc(s.emoji||"")}</div><h2>${esc(s.name)}</h2>${s.verified?'<div>'+VB+'</div>':''}<p class="sst"><i class="${s.open?'on':''}"></i>${s.open?'Open now':'Closed'}${s.vendor?' · Campus vendor':''}</p>
    <div class="sstats"><div><b>${avl}</b><span>Available</span></div><div><b>${s.items.length}</b><span>Items</span></div><div><b>${esc(s.school||ci(s.cat).name)}</b><span>${s.school?esc(s.state):'Category'}</span></div></div>
    ${swa&&!own?`<div class="sbtn"><a class="pill acc" href="https://wa.me/${swa}" target="_blank" rel="noopener">Chat on WhatsApp</a></div>`:''}</div>
    <div class="wrap" style="padding-top:18px;max-width:760px"><p style="color:var(--muted)">${esc(s.desc)}</p><p class="meta">📍 ${esc(s.spot)}</p>
@@ -709,7 +704,7 @@ async function makeStore(d,ref){const r=await apiPost('stores/create',{reference
 $('#storeForm').onsubmit=e=>{e.preventDefault();const E=e.target.elements;
   if(!E.acctName.value)return toast('Verify your payout account first.');
   const d={name:E.name.value.trim(),emoji:E.emoji.value,cat:E.cat.value,desc:E.desc.value.trim(),spot:E.spot.value.trim(),phone:E.phone.value.trim(),bank_code:E.bank_code.value,acct:E.acct.value.trim(),acctName:E.acctName.value,bank_manual:E.bankManual.value};
-  startPay({kind:'store'},{kind:'store',d},e.target.querySelector('[type=submit]'),'Pay '+naira(FEE_STORE)+' and open store')};
+  startFeature({kind:'store',d},e.target.querySelector('[type=submit]'))};
 $('#itemForm').onsubmit=async e=>{e.preventDefault();const f=e.target,E=f.elements,s=myStore(),imgs=pk2.get();
   if(!imgs.length)return pk2.err('Add at least one photo.');
   const sb=f.querySelector('[type=submit]');sb.disabled=true;const r=await apiPost('stores/item',{title:E.title.value,price:E.price.value,desc:E.desc.value,qty:E.qty.value,imgs});sb.disabled=false;
@@ -783,13 +778,14 @@ function drawNews(){const nb=NEWS.filter(x=>x.side==='buy').length,ns=NEWS.lengt
   el.hidden=!NEWS.length||onO;if(NEWS.length&&!onO)el.innerHTML=`<div><span>${newsText(NEWS[0])}${NEWS.length>1?` <b>+${NEWS.length-1} more</b>`:''}</span><button class="pill sm" id="noticeGo">View</button></div>`}
 async function pollNews(){if(!S.user)return;const k=seenK();const r=await fetchJ(`/api/orders/news?sb=${k.b}&ss=${k.s}`).catch(()=>null);if(r&&r.news){NEWS=r.news;drawNews()}}
 const updBox=side=>{const L=NEWS.filter(x=>x.side===side);return L.length?`<div class="upd"><p class="lb" style="margin:0 0 4px">What's new</p>${L.map(x=>`<p>${newsText(x)}</p>`).join('')}</div>`:''};
-async function pollPub(){if(!S.user||document.hidden)return;if(PN++%3===0)pollNews();const r=await fetchJ('/api/listings/ver').catch(()=>null);if(r&&typeof r.v==='number'&&r.v!==PV){PV=r.v;loadPub()}}
+async function pollPub(){if(!S.user||document.hidden)return;if(PN++%2===0)pollNews();const r=await fetchJ('/api/listings/ver').catch(()=>null);if(r&&typeof r.v==='number'&&r.v!==PV){PV=r.v;loadPub()}}
 async function loadPub(more){if(!S.user)return;const n=++PQ,mo=more===true,need=S.cart.filter(id=>id[0]==='L'&&!LC.has(id));if(mo){$('#more').disabled=true;$('#more').textContent='Loading…'}
   const sc=S.user&&S.user.schoolInfo?(S.scope||'school'):'all';drawScope();
   const qs=new URLSearchParams({q,cat,sort,scope:sc,off:mo?PUB.length:0,n:mo?24:Math.min(96,Math.max(24,PUB.length))});
-  const[a,b,c]=await Promise.all([fetchJ('/api/listings?'+qs).catch(()=>null),mo?null:fetchJ('/api/stores?scope='+sc).catch(()=>null),need.length?fetchJ('/api/listings?ids='+need.join(',')).catch(()=>null):null]);
-  $('#more').disabled=false;if(n!==PQ)return;if(c&&c.listings)c.listings.forEach(i=>{i.multi=i.qtyLeft>1;LC.set(i.id,i)});
-  if(a&&a.listings){a.listings.forEach(i=>{i.multi=i.qtyLeft>1;LC.set(i.id,i)});PUB=mo?[...PUB,...a.listings]:a.listings;PTOT=a.total;PLD=1}if(b&&b.stores)STORES=b.stores;if((a&&a.listings)||(b&&b.stores)){refresh();renderStores()}}
+  const[a,b,c,mL,mS]=await Promise.all([fetchJ('/api/listings?'+qs).catch(()=>null),mo?null:fetchJ('/api/stores?scope='+sc).catch(()=>null),need.length?fetchJ('/api/listings?ids='+need.join(',')).catch(()=>null):null,mo?null:fetchJ('/api/listings?mine=1').catch(()=>null),mo?null:fetchJ('/api/stores?mine=1').catch(()=>null)]);
+  const own=i=>{i.mine=!!S.user&&i.sid===S.user.uid;i.multi=i.qtyLeft>1;LC.set(i.id,i)};if(mL&&mL.listings){MY=mL.listings;MY.forEach(own)}
+  $('#more').disabled=false;if(n!==PQ)return;if(c&&c.listings)c.listings.forEach(own);
+  if(a&&a.listings){a.listings.forEach(own);PUB=mo?[...PUB,...a.listings]:a.listings;PTOT=a.total;PLD=1}if(b&&b.stores){STORES=b.stores;if(mS&&mS.stores)mS.stores.forEach(m=>{const k=STORES.findIndex(x=>x.id===m.id);k>=0?STORES[k]=m:STORES.unshift(m)})}if((a&&a.listings)||(b&&b.stores)){refresh();renderStores()}}
 function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub();pollNews();if(!r.user.schoolInfo&&!$('#schDlg').open)openSchoolPick(true)}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
 const AD={tab:'overview',st:{},sum:{},n:0},OST={pending:['Waiting for payment',''],under_review:['Needs review','warn'],verified:['Paid, awaiting delivery','warn'],released:['Delivered','ok'],expired:['Expired',''],rejected:['Rejected','bad']};
 const ATABS=[['overview','Overview'],['payments','Payments','review'],['orders','Orders'],['vendors','Vendors','vendorsPending'],['payouts','Payouts','banks'],['items','Photo check','itemsReview'],['verify','Verify','verifyPending'],['schools','Schools','schoolsPending'],['users','People'],['codes','Codes'],['money','Earnings'],['log','Activity'],['settings','Settings']];
@@ -811,8 +807,9 @@ async function openAdmin(){const d=$('#adminDlg');AD.rev=!S.user.admin;if(AD.rev
     if(b=c('[data-rj]')){const f=$('#rj'+b.dataset.rj);f.hidden=!f.hidden;return}
     if(b=c('[data-copy]')){navigator.clipboard&&navigator.clipboard.writeText(b.dataset.copy);return toast('Copied')}
     if(b=c('[data-store-go]')){b.disabled=true;const post=b.dataset.storeGo==='clean';if(post&&!confirm('Remove old receipt photos (closed more than 60 days ago), sold listings older than 30 days and unused photos? This cannot be undone.'))return b.disabled=false;
+      if(b.dataset.storeGo==='move'){const r=await apiPost('admin/storage',{move:1});b.disabled=false;return toast(r.error||(r.moved?'Moved '+r.moved+' photos. '+r.left+' left'+(r.left?', tap again to continue.':'.'):'All photos are already in R2.'))}
       const r=post?await apiPost('admin/storage',{}):await fetchJ('/api/admin/storage').catch(()=>({error:'Could not reach Stall.'}));b.disabled=false;if(r.error)return toast(r.error);if(post){toast('Space freed');await adminSum()}
-      const mb=x=>(x/1048576).toFixed(1)+' MB';$('#storeOut').innerHTML=`<small>${r.photos.toLocaleString()} listing and store photos (${mb(r.photoBytes)}) · ${r.receipts.toLocaleString()} receipt photos (${mb(r.receiptBytes)})</small><small>Last clean-up: ${r.cleanupAt?aAgo(r.cleanupAt):'never'}. It also runs automatically once a day.</small>`;return}
+      const mb=x=>(x/1048576).toFixed(1)+' MB';$('#storeOut').innerHTML=`<small>${r.photos.toLocaleString()} listing and store photos (${r.photosInR2.toLocaleString()} in R2, ${mb(r.photoBytes)} in the database) · ${r.receipts.toLocaleString()} receipt photos (${mb(r.receiptBytes)})</small><small>Last clean-up: ${r.cleanupAt?aAgo(r.cleanupAt):'never'}. It also runs automatically once a day.</small>`;return}
     if(b=c('[data-apw]')){if(!confirm('Give '+b.dataset.nm+' a new temporary password? Their old password stops working and they are signed out everywhere.'))return;
       const r=await apiPost('admin/reset-password',{id:+b.dataset.apw});if(r.error)return toast(r.error);const ph=b.dataset.ph,w=ph[0]==='0'?'234'+ph.slice(1):ph;
       b.closest('.arow').insertAdjacentHTML('afterend',`<div class="codebox"><small>Temporary password for ${esc(r.name)}</small><b>${esc(r.password)}</b><small>Send it only to the phone on their account. They can change it from "Change password" at the bottom of the app.</small><div class="aacts" style="margin-top:8px"><button class="pill sm alt" type="button" data-copy="${esc(r.password)}">Copy</button><a class="pill sm" target="_blank" rel="noopener" href="https://wa.me/${w}?text=${encodeURIComponent('Hi '+r.name+', your Stall password has been reset. Sign in with your phone number and this temporary password: '+r.password+' . Then tap "Change password" at the bottom of the app to set your own.')}">Send on WhatsApp</a></div></div>`);adminSum();return}
@@ -862,8 +859,10 @@ async function adminLoad(){const k=AD.tab,S0=ast(k),n=++AD.n,el=()=>n===AD.n&&$(
       <small>${!s.aiOn?'Not connected, so every receipt waits for a person. In Cloudflare open stall-app → Settings → Bindings, add a Workers AI binding named <b>AI</b> for Production, then redeploy.':s.aiLast?(s.aiLast.ok?'Last receipt checked '+aAgo(s.aiLast.t)+'.':'Last check failed '+aAgo(s.aiLast.t)+': '+esc(s.aiLast.err||'unknown error')+'. Receipts are coming to you for review until it works again.'):'Connected. No receipt has been checked yet.'}</small></div></div>
      <div class="arow"><div class="t"><div class="ttl"><b>Bank account check (Paystack)</b>${s.psMode==='none'?bdg('Not set up','bad'):s.bankLast&&!s.bankLast.ok?bdg('Failing','bad'):bdg(s.bankLast?'Working':'Not used yet','ok')}${s.psMode==='test'?bdg('Test key','warn'):s.psMode==='live'?bdg('Live key','ok'):''}</div>
       <small>${s.psMode==='none'?'PAYSTACK_SECRET is missing in Cloudflare, so sellers must type their account name and you confirm it in Payouts.':s.bankLast?(s.bankLast.ok?'Last account verified '+aAgo(s.bankLast.t)+'.':'Last check failed '+aAgo(s.bankLast.t)+(s.bankLast.bank?' ('+esc(s.bankLast.bank)+')':'')+'. Paystack said: <b>'+esc(s.bankLast.err||'')+'</b>'):'No seller has verified an account yet.'}${s.psMode==='test'?' With a test key Paystack only allows a few account checks a day; switch to your live key to check real accounts.':''}</small></div></div>
+     <div class="arow"><div class="t"><div class="ttl"><b>Photo storage (R2)</b>${s.r2On?bdg('Connected','ok'):bdg('Not connected','warn')}</div><small>${s.r2On?'New photos are saved in Cloudflare R2, which keeps the database small and fast. Use "Move photos to R2" below for older photos.':'Photos are stored in the database, which is fine for now but will fill up. In Cloudflare create an R2 bucket, then in stall-app → Settings → Bindings add an R2 binding named <b>PHOTOS</b> and redeploy.'}</small></div></div>
+     <div class="arow"><div class="t"><div class="ttl"><b>Paystack webhook</b>${s.webhook?bdg('Receiving','ok'):bdg('Not set up','warn')}</div><small>${s.webhook?'Paystack is telling Stall about payments directly, so they finish even if someone closes the app.':'In Paystack go to Settings → API Keys & Webhooks and set the Webhook URL to <b>'+esc(location.origin)+'/api/paystack/webhook</b>. Until then, payments finish when the payer returns to Stall.'}</small></div></div>
      <div class="arow"><div class="t"><div class="ttl"><b>Storage</b></div><small>Receipt photos are removed 60 days after an order closes, and sold listings after 30 days. Order records stay.</small><div id="storeOut"></div></div>
-      <div class="aacts"><button class="pill sm alt" data-store-go="check">Check</button><button class="pill sm" data-store-go="clean">Free up space</button></div></div>`;return}
+      <div class="aacts"><button class="pill sm alt" data-store-go="move">Move photos to R2</button><button class="pill sm alt" data-store-go="check">Check</button><button class="pill sm" data-store-go="clean">Free up space</button></div></div>`;return}
   const url={payments:'/api/admin/orders'+qs({status:'under_review'}),orders:'/api/admin/orders'+qs({status:S0.f}),vendors:'/api/admin/vendors'+qs({status:S0.f}),users:'/api/admin/users'+qs({role:S0.f}),codes:'/api/admin/codes'+qs({f:S0.f}),payouts:'/api/admin/banks',log:'/api/admin/log'+qs({kind:S0.f}),items:'/api/admin/items'+qs({f:S0.f}),schools:'/api/admin/schools'+qs({f:S0.f}),verify:'/api/admin/verify'+qs({f:S0.f}),money:'/api/admin/money'+qs({kind:S0.f})}[k];
   const r=await fetchJ(url).catch(()=>({error:'Could not reach Stall. Check your connection.'}));if(!el())return;
   if(r.error)return el().innerHTML=`<p class="err">${esc(r.error)}</p>`;
@@ -960,22 +959,18 @@ function gate(){
     regSend(f,{...sb0,role:'student',name:v('name'),matric:v('matric'),email:v('email'),phone:v('phone'),where:v('where'),password:f.elements.pw.value})};
 }
 S.cart=S.cart.filter(id=>get(id));render();badge();$('#badge').classList.remove('bump');gate();
-refreshMe();setInterval(pollPub,20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollPub()});
+refreshMe();setInterval(pollPub,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollPub()});
 $('#hchips').innerHTML=`<button class="hc" data-hc="all"><span style="background:var(--card)">✨</span>All</button>`+CATS.map(c=>`<button class="hc" data-hc="${c.id}"><span style="background:${c.c}">${c.e}</span>${c.name}</button>`).join('');
 document.addEventListener('click',e=>{const b=e.target.closest('[data-hc]');if(b){cat=b.dataset.hc;render();loadPub();$('#browse').scrollIntoView()}});
 (async()=>{const ref=new URLSearchParams(location.search).get('reference');if(!ref)return;history.replaceState(null,'','/');
-  const p=JSON.parse(sessionStorage.getItem('stall:pending')||'null');sessionStorage.removeItem('stall:pending');
-  S.refs=S.refs||[];if(S.refs.includes(ref))return;
-  if(p&&(p.kind==='boost'||p.kind==='verify'||p.kind==='reach')){const r=await apiPost('pay/confirm',{reference:ref});
-    if(r.error)return toast(r.error);S.refs.push(ref);save();toast(p.kind==='verify'?'You are now verified ✓':p.kind==='reach'?'Store reach upgraded until '+until(r.until):'Featured until '+until(r.until));await refreshMe();loadPub();return}
-  try{const r=await fetchJ('/api/verify?ref='+encodeURIComponent(ref));
-    if(!r.paid||!p)return toast('Payment not completed. You were not charged.');
-    await loadPub();
-    const L=p.kind==='order'?p.ids.map(([id,q])=>({i:get(id),q})).filter(x=>x.i):[];
-    if(p.kind==='order'&&(!L.length||r.amount!==tot(L)))return toast('Payment received but the order could not be matched. Contact Stall support with reference '+ref);
-    S.refs.push(ref);save();
-    p.kind==='store'?makeStore(p.d,ref):place({get:k=>p.f[k]},L)}
-  catch(e){toast('Could not confirm payment. If you were charged, contact Stall support.')}})();
+  // The server remembers every payment, so this works even if Paystack sends you back to a different tab or browser.
+  S.refs=S.refs||[];if(S.refs.includes(ref))return;toast('Confirming your payment…');
+  let r=await apiPost('pay/confirm',{reference:ref});
+  for(let i=0;i<4&&r.processing;i++){await new Promise(z=>setTimeout(z,1500));r=await apiPost('pay/confirm',{reference:ref})}
+  if(r.error)return toast(r.error);S.refs.push(ref);save();
+  const msg={store:'Store fee paid. Your store is open',verify:'You are now verified ✓',reach:'Store reach upgraded'+(r.until?' until '+until(r.until):''),boost:'Featured'+(r.until?' until '+until(r.until):'')}[r.kind]||'Payment received';
+  if(r.signedOut||!S.user)return toast(msg+'. Open Stall to see it.');
+  toast(r.note||msg);await refreshMe();await loadPub();if(r.kind==='store'&&r.id){renderStores();storePage(r.id)}})();
 drawInstall();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 </script>
