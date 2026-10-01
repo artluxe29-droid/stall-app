@@ -16,6 +16,9 @@ Single-page web app (`index.html`) with an API running as a Cloudflare Pages Fun
 | `DB` | D1 database | everything |
 | `PAYSTACK_SECRET` | Secret | payments and bank account-name checks (`sk_live_...` for real money) |
 | `AI` | Workers AI | automatic listing-photo and verification checks |
+| `RESEND_API_KEY` | Secret | emails: school-email codes, password resets, order updates (resend.com) |
+| `EMAIL_FROM` | Variable | sender, e.g. `Stall <hello@yourdomain.ng>` (domain verified in Resend) |
+| `SITE_URL` | Variable (optional) | link used in emails, default `https://stall-app.pages.dev` |
 | `PHOTOS` | R2 bucket | photo storage (recommended; without it photos stay in D1) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Secrets | admin alerts (optional) |
 
@@ -33,3 +36,7 @@ Never commit secret keys to this repo.
 ## Google Play
 
 See [PLAYSTORE.md](PLAYSTORE.md) for packaging Stall as an Android app (PWABuilder), the Play Console checklist, store listing text and Data safety answers. Store graphics are in `store-assets/`.
+
+## Student verification
+
+Students can earn two badges: **✓ Student** (a confirmed school email: any `.edu.ng` address, plus extra domains set in Admin → Settings) and **✓ ID checked** (a student ID card or admission letter, read by Workers AI and checked by an admin in Admin → Student IDs when the AI isn't sure). Campus vendors don't need either. Admin → Settings → "Only verified students can sell" makes ✓ Student required for listing or opening a store (off by default).
