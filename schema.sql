@@ -128,3 +128,6 @@ CREATE TABLE IF NOT EXISTS reviews(id INTEGER PRIMARY KEY AUTOINCREMENT, oid INT
 -- Seller payouts (one per released order): status queued, processing, paid or failed.
 CREATE TABLE IF NOT EXISTS payouts(oid INTEGER PRIMARY KEY, seller INTEGER NOT NULL, amount INTEGER NOT NULL, ref TEXT, status TEXT NOT NULL, err TEXT, tries INTEGER NOT NULL DEFAULT 0, how TEXT, created INTEGER NOT NULL, updated INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS ps_recips(k TEXT PRIMARY KEY, code TEXT NOT NULL, created INTEGER);
+-- In-app chat: one thread per buyer, seller and listing/store/order ('L12', 'S3', 'O9').
+CREATE TABLE IF NOT EXISTS threads(id INTEGER PRIMARY KEY AUTOINCREMENT, buyer INTEGER NOT NULL, seller INTEGER NOT NULL, ref TEXT NOT NULL, title TEXT, last TEXT, last_at INTEGER, last_by INTEGER, b_seen INTEGER NOT NULL DEFAULT 0, s_seen INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, UNIQUE(buyer,seller,ref));
+CREATE TABLE IF NOT EXISTS msgs(id INTEGER PRIMARY KEY AUTOINCREMENT, tid INTEGER NOT NULL, uid INTEGER NOT NULL, body TEXT NOT NULL, t INTEGER NOT NULL);
