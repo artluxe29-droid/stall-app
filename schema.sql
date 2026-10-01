@@ -122,3 +122,6 @@ CREATE INDEX IF NOT EXISTS listings_cat_created ON listings(cat,created);
 CREATE INDEX IF NOT EXISTS listings_uid ON listings(uid);
 CREATE INDEX IF NOT EXISTS photos_lid ON photos(lid,n);
 CREATE INDEX IF NOT EXISTS order_items_oid ON order_items(oid);
+
+-- Seller ratings: one per completed order. users.rating_sum / rating_n hold the running totals.
+CREATE TABLE IF NOT EXISTS reviews(id INTEGER PRIMARY KEY AUTOINCREMENT, oid INTEGER NOT NULL UNIQUE, seller INTEGER NOT NULL, buyer INTEGER NOT NULL, buyer_name TEXT, title TEXT, stars INTEGER NOT NULL, body TEXT, created INTEGER NOT NULL);
