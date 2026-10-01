@@ -137,6 +137,10 @@ const HOLD_DAYS=7;
 const REF_DEFAULT=100,REF_MIN=2000,CAP_DEFAULT=500,PCT_DEFAULT=50;
 const refReward=async env=>{const v=await getK(env,'ref_reward');return v==null?REF_DEFAULT:Math.max(0,+v||0)};
 const refCap=async env=>{const v=await getK(env,'ref_cap');return v==null?CAP_DEFAULT:Math.max(0,+v||0)};
+// Launch offer: no Stall fee on each seller's first few paid sales (admin setting free_sales, 0 turns it off).
+const FREE_DEFAULT=3,freeSales=async env=>{const v=await getK(env,'free_sales');return v==null?FREE_DEFAULT:Math.min(20,Math.max(0,+v||0))};
+const freeLeft=async(env,seller)=>{const n=await freeSales(env);if(!n)return 0;
+  const r=await env.DB.prepare("SELECT COUNT(*) c FROM orders WHERE seller=? AND paid_at IS NOT NULL AND status NOT IN ('refunded','under_review')").bind(seller).first();return Math.max(0,n-(r.c||0))};
 const creditPct=async env=>{const v=await getK(env,'credit_pct');return v==null?PCT_DEFAULT:Math.min(100,Math.max(0,+v||0))};
 const monthStart=()=>{const d=new Date();d.setUTCDate(1);d.setUTCHours(0,0,0,0);return+d};
 // Adds credit, but never more than the monthly cap for that person. Returns what was actually given.
@@ -284,8 +288,10 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
     if(p.kind==='store'){const has=await env.DB.prepare('SELECT id FROM stores WHERE uid=?').bind(u.id).first();
       if(has){res={id:'S'+has.id,note:'You already had a store, so no new one was made. Contact Stall support for a refund with reference '+ref};act='paid store fee but already had a store (refund due)';await tg(env,'Refund due: '+u.name+' paid a store fee but already has a store. Ref '+ref)}
       else{res={id:'S'+await makeStore(env,u,d.d||{},ref)};act='opened a store'}}
-    else if(p.kind==='order'){const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(+d.oid).first(),fee=d.fee!=null?d.fee:feeOf(p.amount);
-      if(!o)throw new Error('order missing');let st='verified',note=null;
+    else if(p.kind==='order'){const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(+d.oid).first(),fee0=d.fee!=null?d.fee:feeOf(p.amount);
+      if(!o)throw new Error('order missing');
+      // An order already paid keeps its fee; a new sale within the seller's launch offer has none.
+      const fee=o.paid_at?(o.fee!=null?o.fee:fee0):(await freeLeft(env,o.seller))>0?0:fee0;let st='verified',note=null;
       if(o.status==='expired'){// Paid after the window closed: take the stock back if it's still there, otherwise flag for a refund.
         const its=(await env.DB.prepare('SELECT kind,ref_id,IFNULL(q,1) q FROM order_items WHERE oid=?').bind(o.id).all()).results,got=[];
         for(const i of its){const ch=(await (i.kind==='listing'?env.DB.prepare('UPDATE listings SET qty_left=qty_left-?,sold=CASE WHEN qty_left-?<=0 THEN 1 ELSE 0 END WHERE id=? AND qty_left>=?').bind(i.q,i.q,i.ref_id,i.q)
@@ -337,7 +343,7 @@ export async function onRequest({request,env,params,waitUntil}){
       if(t('ref')){const rf=await env.DB.prepare("SELECT id FROM users WHERE ref_code=? AND status!='deleted'").bind(t('ref').toUpperCase().slice(0,12)).first();if(rf&&rf.id!==r.meta.last_row_id)await env.DB.prepare('UPDATE users SET referred_by=? WHERE id=?').bind(rf.id,r.meta.last_row_id).run()}
       if(vendor&&!t('code'))waitUntil(tg(env,'New vendor waiting for approval\n'+biz+' ('+name+')\n'+phone+' - '+t('where').slice(0,40)+'\nApprove it in Admin: '+url.origin));
       const u=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(r.meta.last_row_id).first();
-      return J({user:pub(u)},200,{'set-cookie':await start(env,u.id)});
+      return J({user:{...pub(u),freeLeft:await freeLeft(env,u.id)}},200,{'set-cookie':await start(env,u.id)});
     }catch(e){return /UNIQUE/i.test(String(e.message))?J({error:'An account with this '+(vendor?'phone number':'matric number or phone number')+' already exists. Try signing in.',field:vendor?'phone':'matric'},409):J({error:'Could not create account. Try again.'},500)}
   }
   if(path==='login'&&request.method==='POST'){
@@ -348,7 +354,7 @@ export async function onRequest({request,env,params,waitUntil}){
     if(!u||await pbk(String(b.password||''),u.salt)!==u.pw){await env.DB.prepare('INSERT INTO attempts(k,t) VALUES(?,?)').bind(k,now).run();return J({error:'Wrong matric number, phone or password.'},401)}
     await env.DB.prepare('DELETE FROM attempts WHERE t<?').bind(now-9e5).run();
     if(u.status==='suspended')return J({error:'This account has been suspended. Contact the Stall team if you think this is a mistake.'},403);
-    return J({user:pub(u)},200,{'set-cookie':await start(env,u.id)});
+    return J({user:{...pub(u),freeLeft:await freeLeft(env,u.id)}},200,{'set-cookie':await start(env,u.id)});
   }
   // ---- Student verification. Level 1: confirmed school email. Level 2: student ID or admission letter checked. Campus vendors don't need it.
   if(path==='verify/email/start'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
@@ -419,7 +425,7 @@ export async function onRequest({request,env,params,waitUntil}){
     const salt=rnd(16),t=cookie(request,'stall_s');await env.DB.prepare('UPDATE users SET salt=?,pw=? WHERE id=?').bind(salt,await pbk(pw,salt),u.id).run();
     await env.DB.prepare('DELETE FROM sessions WHERE uid=? AND h!=?').bind(u.id,await sha(t)).run();return J({ok:true})}
   if(path==='logout'){const t=cookie(request,'stall_s');if(t)await env.DB.prepare('DELETE FROM sessions WHERE h=?').bind(await sha(t)).run();return J({ok:true},200,{'set-cookie':'stall_s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'})}
-  if(path==='config')return J({creditPct:await creditPct(env),androidPkg:(await getK(env,'android_pkg'))||'',androidSha:(await getK(env,'android_sha'))||'',name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES},200,{'cache-control':'public, max-age=60'});
+  if(path==='config')return J({creditPct:await creditPct(env),freeSales:await freeSales(env),androidPkg:(await getK(env,'android_pkg'))||'',androidSha:(await getK(env,'android_sha'))||'',name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES},200,{'cache-control':'public, max-age=60'});
   if(path==='schools'&&request.method==='GET'){await ensure(env);return J({schools:(await env.DB.prepare('SELECT id,name,short,state,kind FROM schools WHERE active=1 ORDER BY name').all()).results,states:STATES},200,{'cache-control':'public, max-age=3600'})}
   if(path==='me/delivery'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
     const d=dlvIn(await request.json().catch(()=>({})));if(d.error)return J(d,400);
@@ -428,7 +434,7 @@ export async function onRequest({request,env,params,waitUntil}){
     await env.DB.prepare('UPDATE users SET school_id=?,state=? WHERE id=?').bind(sc.id,sc.state,u.id).run();return J({ok:true,school:sc})}
   if(path==='me'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
     const v=await env.DB.prepare('SELECT status,reason FROM verify_requests WHERE uid=?').bind(u.id).first(),ic=await env.DB.prepare('SELECT status,reason FROM id_checks WHERE uid=?').bind(u.id).first();
-    return J({user:{...pub(u),schoolInfo:await schoolOf(env,u.school_id),verify:v?v.status:null,verifyReason:v&&v.reason,idCheck:ic?ic.status:null,idReason:ic&&ic.reason,mustVerify:(await getK(env,'require_verified'))==='1'}})}
+    return J({user:{...pub(u),schoolInfo:await schoolOf(env,u.school_id),verify:v?v.status:null,verifyReason:v&&v.reason,idCheck:ic?ic.status:null,idReason:ic&&ic.reason,mustVerify:(await getK(env,'require_verified'))==='1',freeLeft:await freeLeft(env,u.id)}})}
   if(path==='listings'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);await ensure(env);const NOW=Math.floor(Date.now()/6e4)*6e4;waitUntil(dailyCleanup(env));
     const sp=url.searchParams,ids=(sp.get('ids')||'').split(',').map(x=>+x.slice(1)).filter(x=>x>0).slice(0,60),w=[LIVE],v=[];let lim=Math.min(96,Math.max(1,+sp.get('n')||24)),off=Math.max(0,+sp.get('off')||0),total;
     const cut=Math.floor((NOW-2*864e5)/6e5)*6e5;
@@ -822,6 +828,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     if(path==='admin/settings'&&request.method==='POST'){for(const k of ['biz_name','support_phone','support_email'])if(k in b)await setK(env,k,String(b[k]||'').trim().slice(0,120));
       if('ref_reward' in b){const v=Math.round(+b.ref_reward);if(!(v>=0&&v<=5000))return J({error:'Enter a referral reward from ₦0 to ₦5,000.'},400);await setK(env,'ref_reward',v)}
       if('ref_cap' in b){const v=Math.round(+b.ref_cap);if(!(v>=0&&v<=50000))return J({error:'Enter a monthly cap from ₦0 to ₦50,000.'},400);await setK(env,'ref_cap',v)}
+      if('free_sales' in b){const v=Math.round(+b.free_sales);if(!(v>=0&&v<=20))return J({error:'Enter a number of sales from 0 to 20.'},400);await setK(env,'free_sales',v)}
       if('credit_pct' in b){const v=Math.round(+b.credit_pct);if(!(v>=0&&v<=100))return J({error:'Enter a percentage from 0 to 100.'},400);await setK(env,'credit_pct',v)}
       if('require_verified' in b)await setK(env,'require_verified',b.require_verified?'1':'0');
       if('school_domains' in b){const ds=String(b.school_domains||'').toLowerCase().split(/[\s,]+/).filter(Boolean);if(ds.some(x=>!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(x)))return J({error:'Enter domains like unilag.edu.ng, separated by commas.'},400);await setK(env,'school_domains',ds.join(','))}
