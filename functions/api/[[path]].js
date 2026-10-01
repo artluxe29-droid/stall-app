@@ -171,10 +171,12 @@ const useCode=async(env,k,c)=>{const r=await env.DB.prepare('SELECT * FROM codes
   await env.DB.prepare('DELETE FROM codes WHERE k=?').bind(k).run();return{ok:true,data:r.data}};
 // A school email: ends in .edu.ng (e.g. name@live.unilag.edu.ng), or a domain an admin added in Settings.
 const schoolMail=async(env,e)=>{const d=String(e).split('@')[1]||'';if(/\.edu\.ng$/.test(d))return true;const extra=String((await getK(env,'school_domains'))||'').split(/[\s,]+/).filter(Boolean);return extra.some(x=>d===x||d.endsWith('.'+x))};
+// School documents a student can show. Any of them proves they study there, whatever their email looks like.
+const DOCS={id:'student ID card',admission:'admission letter',courseform:'course registration form',fees:'school fees receipt or payment slip'};
 // Reads a student ID card or admission letter. YES only if it looks real and the name matches the account.
 async function aiCheckId(env,dataUrl,name,school,kind){if(!env.AI)return{ok:null,why:'Automatic check is not connected.'};
   try{const m=dataUrl.match(/^data:image\/[a-z]+;base64,(.*)$/s);if(!m)return{ok:null,why:'Could not read the photo.'};const bytes=Uint8Array.from(atob(m[1]),c=>c.charCodeAt(0));
-    const prompt='You check documents for a Nigerian student marketplace. This photo should be a '+(kind==='admission'?'university admission letter':'student ID card')+' from "'+school+'" for a student named "'+name+'". '
+    const prompt='You check documents for a Nigerian student marketplace. This photo should be a '+(DOCS[kind]||DOCS.id)+' from "'+school+'" for a student named "'+name+'". '
       +'Reply with exactly one word. YES if it clearly is that kind of document, it looks genuine (not a screenshot of a template, not edited), and the name on it matches "'+name+'" (allow different order or a middle name). '
       +'NO if it is a different kind of image, the name clearly does not match, or it looks fake or edited. UNSURE if you cannot tell.';
     const M='@cf/meta/llama-3.2-11b-vision-instruct',go=()=>env.AI.run(M,{image:[...bytes],prompt,max_tokens:6});
@@ -310,8 +312,8 @@ export async function onRequest({request,env,params,waitUntil}){
     await env.DB.prepare('UPDATE users SET email=?,email_verified=1,vlevel=? WHERE id=?').bind(email,lvl,u.id).run();if(lvl!==(u.vlevel||0))await bumpVer(env);
     return J({ok:true,vlevel:lvl,school:sch})}
   if(path==='verify/id'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
-    const b=await request.json().catch(()=>({})),kind=b.kind==='admission'?'admission':'id',photo=String(b.photo||'');
-    if((u.vlevel||0)>=2)return J({error:'You are already verified.'},400);if(!imgOk(photo))return J({error:'Add a clear photo of your student ID card or admission letter.'},400);
+    const b=await request.json().catch(()=>({})),kind=DOCS[b.kind]?b.kind:'id',photo=String(b.photo||'');
+    if((u.vlevel||0)>=2)return J({error:'You are already verified.'},400);if(!imgOk(photo))return J({error:'Add a clear photo of your school document.'},400);
     if(!await allow(env,'vid:'+u.id,5,864e5))return slow();
     const sc=await schoolOf(env,u.school_id),ai=await aiCheckId(env,photo,u.name,sc?sc.name:'your school',kind),now=Date.now();
     const st=ai.ok===true?'approved':'pending';
