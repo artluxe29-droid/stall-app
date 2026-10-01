@@ -204,6 +204,7 @@ dialog.adm[open]{display:flex;flex-direction:column}
 .codebox input{width:100%;box-sizing:border-box}
 .istats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.istats .stat{padding:12px}.istats .stat b{font-size:22px}.istats .stat span{font-size:12.5px}
 a.pill{text-decoration:none}.bst{width:20px;font-weight:700;padding-top:20px}
+.fprow{display:grid;grid-template-columns:1.1fr .9fr 1.3fr;gap:8px;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}.fprow span:last-child{text-align:right;font-weight:600;color:var(--green)}.fprow .neg{color:#E5484D!important}.fprow.fph span{font-size:12px;color:var(--muted)!important;font-weight:600}
 .yget{margin:8px 0 14px;padding:10px 12px;border-radius:12px;background:var(--bg2);font-size:13px;color:var(--muted);line-height:1.45}.yget b{display:block;font-size:17px;color:var(--green);letter-spacing:-.01em}.yget.low b{color:#E5484D}.bget{display:block;font-size:12px;color:var(--muted);margin-top:4px}.bget b{color:var(--green)}.brow .bst:not(:empty){color:var(--green)}.brow.bad .bst{color:#E5484D}
 .sbtn{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .slogo{width:100%;height:100%;object-fit:cover;display:block}.tile .slogo{width:62%;height:auto;aspect-ratio:1;border-radius:22px;box-shadow:0 6px 20px rgba(0,0,0,.12)}.sav.haslogo{padding:0;overflow:hidden;background:#fff!important}
@@ -526,7 +527,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
  <div class="opt sel" style="margin-top:14px"><span>One-time store fee: ₦5,000<small>Paid online when you open your store. Listing single items stays free.</small></span></div>
  <div class="two"><label>Payout bank<select name="bank_code"><option value="044">Access Bank</option><option value="070">Fidelity Bank</option><option value="011">First Bank</option><option value="214">FCMB</option><option value="058">GTBank</option><option value="50211">Kuda</option><option value="50515">Moniepoint</option><option value="999992">OPay</option><option value="999991">PalmPay</option><option value="221">Stanbic IBTC</option><option value="232">Sterling Bank</option><option value="033">UBA</option><option value="032">Union Bank</option><option value="035">Wema Bank</option><option value="057">Zenith Bank</option></select></label><label>Account number<input name="acct" required inputmode="numeric" pattern="\d{10}" maxlength="10" placeholder="10 digits"></label></div>
   <input type="hidden" name="acctName"><input type="hidden" name="bankManual"><div class="acts" style="margin:0 0 10px"><button type="button" class="pill sm alt" data-verify-bank>Verify account</button><span class="meta bankok"></span></div>
-  <p class="note">Stall holds each buyer's payment until they have their order, then sends it to this account minus a sale fee of 5% (at least ₦150, never more than ₦2,000).</p>
+  <p class="note">Stall holds each buyer's payment until they have their order, then sends it to this account minus a sale fee of <span data-feedesc>5% (at least ₦150, never more than ₦2,000)</span>.</p>
  <div class="acts"><button class="pill" type="submit">Pay ₦5,000 and open store</button><button class="pill alt" type="button" data-close>Cancel</button></div></form></div></dialog>
 <div id="gate" hidden></div>
 <dialog id="detail"></dialog>
@@ -555,7 +556,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
   
   <div class="two"><label>Payout bank<select name="bank_code"><option value="044">Access Bank</option><option value="070">Fidelity Bank</option><option value="011">First Bank</option><option value="214">FCMB</option><option value="058">GTBank</option><option value="50211">Kuda</option><option value="50515">Moniepoint</option><option value="999992">OPay</option><option value="999991">PalmPay</option><option value="221">Stanbic IBTC</option><option value="232">Sterling Bank</option><option value="033">UBA</option><option value="032">Union Bank</option><option value="035">Wema Bank</option><option value="057">Zenith Bank</option></select></label><label>Account number<input name="acct" required inputmode="numeric" pattern="\d{10}" maxlength="10" placeholder="10 digits"></label></div>
   <input type="hidden" name="acctName"><input type="hidden" name="bankManual"><div class="acts" style="margin:0 0 10px"><button type="button" class="pill sm alt" data-verify-bank>Verify account</button><span class="meta bankok"></span></div>
-  <p class="note">Free to list. Stall holds each buyer's payment until they have their order, then sends it to this account minus a sale fee of 5% (at least ₦150, never more than ₦2,000).</p>
+  <p class="note">Free to list. Stall holds each buyer's payment until they have their order, then sends it to this account minus a sale fee of <span data-feedesc>5% (at least ₦150, never more than ₦2,000)</span>.</p>
   <div class="acts"><button class="pill" type="submit">Post listing</button><button class="pill alt" type="button" data-close>Cancel</button></div>
  </form></div></dialog>
 <div class="toast" id="toast" hidden></div>
@@ -689,7 +690,10 @@ function openCheckout(){
 }
 const fetchJ=(u,o)=>fetch(u,o).then(r=>r.json());
 const payEmail=()=>S.user.email||('buyer'+String(S.user.phone||'0').replace(/\D/g,'')+'@stall.app');
-const feeOf=a=>Math.min(Math.max(Math.round(a*.05),150),2000,Math.floor(a/2));
+// Stall's sale fee, as set in Admin > Settings > Sale fee (the server works it out the same way).
+const feeC=()=>(typeof CFG!=='undefined'&&CFG.fee)||{rate:5,min:150,cap:2000};
+const feeOf=a=>{const c=feeC();return Math.min(Math.max(Math.round(a*c.rate/100),c.min),c.cap,Math.floor(a/2))};
+const feeDesc=()=>{const c=feeC();return c.rate+'% ('+(c.min?'at least '+naira(c.min)+', ':'')+'never more than '+naira(c.cap)+')'};
 const PRICE={listing:{3:300,7:500},store:{3:500,7:1000},verify:1000,reach:{state:2000,national:5000}},VB='<span class="vb">✓ Verified</span>';
 // Student checks: 1 = confirmed school email, 2 = student ID or admission letter checked.
 const SB=l=>l>=2?'<span class="sb" title="Stall checked a school document">✓ Verified student</span>':l===1?'<span class="sb" title="Confirmed a school email address">✓ School email</span>':'';
@@ -1082,8 +1086,8 @@ const pk1=mkPicker($('#pkSell')),pk2=mkPicker($('#pkItem'));
 // Show sellers exactly what they'll receive for the price they type.
 const freeN=()=>(S.user&&S.user.freeLeft)||0,sales=n=>n===1?'sale':n+' sales';
 const earnText=p=>{const n=freeN();if(!(p>0))return n?`<b>Launch offer: no fee on your next ${sales(n)}</b>Enter a price to see exactly what you get.`:'<b>Enter a price</b>We\'ll show exactly what you get when it sells.';if(p<500)return '<b>The minimum price is ₦500</b>';
-  return n?`<b>You get ${naira(p)}</b>Launch offer: no Stall fee on your next ${sales(n)}. After that you'd get ${naira(p-feeOf(p))} (fee ${naira(feeOf(p))}: 5%, min ₦150, max ₦2,000). Delivery fees are always yours.`
-   :`<b>You get ${naira(p-feeOf(p))}</b>Buyer pays ${naira(p)} · Stall's fee ${naira(feeOf(p))} (5%, min ₦150, max ₦2,000). Delivery fees are all yours.`};
+  return n?`<b>You get ${naira(p)}</b>Launch offer: no Stall fee on your next ${sales(n)}. After that you'd get ${naira(p-feeOf(p))} (fee ${naira(feeOf(p))}: ${feeDesc()}). Delivery fees are always yours.`
+   :`<b>You get ${naira(p-feeOf(p))}</b>Buyer pays ${naira(p)} · Stall's fee ${naira(feeOf(p))}: ${feeDesc()}. Delivery fees are all yours.`};
 const earnShow=f=>{const n=f.querySelector('[data-earn]'),p=+f.elements.price.value;if(n){n.innerHTML=earnText(p);n.classList.toggle('low',p>0&&p<500)}};
 window.earnAll=()=>document.querySelectorAll('[data-earn]').forEach(n=>earnShow(n.closest('form')));
 document.querySelectorAll('[data-earn]').forEach(n=>{const f=n.closest('form');f.elements.price.addEventListener('input',()=>earnShow(f));f.addEventListener('reset',()=>setTimeout(()=>earnShow(f)));earnShow(f)});
@@ -1091,7 +1095,8 @@ const SCHOOL={matric:/^[A-Za-z0-9\/-]{4,16}$/};
 // Schools across Nigeria, for sign-up, the school switcher and store locations.
 let SCH=[],STATES=[],CFG={name:'Stall',phone:'',email:''};const schLabel=x=>x.name+(x.short?' ('+x.short+')':'')+' — '+x.state;
 fetch('/api/schools').then(r=>r.json()).then(r=>{SCH=r.schools||[];STATES=r.states||[];$('#schoolList').innerHTML=SCH.map(x=>`<option value="${esc(schLabel(x))}">`).join('');document.querySelectorAll('select[name=school_state]').forEach(fillStates)}).catch(()=>{});
-fetch('/api/config').then(r=>r.json()).then(r=>{CFG=r;drawHelp()}).catch(()=>{});
+const drawFee=()=>document.querySelectorAll('[data-feedesc]').forEach(n=>n.textContent=feeDesc());
+fetch('/api/config').then(r=>r.json()).then(r=>{CFG=r;drawHelp();drawFee()}).catch(()=>{});
 const fillStates=el=>{if(el.options.length<2)el.innerHTML='<option value="">Choose…</option>'+STATES.map(x=>`<option>${x}</option>`).join('')};
 const SCP=()=>`<label>Your school<input name="school" list="schoolList" autocomplete="off" placeholder="Start typing, e.g. UNILAG or Yaba Tech"><span class="err" data-e="school"></span></label>
   <p class="note"><button type="button" class="link" data-newschool style="font-size:13px">My school isn't on the list</button></p>
@@ -1104,6 +1109,10 @@ function openSchoolPick(force){const d=$('#schDlg');d.innerHTML=`<form class="pa
   <div class="acts"><button class="pill" type="submit">Save</button>${force?'':'<button class="pill alt" type="button" data-close>Cancel</button>'}</div></form>`;d.showModal();
   $('#schForm').onsubmit=async e=>{e.preventDefault();const b=schoolBody(e.target);if(b.error)return $('#schErr').textContent=b.error;const r=await apiPost('me/school',b);if(r.error)return $('#schErr').textContent=r.error;
     d.close();toast('School saved');S.scope='school';await refreshMe();loadPub()}}
+// Admin preview: what the fee typed in would take on a few order sizes, and roughly what Stall keeps after Paystack.
+function feePrev(f){const c={rate:+f.elements.fee_rate.value||0,min:+f.elements.fee_min.value||0,cap:+f.elements.fee_cap.value||0},
+  fee=a=>Math.min(Math.max(Math.round(a*c.rate/100),c.min),c.cap,Math.floor(a/2)),ps=a=>Math.min(Math.round(a*.015)+(a>=2500?100:0),2000),tr=a=>a<=5000?10:a<=50000?25:50;
+  $('#feePrev').innerHTML='<p class="lb">Preview</p><div class="fprow fph"><span>Item price</span><span>Fee</span><span>Stall keeps ≈</span></div>'+[1000,3000,10000,50000,150000].map(a=>{const x=fee(a),k=x-ps(a)-tr(a-x);return `<div class="fprow"><span>${naira(a)}</span><span>${naira(x)}</span><span class="${k<0?'neg':''}">${k<0?'−'+naira(-k):naira(k)}</span></div>`}).join('')+'<p class="meta">"Stall keeps" is after Paystack\'s charges.</p>'+(c.cap<c.min?'<p class="err">The maximum can\'t be lower than the minimum.</p>':'')}
 function drawHelp(){const h=$('#helpLinks');if(!h)return;const w=String(CFG.phone||'').replace(/\D/g,'').replace(/^0/,'234');
   h.innerHTML=`<a href="/rules">Buyer protection</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a>${w?` · <a href="https://wa.me/${w}" target="_blank" rel="noopener">WhatsApp support</a>`:''}${CFG.email?` · <a href="mailto:${esc(CFG.email)}">${esc(CFG.email)}</a>`:''}`}
 // Onboarding: four animated "story" slides. Tap right/left or swipe to move, press and hold to pause.
@@ -1253,7 +1262,7 @@ const GUIDE={buy:['Buying',[
   ['lock','Add your bank account once','When you first sell, add the account you want to be paid into. Tap <b>Verify account</b> so the name is confirmed automatically.',null],
   ['truck','Offer delivery (optional)','In <b>Account → Delivery</b>, switch on "I deliver" and set your fee. Buyers can then choose delivery, and you keep the whole delivery fee.','delivery'],
   ['box','Handle orders','New paid orders appear under <b>Account → Orders to fulfil</b>. Tap <b>Mark as packed</b>, then <b>Out for delivery</b> or <b>Ready for pickup</b>, so the buyer knows what\'s happening.','selling'],
-  ['wallet','Get paid','Stall holds the buyer\'s money until they have the item. Enter the buyer\'s release code and we send the money to your bank, minus a 5% fee (at least ₦150, never more than ₦2,000). If the buyer reports no problem, you\'re paid automatically after 7 days.',null],
+  ['wallet','Get paid','Stall holds the buyer\'s money until they have the item. Enter the buyer\'s release code and we send the money to your bank, minus a fee of {fee}. If the buyer reports no problem, you\'re paid automatically after 7 days.',null],
   ['store','Open a store','Running a campus business? Open a store for a one-time ₦5,000 to list many items in one place, and pay to reach your whole state or the whole country.','stores'],
   ['layers','Add many items at once','Tap <b>Sell</b>, then <b>Selling several things?</b> to add up to 10 items in one go: a photo, name and price each.','sell'],
   ['share','Share your items','Tap <b>Share</b> on any item or your store to send it on WhatsApp or your status. The link opens straight to it.',null],
@@ -1275,7 +1284,7 @@ const GUIDE={buy:['Buying',[
 function openGuide(tab){tab=GUIDE[tab]?tab:(S.user&&S.user.role==='vendor'?'sell':'buy');S.guideSeen=1;save();$('#guideCard').hidden=true;const d=$('#accDlg');
   d.innerHTML=`<div class="pad"><h2>How Stall works</h2><p class="meta">Everything in one place. Tap a topic, and use "Show me" to jump straight there.</p>
    <div class="gtabs">${Object.entries(GUIDE).map(([k,[l]])=>`<button type="button" data-gtab="${k}" aria-pressed="${k===tab}">${l}</button>`).join('')}</div>
-   <div>${GUIDE[tab][1].map(([ic,t,x,go],i)=>`<div class="gstep"><span class="gn">${ico(ic)}</span><div><b class="gtl">${i+1}. ${t}</b><p>${x}</p>${go?`<button class="link" data-gtry="${go}">Show me ›</button>`:''}</div></div>`).join('')}</div>
+   <div>${GUIDE[tab][1].map(([ic,t,x,go],i)=>`<div class="gstep"><span class="gn">${ico(ic)}</span><div><b class="gtl">${i+1}. ${t}</b><p>${x.replace('{fee}',feeDesc())}</p>${go?`<button class="link" data-gtry="${go}">Show me ›</button>`:''}</div></div>`).join('')}</div>
    <div class="acts"><button class="pill alt" data-close>Got it</button></div></div>`;if(!d.open)d.showModal();d.querySelector('.pad').scrollTop=0}
 function guideTry(go){$('#accDlg').close();
   ({shop:()=>{view('shop');$('#q').focus()},filters:()=>{view('shop');$('#browse').scrollIntoView();$('#fPanel').hidden=false},sell:()=>$('#tbSell').click(),orders:()=>view('orders'),selling:()=>view('selling'),stores:()=>view('stores'),
@@ -1384,6 +1393,7 @@ async function openAdmin(){const d=$('#adminDlg');AD.rev=!S.user.admin;if(AD.rev
     if(r&&r.error)return toast(r.error);toast(msg);adminSum();adminLoad()};
   d.onsubmit=async e=>{const f=e.target;e.preventDefault();
     if(f.id==='refForm'){const r=await apiPost('admin/settings',{ref_reward:f.elements.ref_reward.value,ref_cap:f.elements.ref_cap.value,credit_pct:f.elements.credit_pct.value});if(r.error)return toast(r.error);AD.sum.refReward=+f.elements.ref_reward.value;AD.sum.refCap=+f.elements.ref_cap.value;AD.sum.creditPct=+f.elements.credit_pct.value;CFG.creditPct=AD.sum.creditPct;toast('Saved');return}
+    if(f.id==='feeForm'){const v={fee_rate:f.elements.fee_rate.value,fee_min:f.elements.fee_min.value,fee_cap:f.elements.fee_cap.value},r=await apiPost('admin/settings',v);if(r.error)return toast(r.error);CFG.fee={rate:+v.fee_rate,min:+v.fee_min,cap:+v.fee_cap};drawFee();toast('Sale fee saved');return}
     if(f.id==='freeForm'){const r=await apiPost('admin/settings',{free_sales:f.elements.free_sales.value});if(r.error)return toast(r.error);CFG.freeSales=+f.elements.free_sales.value;toast('Saved');return}
     if(f.id==='stuForm'){const r=await apiPost('admin/settings',{require_verified:f.elements.require_verified.checked,school_domains:f.elements.school_domains.value});if(r.error)return toast(r.error);AD.sum.requireVerified=f.elements.require_verified.checked;AD.sum.schoolDomains=f.elements.school_domains.value;toast('Saved');return}
     if(f.id==='andForm'){const r=await apiPost('admin/settings',{android_pkg:f.elements.android_pkg.value,android_sha:f.elements.android_sha.value});if(r.error)return toast(r.error);CFG={...CFG,androidPkg:f.elements.android_pkg.value.trim(),androidSha:f.elements.android_sha.value.toUpperCase().split(/[\s,]+/).filter(Boolean).join(',')};toast('Android app settings saved');return}
@@ -1411,11 +1421,14 @@ function adminTab(k){AD.tab=k;const S0=ast(k),m=AMETA[k];document.querySelectorA
      <form id="refForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('gift')}</span><b>Invite rewards</b></div><p class="meta">When someone who joined with a friend's invite link completes their first order, both get this much Stall credit. Credit can only pay part of featuring items and stores or store reach, never cash. Keep it small so paid featuring keeps its value. Set the reward to 0 to turn rewards off. ${AD.sum.referrals?`So far: ${AD.sum.referrals.n} joined by invite, ${AD.sum.referrals.p} rewarded.`:''}</p>
      <div class="two"><label>Reward for each person (₦)<input name="ref_reward" type="number" min="0" max="5000" value="${AD.sum.refReward!=null?AD.sum.refReward:100}"></label><label>Most anyone can earn a month (₦)<input name="ref_cap" type="number" min="0" max="50000" value="${AD.sum.refCap!=null?AD.sum.refCap:500}"></label></div>
      <label>Credit can pay up to (% of a featuring or reach price)<input name="credit_pct" type="number" min="0" max="100" value="${AD.sum.creditPct!=null?AD.sum.creditPct:50}"></label><p class="meta">Credit held by users right now: ${naira(AD.sum.creditOut||0)}.</p><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>
+     <form id="feeForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('wallet')}</span><b>Sale fee</b></div><p class="meta">What Stall keeps from each order paid through Stall: a percentage of the item price, with a minimum and a maximum. Delivery fees always go to the seller. Stall pays Paystack's charges (about 1.5% + ₦100 per payment, plus ₦10–₦50 per payout) out of this, so a fee below that loses money. A new fee applies to orders placed after you save; sellers see it straight away.</p>
+     <div class="two"><label>Rate (%)<input name="fee_rate" type="number" min="0" max="20" step="0.5" value="${feeC().rate}"></label><label>Minimum (₦)<input name="fee_min" type="number" min="0" max="5000" value="${feeC().min}"></label></div>
+     <label>Maximum (₦)<input name="fee_cap" type="number" min="0" max="50000" value="${feeC().cap}"></label><div class="feeprev" id="feePrev"></div><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>
      <form id="freeForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('gift')}</span><b>Launch offer for sellers</b></div><p class="meta">Each seller pays no Stall fee on this many of their first paid sales. Sellers see it when they set a price. Stall still pays Paystack's charges on these sales. Set it to 0 to end the offer; sales already paid keep their fee.</p>
      <label>Fee-free sales per seller<input name="free_sales" type="number" min="0" max="20" value="${CFG.freeSales!=null?CFG.freeSales:3}"></label><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>
      <form id="andForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('phone')}</span><b>Android app (Google Play)</b></div><p class="meta">Lets the Play Store app open Stall full screen, without a browser bar. Use the package name you chose in PWABuilder, and the SHA-256 fingerprint from Play Console → Test and release → App integrity → App signing. You can add more than one fingerprint, separated by commas.</p>
      <label>Package name<input name="android_pkg" maxlength="100" value="${esc(CFG.androidPkg||'')}" placeholder="app.stall.twa"></label><label>SHA-256 fingerprint(s)<textarea name="android_sha" rows="3" placeholder="AB:CD:EF:…">${esc((CFG.androidSha||'').split(',').join(',\n'))}</textarea></label>
-     <p class="meta">Check it: <a class="link" href="/.well-known/assetlinks.json" target="_blank" rel="noopener">/.well-known/assetlinks.json</a></p><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>`;return}
+     <p class="meta">Check it: <a class="link" href="/.well-known/assetlinks.json" target="_blank" rel="noopener">/.well-known/assetlinks.json</a></p><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>`;const ff=$('#feeForm');ff.oninput=()=>feePrev(ff);feePrev(ff);return}
   $('#ab').innerHTML=(k==='schools'?`<form id="schAdd" class="atools"><input class="search" name="name" maxlength="90" placeholder="Add a school: full name" required><input class="search" name="short" maxlength="16" placeholder="Short name (optional)" style="flex:0 1 180px"><select name="state" class="sort" required><option value="">State…</option>${STATES.map(x=>`<option>${x}</option>`).join('')}</select><button class="pill sm" type="submit">Add</button></form>`:'')+(k==='codes'?`<form id="codeForm" class="atools"><input class="search" name="label" maxlength="40" placeholder="New code for which shop or vendor?" required><button class="pill sm" type="submit">Create code</button></form><span class="err" id="codeErr"></span><div id="codeOut"></div>`:'')
    +(AQ[k]?`<div class="atools"><input class="search asearch" type="search" placeholder="${AQ[k]}" value="${esc(S0.q)}"></div>`:'')
    +(AF[k]?`<div class="fchips">${AF[k].map(([v,l])=>`<button class="fchip" data-af="${v}" aria-pressed="${S0.f===v}">${l}</button>`).join('')}</div>`:'')

@@ -116,9 +116,10 @@ const reviewItem=async(env,tbl,id,dataUrl,title,cat,desc)=>{const r=await aiChec
   if(r.ok!==true)await tg(env,'Listing needs a look\n'+title+'\n'+r.why);await bumpVer(env)};
 // Prices in naira. Change them here.
 const PRICE={listing:{3:300,7:500},store:{3:500,7:1000},verify:1000,reach:{state:2000,national:5000}},REACH_DAYS=30;
-// Stall's cut of each order paid through Paystack: 5%, at least ₦150 and never more than ₦2,000. Stall pays Paystack's own fee out of it.
-// The minimum stops cheap orders costing Stall more in Paystack fees than it earns; it never takes more than half of an order (older listings under MIN_PRICE).
-const COMMISSION={rate:.05,min:150,cap:2000},MIN_PRICE=500,feeOf=a=>Math.min(Math.max(Math.round(a*COMMISSION.rate),COMMISSION.min),COMMISSION.cap,Math.floor(a/2));
+// Stall's cut of each order paid through Paystack: rate% of the item price, at least min and never more than cap (Admin > Settings > Sale fee;
+// defaults 5%, ₦150, ₦2,000). Stall pays Paystack's own fee out of it. It never takes more than half of an order (older listings under MIN_PRICE).
+const FEE_DEF={rate:5,min:150,cap:2000},MIN_PRICE=500,feeOf=(a,c=FEE_DEF)=>Math.min(Math.max(Math.round(a*c.rate/100),c.min),c.cap,Math.floor(a/2));
+const feeCfg=async env=>{const g=async(k,d)=>{const v=await getK(env,k);return v==null||v===''?d:+v};return{rate:await g('fee_rate',FEE_DEF.rate),min:await g('fee_min',FEE_DEF.min),cap:await g('fee_cap',FEE_DEF.cap)}};
 // Delivery: sellers deliver themselves for a fee they set (couriers can be added later as another method).
 // After payment the seller moves the order along these steps; the buyer's release code marks it delivered.
 const DFEE_MAX=20000,STAGES={delivery:['paid','packed','on_way'],pickup:['paid','ready']};
@@ -288,7 +289,7 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
     if(p.kind==='store'){const has=await env.DB.prepare('SELECT id FROM stores WHERE uid=?').bind(u.id).first();
       if(has){res={id:'S'+has.id,note:'You already had a store, so no new one was made. Contact Stall support for a refund with reference '+ref};act='paid store fee but already had a store (refund due)';await tg(env,'Refund due: '+u.name+' paid a store fee but already has a store. Ref '+ref)}
       else{res={id:'S'+await makeStore(env,u,d.d||{},ref)};act='opened a store'}}
-    else if(p.kind==='order'){const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(+d.oid).first(),fee0=d.fee!=null?d.fee:feeOf(p.amount);
+    else if(p.kind==='order'){const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(+d.oid).first(),fee0=d.fee!=null?d.fee:feeOf(p.amount,await feeCfg(env));
       if(!o)throw new Error('order missing');
       // An order already paid keeps its fee; a new sale within the seller's launch offer has none.
       const fee=o.paid_at?(o.fee!=null?o.fee:fee0):(await freeLeft(env,o.seller))>0?0:fee0;let st='verified',note=null;
@@ -425,7 +426,7 @@ export async function onRequest({request,env,params,waitUntil}){
     const salt=rnd(16),t=cookie(request,'stall_s');await env.DB.prepare('UPDATE users SET salt=?,pw=? WHERE id=?').bind(salt,await pbk(pw,salt),u.id).run();
     await env.DB.prepare('DELETE FROM sessions WHERE uid=? AND h!=?').bind(u.id,await sha(t)).run();return J({ok:true})}
   if(path==='logout'){const t=cookie(request,'stall_s');if(t)await env.DB.prepare('DELETE FROM sessions WHERE h=?').bind(await sha(t)).run();return J({ok:true},200,{'set-cookie':'stall_s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'})}
-  if(path==='config')return J({creditPct:await creditPct(env),freeSales:await freeSales(env),androidPkg:(await getK(env,'android_pkg'))||'',androidSha:(await getK(env,'android_sha'))||'',name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES},200,{'cache-control':'public, max-age=60'});
+  if(path==='config')return J({creditPct:await creditPct(env),fee:await feeCfg(env),freeSales:await freeSales(env),androidPkg:(await getK(env,'android_pkg'))||'',androidSha:(await getK(env,'android_sha'))||'',name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES},200,{'cache-control':'public, max-age=60'});
   if(path==='schools'&&request.method==='GET'){await ensure(env);return J({schools:(await env.DB.prepare('SELECT id,name,short,state,kind FROM schools WHERE active=1 ORDER BY name').all()).results,states:STATES},200,{'cache-control':'public, max-age=3600'})}
   if(path==='me/delivery'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
     const d=dlvIn(await request.json().catch(()=>({})));if(d.error)return J(d,400);
@@ -584,13 +585,14 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     if(!env.PAYSTACK_SECRET)return fail('Payments are not set up yet. Please try again later.');
     for(const gk in groups){const g=groups[gk];if(!okCard(g)){waitUntil(tg(env,'A buyer could not pay '+g.sname+' ('+(g.sphone||'')+'): their payout account is not confirmed yet. Check Payouts in Admin.'));
       return fail('"'+g.items[0].title+'" can\'t be bought yet. The seller\'s bank account is still being checked. Remove it from your bag or try again later.')}}
+    const fc=await feeCfg(env);
     for(const gk in groups){const g=groups[gk],amount=g.items.reduce((s,i)=>s+i.price*i.q,0);
       const title=g.items.length===1?(g.items[0].q>1?g.items[0].q+' × ':'')+g.items[0].title:g.items.length+' items';
       const r=await env.DB.prepare('INSERT INTO orders(buyer,seller,buyer_name,buyer_phone,seller_name,seller_phone,title,amount,bank_name,acct_no,acct_name,status,deadline,created,updated,bank_code,bank_ok,fee,sub,d_on,d_fee,d_note,pickup) VALUES(?,?,?,?,?,?,?,?,?,?,?,\'pending\',?,?,?,?,?,?,?,?,?,?,?)')
-        .bind(u.id,g.seller,u.name,u.phone,g.sname,g.sphone||'',title,amount,g.bank,g.acct,g.acctName,now+PAY_WINDOW,now,now,BANKS[g.bcode]?g.bcode:null,okCard(g)?1:0,feeOf(amount),amount,g.dl.on?1:0,g.dl.fee,g.dl.note||null,clean(g.pickup,60)||null).run();
+        .bind(u.id,g.seller,u.name,u.phone,g.sname,g.sphone||'',title,amount,g.bank,g.acct,g.acctName,now+PAY_WINDOW,now,now,BANKS[g.bcode]?g.bcode:null,okCard(g)?1:0,feeOf(amount,fc),amount,g.dl.on?1:0,g.dl.fee,g.dl.note||null,clean(g.pickup,60)||null).run();
       const oid=r.meta.last_row_id;
       await env.DB.batch(g.items.map(i=>env.DB.prepare('INSERT INTO order_items(oid,kind,ref_id,title,price,q) VALUES(?,?,?,?,?,?)').bind(oid,i.kind,i.ref_id,i.title,i.price,i.q)));
-      made.push({id:oid,title,amount,bank:g.bank,acct:g.acct,acctName:g.acctName,sellerName:g.sname,sellerPhone:g.sphone||'',status:'pending',deadline:now+PAY_WINDOW,card:okCard(g)&&!!env.PAYSTACK_SECRET,fee:feeOf(amount),sub:amount,deliv:g.dl,pickup:clean(g.pickup,60),method:null,stage:null,track:[]})}
+      made.push({id:oid,title,amount,bank:g.bank,acct:g.acct,acctName:g.acctName,sellerName:g.sname,sellerPhone:g.sphone||'',status:'pending',deadline:now+PAY_WINDOW,card:okCard(g)&&!!env.PAYSTACK_SECRET,fee:feeOf(amount,fc),sub:amount,deliv:g.dl,pickup:clean(g.pickup,60),method:null,stage:null,track:[]})}
     await bump();return J({orders:made})}
   if(path==='orders/mine'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);
     const rs=(await env.DB.prepare('SELECT * FROM orders WHERE buyer=? ORDER BY created DESC LIMIT 100').bind(u.id).all()).results;
@@ -828,6 +830,10 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     if(path==='admin/settings'&&request.method==='POST'){for(const k of ['biz_name','support_phone','support_email'])if(k in b)await setK(env,k,String(b[k]||'').trim().slice(0,120));
       if('ref_reward' in b){const v=Math.round(+b.ref_reward);if(!(v>=0&&v<=5000))return J({error:'Enter a referral reward from ₦0 to ₦5,000.'},400);await setK(env,'ref_reward',v)}
       if('ref_cap' in b){const v=Math.round(+b.ref_cap);if(!(v>=0&&v<=50000))return J({error:'Enter a monthly cap from ₦0 to ₦50,000.'},400);await setK(env,'ref_cap',v)}
+      if('fee_rate' in b||'fee_min' in b||'fee_cap' in b){const c=await feeCfg(env),r='fee_rate' in b?Math.round(+b.fee_rate*10)/10:c.rate,mn='fee_min' in b?Math.round(+b.fee_min):c.min,cp='fee_cap' in b?Math.round(+b.fee_cap):c.cap;
+        if(!(r>=0&&r<=20))return J({error:'Enter a fee rate from 0% to 20%.'},400);if(!(mn>=0&&mn<=5000))return J({error:'Enter a minimum fee from ₦0 to ₦5,000.'},400);
+        if(!(cp>=0&&cp<=50000))return J({error:'Enter a maximum fee from ₦0 to ₦50,000.'},400);if(cp<mn)return J({error:'The maximum fee can\'t be lower than the minimum.'},400);
+        await setK(env,'fee_rate',r);await setK(env,'fee_min',mn);await setK(env,'fee_cap',cp);await logA(env,a,'other','changed the sale fee',r+'%, min ₦'+mn+', max ₦'+cp)}
       if('free_sales' in b){const v=Math.round(+b.free_sales);if(!(v>=0&&v<=20))return J({error:'Enter a number of sales from 0 to 20.'},400);await setK(env,'free_sales',v)}
       if('credit_pct' in b){const v=Math.round(+b.credit_pct);if(!(v>=0&&v<=100))return J({error:'Enter a percentage from 0 to 100.'},400);await setK(env,'credit_pct',v)}
       if('require_verified' in b)await setK(env,'require_verified',b.require_verified?'1':'0');
@@ -878,7 +884,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
         const base=o.sub!=null?o.sub:o.amount,method=b.method==='delivery'?'delivery':'pickup',addr=clean(b.addr,160),dphone=clean(b.dphone,20)||u.phone;
         if(method==='delivery'){if(!o.d_on)return J({error:'This seller does not deliver. Choose pickup.'},400);if(addr.length<5)return J({error:'Enter where the seller should bring your order (hostel, room, landmark).'},400)}
         // Stall's fee is on the items only, not on the delivery fee.
-        const total=base+(method==='delivery'?o.d_fee||0:0),fee=feeOf(base);
+        const total=base+(method==='delivery'?o.d_fee||0:0),fee=feeOf(base,await feeCfg(env));
         w={amount:total,label:o.title};data={oid:o.id,method,addr:method==='delivery'?addr:null,dphone:method==='delivery'?dphone:null,fee}}
       else if(kind==='store'){if(u.role==='student'&&!(u.vlevel>=1)&&(await getK(env,'require_verified'))==='1')return J({error:'Verify that you\'re a student before you sell: confirm your school email or upload your student ID in Account → Verify.',verify:true},403);const d=b.d||{},bad=storeBad(d);if(bad)return J({error:bad},400);if(await env.DB.prepare('SELECT 1 FROM stores WHERE uid=?').bind(u.id).first())return J({error:'You already have a store.'},409);
         if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);w={amount:STORE_FEE,label:'Store: '+clean(d.name,40)};data={d}}
