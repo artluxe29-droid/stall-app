@@ -125,3 +125,6 @@ CREATE INDEX IF NOT EXISTS order_items_oid ON order_items(oid);
 
 -- Seller ratings: one per completed order. users.rating_sum / rating_n hold the running totals.
 CREATE TABLE IF NOT EXISTS reviews(id INTEGER PRIMARY KEY AUTOINCREMENT, oid INTEGER NOT NULL UNIQUE, seller INTEGER NOT NULL, buyer INTEGER NOT NULL, buyer_name TEXT, title TEXT, stars INTEGER NOT NULL, body TEXT, created INTEGER NOT NULL);
+-- Seller payouts (one per released order): status queued, processing, paid or failed.
+CREATE TABLE IF NOT EXISTS payouts(oid INTEGER PRIMARY KEY, seller INTEGER NOT NULL, amount INTEGER NOT NULL, ref TEXT, status TEXT NOT NULL, err TEXT, tries INTEGER NOT NULL DEFAULT 0, how TEXT, created INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS ps_recips(k TEXT PRIMARY KEY, code TEXT NOT NULL, created INTEGER);

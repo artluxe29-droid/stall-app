@@ -21,7 +21,9 @@ Single-page web app (`index.html`) with an API running as a Cloudflare Pages Fun
 
 Paystack dashboard → Settings → API Keys & Webhooks → Webhook URL: `https://<your-domain>/api/paystack/webhook`
 
-Orders are paid only through Paystack split payments: each seller's checked payout account gets a Paystack subaccount, Stall keeps 5% of the order (max ₦2,000, set in `COMMISSION`) and pays Paystack's fee from it, and Paystack settles the rest to the seller. There is no bank-transfer or receipt option. Sellers whose account name was typed by hand can't be bought from until an admin confirms them in Payouts.
+Order payments are held by Stall: the buyer pays the full amount into Stall's Paystack balance, and the seller is paid by Paystack Transfer (total minus 5% of the items, max ₦2,000) when the order is released — release code, buyer taps "I've got it", or automatically after `HOLD_DAYS` (7) with no problem reported. Buyers can report a problem (money stays on hold until an admin pays the seller or refunds), and sellers can cancel (buyer refunded via the Paystack Refund API). Failed payouts show in Admin → Seller pay with Retry / "I paid by hand".
+
+Paystack setup for this: enable **Transfers**, set settlements to stay in your **Paystack balance** (so there is money to pay sellers from), turn off **OTP for transfers** (Settings → Preferences), and add the webhook URL above — it also reports transfer results (`transfer.success`, `transfer.failed`, `transfer.reversed`).
 
 For heavy traffic use the Workers Paid plan (the free plan allows 100,000 requests a day) and a custom domain
 (Cloudflare's edge cache, used for photos and shop pages, works on custom domains).
