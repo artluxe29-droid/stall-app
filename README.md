@@ -29,3 +29,7 @@ For heavy traffic use the Workers Paid plan (the free plan allows 100,000 reques
 (Cloudflare's edge cache, used for photos and shop pages, works on custom domains).
 
 Never commit secret keys to this repo.
+
+## Google Play
+
+See [PLAYSTORE.md](PLAYSTORE.md) for packaging Stall as an Android app (PWABuilder), the Play Console checklist, store listing text and Data safety answers. Store graphics are in `store-assets/`.

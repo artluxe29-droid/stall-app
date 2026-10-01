@@ -261,6 +261,25 @@ export async function onRequest({request,env,params,waitUntil}){
     if(u.status==='suspended')return J({error:'This account has been suspended. Contact the Stall team if you think this is a mistake.'},403);
     return J({user:pub(u)},200,{'set-cookie':await start(env,u.id)});
   }
+  // Deletes the signed-in account (required by Google Play). Order and payment records stay for accounting, with the person's details removed.
+  if(path==='me/delete'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
+    const b=await request.json().catch(()=>({}));if(!await allow(env,'del:'+u.id,5,36e5))return slow();
+    if(await pbk(String(b.password||''),u.salt)!==u.pw)return J({error:'That password is wrong.'},400);
+    if(u.is_admin)return J({error:'Admins can\'t delete their account here. Ask another admin to remove your admin access first.'},400);
+    const open=(await env.DB.prepare("SELECT COUNT(*) c FROM orders WHERE (buyer=? OR seller=?) AND status IN ('verified','disputed','under_review')").bind(u.id,u.id).first()).c;
+    if(open)return J({error:'You have '+open+' order'+(open>1?'s':'')+' still in progress. Finish or cancel '+(open>1?'them':'it')+' first, so nobody loses money.'},400);
+    const pend=(await env.DB.prepare("SELECT id FROM orders WHERE (buyer=? OR seller=?) AND status='pending'").bind(u.id,u.id).all()).results.map(r=>r.id);
+    if(pend.length){await env.DB.batch(pend.map(id=>env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=?").bind(Date.now(),id)));await restock(env,pend)}
+    const lids=(await env.DB.prepare('SELECT id FROM listings WHERE uid=?').bind(u.id).all()).results.map(r=>r.id),st=await env.DB.prepare('SELECT id FROM stores WHERE uid=?').bind(u.id).first();
+    const iids=st?(await env.DB.prepare('SELECT id FROM store_items WHERE sid=?').bind(st.id).all()).results.map(r=>-r.id):[];
+    await delPhotos(env,[...lids,...iids]);
+    await env.DB.batch([env.DB.prepare('DELETE FROM listings WHERE uid=?').bind(u.id),...(st?[env.DB.prepare('DELETE FROM store_items WHERE sid=?').bind(st.id),env.DB.prepare('DELETE FROM stores WHERE id=?').bind(st.id)]:[]),
+      env.DB.prepare('DELETE FROM sessions WHERE uid=?').bind(u.id),env.DB.prepare('DELETE FROM verify_requests WHERE uid=?').bind(u.id),
+      env.DB.prepare("UPDATE reviews SET buyer_name='Deleted user' WHERE buyer=?").bind(u.id),
+      env.DB.prepare("UPDATE orders SET buyer_name='Deleted user',buyer_phone='',addr=NULL,dphone=NULL WHERE buyer=?").bind(u.id),env.DB.prepare("UPDATE orders SET seller_name='Deleted user',seller_phone='' WHERE seller=?").bind(u.id),
+      env.DB.prepare("UPDATE users SET name='Deleted user',matric=NULL,email=NULL,phone=?,place=NULL,biz=NULL,bank_code=NULL,bank_name=NULL,acct_no=NULL,acct_name=NULL,deliv_on=0,deliv_note=NULL,pw=?,salt=?,status='deleted',verified=0 WHERE id=?").bind('deleted-'+u.id,rnd(16),rnd(8),u.id)]);
+    await bumpVer(env);await logA(env,null,'account','deleted their account','#'+u.id,{who:'Deleted user #'+u.id});
+    return J({ok:true},200,{'set-cookie':'stall_s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'})}
   if(path==='password'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);
     const b=await request.json().catch(()=>({})),pw=String(b.password||'');
     if(!await allow(env,'pw:'+u.id,8,36e5))return slow();
@@ -269,7 +288,7 @@ export async function onRequest({request,env,params,waitUntil}){
     const salt=rnd(16),t=cookie(request,'stall_s');await env.DB.prepare('UPDATE users SET salt=?,pw=? WHERE id=?').bind(salt,await pbk(pw,salt),u.id).run();
     await env.DB.prepare('DELETE FROM sessions WHERE uid=? AND h!=?').bind(u.id,await sha(t)).run();return J({ok:true})}
   if(path==='logout'){const t=cookie(request,'stall_s');if(t)await env.DB.prepare('DELETE FROM sessions WHERE h=?').bind(await sha(t)).run();return J({ok:true},200,{'set-cookie':'stall_s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'})}
-  if(path==='config')return J({name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES},200,{'cache-control':'public, max-age=60'});
+  if(path==='config')return J({androidPkg:(await getK(env,'android_pkg'))||'',androidSha:(await getK(env,'android_sha'))||'',name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES},200,{'cache-control':'public, max-age=60'});
   if(path==='schools'&&request.method==='GET'){await ensure(env);return J({schools:(await env.DB.prepare('SELECT id,name,short,state,kind FROM schools WHERE active=1 ORDER BY name').all()).results,states:STATES},200,{'cache-control':'public, max-age=3600'})}
   if(path==='me/delivery'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
     const d=dlvIn(await request.json().catch(()=>({})));if(d.error)return J(d,400);
@@ -629,7 +648,10 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       if(b.id){await env.DB.prepare('UPDATE schools SET name=?,short=?,state=?,active=1 WHERE id=?').bind(n,sh,st,+b.id).run();await env.DB.batch(['users','listings','stores'].map(tb=>env.DB.prepare('UPDATE '+tb+' SET state=? WHERE school_id=?').bind(st,+b.id)))}
       else await env.DB.prepare('INSERT INTO schools(name,short,state,kind,active,created) VALUES(?,?,?,?,1,?)').bind(n,sh,st,String(b.kind||'university'),Date.now()).run();
       await logA(env,a,'other',b.id?'approved/updated school':'added school',n+' · '+st);return J({ok:true})}
-    if(path==='admin/settings'&&request.method==='POST'){for(const k of ['biz_name','support_phone','support_email'])if(k in b)await setK(env,k,String(b[k]||'').trim().slice(0,120));await logA(env,a,'other','updated settings','Business and support details');return J({ok:true})}
+    if(path==='admin/settings'&&request.method==='POST'){for(const k of ['biz_name','support_phone','support_email'])if(k in b)await setK(env,k,String(b[k]||'').trim().slice(0,120));
+      if('android_pkg' in b){const pk=String(b.android_pkg||'').trim(),sh=String(b.android_sha||'').toUpperCase().split(/[\s,]+/).filter(Boolean);
+        if(pk&&!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(pk))return J({error:'Enter the package name like app.stall.twa'},400);if(sh.some(x=>!/^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x)))return J({error:'Each fingerprint must look like AB:CD:… (32 pairs).'},400);
+        await setK(env,'android_pkg',pk);await setK(env,'android_sha',sh.join(','))}await logA(env,a,'other','updated settings','Business and support details');return J({ok:true})}
     if(path==='admin/money'&&request.method==='GET'){const k=url.searchParams.get('kind'),w=[],v=[];if(['boost','verify','store','reach','commission'].includes(k)){w.push('p.kind=?');v.push(k)}
       if(q){w.push('(u.name LIKE ? OR u.phone LIKE ? OR p.label LIKE ? OR p.ref LIKE ?)');v.push(like,like,like,like)}
       return list('payments p LEFT JOIN users u ON u.id=p.uid','p.ref,p.kind,p.target,p.label,p.days,p.amount,p.created,u.name,u.phone',w,v,'p.created DESC')}
