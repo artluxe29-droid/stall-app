@@ -50,7 +50,7 @@ async function sweep(env){await ensure(env);const now=Date.now();if(now-SWEPT<3e
   await env.DB.batch(ids.map(id=>env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,id)));
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='11';
+const SCHEMA_V='12';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -74,6 +74,9 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'ALTER TABLE orders ADD COLUMN paid_at INTEGER','ALTER TABLE orders ADD COLUMN payout TEXT',
     'CREATE TABLE IF NOT EXISTS ps_recips(k TEXT PRIMARY KEY,code TEXT NOT NULL,created INTEGER)',
     'CREATE TABLE IF NOT EXISTS payouts(oid INTEGER PRIMARY KEY,seller INTEGER NOT NULL,amount INTEGER NOT NULL,ref TEXT,status TEXT NOT NULL,err TEXT,tries INTEGER NOT NULL DEFAULT 0,how TEXT,created INTEGER NOT NULL,updated INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS payouts_status ON payouts(status,updated)','CREATE INDEX IF NOT EXISTS payouts_ref ON payouts(ref)',
+    'CREATE TABLE IF NOT EXISTS threads(id INTEGER PRIMARY KEY AUTOINCREMENT,buyer INTEGER NOT NULL,seller INTEGER NOT NULL,ref TEXT NOT NULL,title TEXT,last TEXT,last_at INTEGER,last_by INTEGER,b_seen INTEGER NOT NULL DEFAULT 0,s_seen INTEGER NOT NULL DEFAULT 0,created INTEGER NOT NULL,UNIQUE(buyer,seller,ref))',
+    'CREATE INDEX IF NOT EXISTS threads_buyer ON threads(buyer,last_at)','CREATE INDEX IF NOT EXISTS threads_seller ON threads(seller,last_at)',
+    'CREATE TABLE IF NOT EXISTS msgs(id INTEGER PRIMARY KEY AUTOINCREMENT,tid INTEGER NOT NULL,uid INTEGER NOT NULL,body TEXT NOT NULL,t INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS msgs_tid ON msgs(tid,id)',
     'ALTER TABLE orders ADD COLUMN method TEXT','ALTER TABLE orders ADD COLUMN addr TEXT','ALTER TABLE orders ADD COLUMN dphone TEXT','ALTER TABLE orders ADD COLUMN dstage TEXT','ALTER TABLE orders ADD COLUMN track TEXT',
     'CREATE INDEX IF NOT EXISTS listings_school ON listings(school_id,created)','CREATE INDEX IF NOT EXISTS listings_state ON listings(state,created)','CREATE INDEX IF NOT EXISTS listings_review ON listings(review)','CREATE INDEX IF NOT EXISTS stores_school ON stores(school_id)'])await env.DB.prepare(q).run().catch(()=>{});
   if(!(await env.DB.prepare("SELECT v FROM settings WHERE k='mig_nationwide'").first())){
@@ -426,12 +429,46 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
   if(path==='orders/selling'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);
     const rs=(await env.DB.prepare('SELECT * FROM orders WHERE seller=? ORDER BY created DESC LIMIT 100').bind(u.id).all()).results;
     return J({orders:rs.map(oRow)})}
-  if(path==='orders/news'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
+  if(path==='orders/news'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
     const sb=+url.searchParams.get('sb')||Date.now(),ss=+url.searchParams.get('ss')||Date.now();
     const rs=(await env.DB.prepare("SELECT id,title,amount,status,note,buyer,buyer_name,seller_name,updated,method,dstage,pickup FROM orders WHERE (buyer=? AND updated>? AND status IN ('verified','rejected','expired','refunded','released')) OR (seller=? AND updated>? AND (status IN ('released','disputed','refunded') OR (status='verified' AND IFNULL(dstage,'paid')='paid'))) ORDER BY updated DESC LIMIT 20").bind(u.id,sb,u.id,ss).all()).results;
-    return J({news:rs.map(r=>({id:r.id,title:r.title,amount:r.amount,status:r.status,note:r.note,side:r.buyer===u.id?'buy':'sell',buyerName:r.buyer_name,sellerName:r.seller_name,updated:r.updated,method:r.method,stage:r.dstage,pickup:r.pickup}))},200,{'cache-control':'no-store'})}
+    const cu=(await env.DB.prepare('SELECT COUNT(*) c FROM threads WHERE ((buyer=? AND last_at>b_seen) OR (seller=? AND last_at>s_seen)) AND last_by!=?').bind(u.id,u.id,u.id).first()).c;
+    return J({chats:cu,news:rs.map(r=>({id:r.id,title:r.title,amount:r.amount,status:r.status,note:r.note,side:r.buyer===u.id?'buy':'sell',buyerName:r.buyer_name,sellerName:r.seller_name,updated:r.updated,method:r.method,stage:r.dstage,pickup:r.pickup}))},200,{'cache-control':'no-store'})}
   // Receipts are no longer used: every order is paid through Paystack.
   if(path==='orders/receipt')return J({error:'Pay for this order through Paystack from your Orders page.'},410);
+  // Chat between a buyer and a seller about one listing, store or order. Clients poll chat/msgs while a chat is open.
+  if(path.startsWith('chat/')){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
+    const b=request.method==='POST'?await request.json().catch(()=>({})):{},now=Date.now();
+    const mine=async id=>{const t=await env.DB.prepare('SELECT * FROM threads WHERE id=?').bind(+id).first();return t&&(t.buyer===u.id||t.seller===u.id)?t:null};
+    if(path==='chat/open'&&request.method==='POST'){const ref=String(b.ref||''),k=ref[0],id=+ref.slice(1);let seller=0,buyer=u.id,title='';
+      if(k==='L'){const l=await env.DB.prepare('SELECT uid,title FROM listings WHERE id=?').bind(id).first();if(l){seller=l.uid;title=l.title}}
+      else if(k==='S'){const st=await env.DB.prepare('SELECT uid,name FROM stores WHERE id=?').bind(id).first();if(st){seller=st.uid;title=st.name}}
+      else if(k==='O'){const o=await env.DB.prepare('SELECT buyer,seller,title FROM orders WHERE id=? AND (buyer=? OR seller=?)').bind(id,u.id,u.id).first();if(o){seller=o.seller;buyer=o.buyer;title='Order #'+id+' · '+o.title}}
+      if(!seller)return J({error:'Not found.'},404);if(seller===buyer)return J({error:"That's your own."},400);
+      if(!await allow(env,'chato:'+u.id,60,36e5))return slow();
+      await env.DB.prepare('INSERT OR IGNORE INTO threads(buyer,seller,ref,title,created) VALUES(?,?,?,?,?)').bind(buyer,seller,ref,clean(title,90),now).run();
+      const t=await env.DB.prepare('SELECT id FROM threads WHERE buyer=? AND seller=? AND ref=?').bind(buyer,seller,ref).first();return J({id:t.id})}
+    if(path==='chat/list'){const rs=(await env.DB.prepare('SELECT t.*,ub.name bn,us.name sn,us.biz sbiz FROM threads t JOIN users ub ON ub.id=t.buyer JOIN users us ON us.id=t.seller WHERE (t.buyer=? OR t.seller=?) AND t.last_at IS NOT NULL ORDER BY t.last_at DESC LIMIT 60').bind(u.id,u.id).all()).results;
+      return J({threads:rs.map(t=>{const b2=t.buyer===u.id;return{id:t.id,ref:t.ref,title:t.title,with:b2?(t.sbiz||t.sn):t.bn,role:b2?'buyer':'seller',last:t.last,lastAt:t.last_at,unread:t.last_by!==u.id&&(t.last_at||0)>(b2?t.b_seen:t.s_seen)}})})}
+    if(path==='chat/msgs'){const t=await mine(url.searchParams.get('tid'));if(!t)return J({error:'Chat not found.'},404);const after=+url.searchParams.get('after')||0;
+      const rs=(await env.DB.prepare('SELECT id,uid,body,t FROM msgs WHERE tid=? AND id>? ORDER BY id LIMIT 200').bind(t.id,after).all()).results;
+      if(rs.length||!after)await env.DB.prepare('UPDATE threads SET '+(t.buyer===u.id?'b_seen':'s_seen')+'=? WHERE id=?').bind(now,t.id).run();
+      const other=await env.DB.prepare('SELECT name,biz FROM users WHERE id=?').bind(t.buyer===u.id?t.seller:t.buyer).first();
+      return J({thread:{id:t.id,ref:t.ref,title:t.title,with:other?(t.buyer===u.id?other.biz||other.name:other.name):''},msgs:rs.map(m=>({id:m.id,mine:m.uid===u.id,body:m.body,t:m.t}))})}
+    if(path==='chat/send'&&request.method==='POST'){const t=await mine(b.tid);if(!t)return J({error:'Chat not found.'},404);
+      const body=String(b.body||'').replace(/[<>]/g,'').trim().slice(0,1000);if(!body)return J({error:'Type a message.'},400);
+      if(!await allow(env,'chat:'+u.id,40,6e5))return J({error:"You're sending messages too fast. Wait a moment."},429);
+      const r=await env.DB.prepare('INSERT INTO msgs(tid,uid,body,t) VALUES(?,?,?,?)').bind(t.id,u.id,body,now).run();
+      await env.DB.prepare('UPDATE threads SET last=?,last_at=?,last_by=?,'+(t.buyer===u.id?'b_seen':'s_seen')+'=? WHERE id=?').bind(body.slice(0,120),now,u.id,now,t.id).run();
+      // Account numbers or talk of paying outside Stall: warn both sides, since those payments aren't protected.
+      const warn=/(^|\D)\d(?:[\s-]?\d){9}(\D|$)/.test(body)||/(pay|send|transfer).{0,20}(direct|outside|my account|acct)/i.test(body);
+      return J({ok:true,id:r.meta.last_row_id,warn})}
+    if(path==='chat/report'&&request.method==='POST'){const t=await mine(b.tid);if(!t)return J({error:'Chat not found.'},404);
+      if(!await allow(env,'chatr:'+u.id,10,864e5))return slow();
+      const last=(await env.DB.prepare('SELECT m.body,us.name FROM msgs m JOIN users us ON us.id=m.uid WHERE m.tid=? ORDER BY m.id DESC LIMIT 10').bind(t.id).all()).results.reverse().map(m=>m.name+': '+m.body).join('\n');
+      await logA(env,u,'other','reported a chat',t.title||t.ref,{who:u.name+' ('+u.phone+')',detail:clean(b.reason,200)||'No reason given'});
+      waitUntil(tg(env,'Chat reported by '+u.name+' ('+u.phone+')\n'+(t.title||t.ref)+'\nReason: '+(clean(b.reason,200)||'none')+'\n---\n'+last.slice(0,3000)));return J({ok:true})}
+    return J({error:'Not found'},404)}
   if(path==='orders/rate'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
     const b=await request.json().catch(()=>({})),stars=Math.round(+b.stars),body=clean(b.text,300);
     if(!(stars>=1&&stars<=5))return J({error:'Choose 1 to 5 stars.'},400);
