@@ -116,8 +116,9 @@ const reviewItem=async(env,tbl,id,dataUrl,title,cat,desc)=>{const r=await aiChec
   if(r.ok!==true)await tg(env,'Listing needs a look\n'+title+'\n'+r.why);await bumpVer(env)};
 // Prices in naira. Change them here.
 const PRICE={listing:{3:300,7:500},store:{3:500,7:1000},verify:1000,reach:{state:2000,national:5000}},REACH_DAYS=30;
-// Stall's cut of each order paid through Paystack: 5%, never more than ₦2,000. Stall pays Paystack's own fee out of it.
-const COMMISSION={rate:.05,cap:2000},feeOf=a=>Math.min(Math.round(a*COMMISSION.rate),COMMISSION.cap);
+// Stall's cut of each order paid through Paystack: 5%, at least ₦150 and never more than ₦2,000. Stall pays Paystack's own fee out of it.
+// The minimum stops cheap orders costing Stall more in Paystack fees than it earns; it never takes more than half of an order (older listings under MIN_PRICE).
+const COMMISSION={rate:.05,min:150,cap:2000},MIN_PRICE=500,feeOf=a=>Math.min(Math.max(Math.round(a*COMMISSION.rate),COMMISSION.min),COMMISSION.cap,Math.floor(a/2));
 // Delivery: sellers deliver themselves for a fee they set (couriers can be added later as another method).
 // After payment the seller moves the order along these steps; the buyer's release code marks it delivered.
 const DFEE_MAX=20000,STAGES={delivery:['paid','packed','on_way'],pickup:['paid','ready']};
@@ -465,7 +466,7 @@ export async function onRequest({request,env,params,waitUntil}){
     if(!u.acct_no||!u.acct_name)return J({error:'Add and verify your payout bank details first.'},400);
     if(u.role==='student'&&!(u.vlevel>=1)&&(await getK(env,'require_verified'))==='1')return J({error:'Verify that you\'re a student before you sell: confirm your school email or upload your student ID in Account → Verify.',verify:true},403);
     if(t('title').length<3||t('title').length>80)return J({error:'Enter a title of 3 to 80 characters.'},400);
-    if(!(price>=1&&price<=10000000))return J({error:'Enter a valid price.'},400);
+    if(!(price>=MIN_PRICE&&price<=10000000))return J({error:price>=1&&price<MIN_PRICE?'The minimum price is ₦500.':'Enter a valid price.'},400);
     if(imgs.length<1||imgs.length>8||!imgs.every(imgOk))return J({error:'Add 1 to 8 photos (JPEG, PNG or WebP).'},400);
     if(!await allow(env,'post:'+u.id,40,36e5))return slow();
     const qty=Math.round(+b.qty||1);if(!(qty>=1&&qty<=100000))return J({error:'Enter how many you have (1 or more).'},400);
@@ -530,7 +531,7 @@ export async function onRequest({request,env,params,waitUntil}){
     if(path==='stores/toggle'){await env.DB.prepare('UPDATE stores SET isopen=1-isopen WHERE id=?').bind(mine.id).run();return ok()}
     if(path==='stores/item'){const t=k=>String(b[k]||'').trim(),price=Math.round(+b.price),imgs=Array.isArray(b.imgs)?b.imgs:[];
       if(t('title').length<3||t('title').length>80)return J({error:'Enter a title of 3 to 80 characters.'},400);
-      if(!(price>=1&&price<=10000000))return J({error:'Enter a valid price.'},400);
+      if(!(price>=MIN_PRICE&&price<=10000000))return J({error:price>=1&&price<MIN_PRICE?'The minimum price is ₦500.':'Enter a valid price.'},400);
       if(imgs.length<1||imgs.length>8||!imgs.every(imgOk))return J({error:'Add 1 to 8 photos (JPEG, PNG or WebP).'},400);
       if(!await allow(env,'post:'+u.id,60,36e5))return slow();
       const qs=b.qty===''||b.qty==null?null:Math.round(+b.qty);if(qs!==null&&!(qs>=0&&qs<=100000))return J({error:'Enter how many you have, or leave it empty for no limit.'},400);
