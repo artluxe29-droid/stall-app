@@ -207,6 +207,17 @@ async function payJobs(env){await ensure(env);const now=Date.now();if(now-(+(awa
   for(const p of due){if(bal!=null&&bal<p.amount)continue;// not enough money yet: wait, without using up a try
     await env.DB.prepare("UPDATE payouts SET status='queued',auto=auto+1 WHERE oid=? AND status='failed'").bind(p.oid).run();const r=await payOut(env,p.oid,{quiet:true}).catch(()=>null);
     if(r&&r.status==='failed'&&p.auto+1>=AUTO_MAX)await tg(env,'Seller payout for order #'+p.oid+' (₦'+p.amount+') still failed after '+AUTO_MAX+' automatic retries: '+(r.err||'')+'\nCheck it in Admin → Seller pay.')}}
+// Earnings for the dashboard and accounting. Days and months are in Nigerian time (WAT, UTC+1). A sale fee on an order that
+// was later refunded counts as a negative entry on the refund date, so totals match what Stall actually kept.
+const WAT=36e5,dayK=t=>new Date(t+WAT).toISOString().slice(0,10),watMs=(y,m,d)=>Date.UTC(y,m,d)-WAT;
+const EARN_CATS=[['commission','Sale fees'],['store','Store openings'],['boostL','Featured listings'],['boostS','Featured stores'],['reach','Store reach'],['verify','Verified badges'],['refund','Refunded sale fees']];
+async function earnRows(env,from,to){
+  const pays=(await env.DB.prepare('SELECT p.ref,p.kind,p.target,p.label,p.amount,p.created t,u.name,u.phone FROM payments p LEFT JOIN users u ON u.id=p.uid WHERE p.created>=? AND p.created<? AND p.amount>0 ORDER BY p.created').bind(from,to).all()).results;
+  const back=(await env.DB.prepare("SELECT o.id,o.title,o.updated t,o.buyer_name,p.ref,p.amount FROM orders o JOIN payments p ON p.kind='commission' AND p.target='O'||o.id WHERE o.status='refunded' AND o.updated>=? AND o.updated<? AND p.amount>0").bind(from,to).all()).results;
+  return[...pays.map(r=>({t:r.t,ref:r.ref,cat:r.kind==='boost'?(String(r.target||'')[0]==='S'?'boostS':'boostL'):r.kind,label:r.kind==='commission'?'Sale fee: '+(r.label||r.target||''):r.label||r.kind,who:r.name?r.name+' ('+r.phone+')':'',amount:r.amount})),
+    ...back.map(r=>({t:r.t,ref:r.ref+'-R',cat:'refund',label:'Refunded order #'+r.id+': '+r.title,who:r.buyer_name||'',amount:-r.amount}))].sort((a,b)=>a.t-b.t)}
+const sumCats=rows=>EARN_CATS.map(([k,l])=>{const x=rows.filter(r=>r.cat===k);return{key:k,label:l,n:x.length,amt:x.reduce((a,r)=>a+r.amount,0)}}).filter(c=>c.n||c.key!=='refund');
+const csvCell=v=>{const t=String(v==null?'':v);return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t};
 // Releases a held order to the seller. Only a paid (or disputed) order can be released, and only once.
 async function release(env,o,how){const now=Date.now();
   const ch=(await env.DB.prepare("UPDATE orders SET status='released',code_used=?,dstage='done',track=?,updated=? WHERE id=? AND status IN ('verified','disputed')").bind(how==='code'?1:0,track(o,'done',now),now,o.id).run()).meta.changes;
@@ -885,6 +896,28 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       if('android_pkg' in b){const pk=String(b.android_pkg||'').trim(),sh=String(b.android_sha||'').toUpperCase().split(/[\s,]+/).filter(Boolean);
         if(pk&&!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(pk))return J({error:'Enter the package name like app.stall.twa'},400);if(sh.some(x=>!/^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x)))return J({error:'Each fingerprint must look like AB:CD:… (32 pairs).'},400);
         await setK(env,'android_pkg',pk);await setK(env,'android_sha',sh.join(','))}await logA(env,a,'other','updated settings','Business and support details');return J({ok:true})}
+    if(path==='admin/earnings'&&request.method==='GET'){if(!a.is_admin)return J({error:'Only admins can see earnings.'},403);
+      const now=Date.now(),[Y,M,D]=dayK(now).split('-').map(Number),R={'7d':[7,'day'],'30d':[30,'day'],'90d':[90,'day'],'6m':[6,'month'],'12m':[12,'month'],'all':[0,'month']}[url.searchParams.get('range')]||[30,'day'];
+      let from;if(R[1]==='day')from=watMs(Y,M-1,D-R[0]+1);else if(R[0])from=watMs(Y,M-R[0],1);else{const f=await env.DB.prepare('SELECT MIN(created) t FROM payments').first();const[y0,m0]=dayK(f&&f.t||now).split('-').map(Number);from=watMs(y0,m0-1,1)}
+      const rows=await earnRows(env,from,now+1),keys=[];
+      if(R[1]==='day')for(let t=from;t<=now;t+=864e5)keys.push(dayK(t));else{const[y0,m0]=dayK(from).split('-').map(Number);for(let y=y0,m=m0;y<Y||(y===Y&&m<=M);m===12?(y++,m=1):m++)keys.push(y+'-'+String(m).padStart(2,'0'))}
+      const bk=Object.fromEntries(keys.map(k=>[k,{k,amt:0,n:0}]));for(const r of rows){const b=bk[dayK(r.t).slice(0,R[1]==='day'?10:7)];if(b){b.amt+=r.amount;if(r.amount>0)b.n++}}
+      // Quick figures, always the same whatever range is picked.
+      const lm=watMs(Y,M-2,1),q=(await earnRows(env,lm,now+1)),tot=(f,t)=>q.filter(r=>r.t>=f&&r.t<t).reduce((a,r)=>a+r.amount,0),d0=watMs(Y,M-1,D);
+      return J({range:Object.keys({'7d':1,'30d':1,'90d':1,'6m':1,'12m':1,all:1}).find(k=>k===url.searchParams.get('range'))||'30d',unit:R[1],from:dayK(from),to:dayK(now),buckets:keys.map(k=>bk[k]),cats:sumCats(rows),
+        total:rows.reduce((a,r)=>a+r.amount,0),count:rows.filter(r=>r.amount>0).length,
+        quick:{today:tot(d0,now+1),yesterday:tot(d0-864e5,d0),week:tot(d0-6*864e5,now+1),month:tot(watMs(Y,M-1,1),now+1),lastMonth:tot(lm,watMs(Y,M-1,1))}})}
+    if(path==='admin/earnings.csv'&&request.method==='GET'){if(!a.is_admin)return J({error:'Only admins can download earnings.'},403);
+      const pd=x=>/^\d{4}-\d{2}-\d{2}$/.test(x||'')?x.split('-').map(Number):null,f=pd(url.searchParams.get('from')),t=pd(url.searchParams.get('to'));
+      if(!f||!t)return J({error:'Pick a start and end date.'},400);const from=watMs(f[0],f[1]-1,f[2]),to=watMs(t[0],t[1]-1,t[2]+1);if(to<=from)return J({error:'The end date must be on or after the start date.'},400);
+      const rows=await earnRows(env,from,to),type=url.searchParams.get('type')==='tx'?'tx':'summary',name=(await getK(env,'biz_name'))||'Stall',L=[],tm=r=>new Date(r.t+WAT).toISOString().slice(11,16);
+      L.push([name+' earnings '+(type==='tx'?'(all transactions)':'(summary)')],['Period',dayK(from)+' to '+dayK(to-1)],['Generated',dayK(Date.now())+' '+new Date(Date.now()+WAT).toISOString().slice(11,16)+' WAT'],['Currency','NGN (Nigerian naira)'],
+        ['Note','Amounts are what Stall kept: sale fees on orders and payments for its services. Money held for or paid to sellers is not included. Paystack charges are not deducted; see your Paystack settlement reports for those.'],[]);
+      if(type==='summary'){L.push(['Type','Count','Amount (NGN)']);for(const c of sumCats(rows))L.push([c.label,c.n,c.amt]);L.push(['Total',rows.filter(r=>r.amount>0).length,rows.reduce((a,r)=>a+r.amount,0)],[],['Date','Payments','Amount (NGN)']);
+        const by={};for(const r of rows){const k=dayK(r.t);by[k]=by[k]||{n:0,amt:0};by[k].amt+=r.amount;if(r.amount>0)by[k].n++}for(let x=from;x<to;x+=864e5){const k=dayK(x),v=by[k]||{n:0,amt:0};L.push([k,v.n,v.amt])}}
+      else{L.push(['Date','Time (WAT)','Reference','Type','Description','Customer','Amount (NGN)']);const lab=Object.fromEntries(EARN_CATS);for(const r of rows)L.push([dayK(r.t),tm(r),r.ref,lab[r.cat]||r.cat,r.label,r.who,r.amount]);L.push([],['Total','','','','','',rows.reduce((a,r)=>a+r.amount,0)])}
+      await logA(env,a,'money','downloaded earnings',(type==='tx'?'Transactions':'Summary')+' '+dayK(from)+' to '+dayK(to-1));
+      return new Response('\ufeff'+L.map(r=>r.map(csvCell).join(',')).join('\r\n'),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="stall-earnings-'+type+'-'+dayK(from)+'-to-'+dayK(to-1)+'.csv"','cache-control':'no-store'}})}
     if(path==='admin/money'&&request.method==='GET'){const k=url.searchParams.get('kind'),w=[],v=[];if(['boost','verify','store','reach','commission'].includes(k)){w.push('p.kind=?');v.push(k)}
       if(q){w.push('(u.name LIKE ? OR u.phone LIKE ? OR p.label LIKE ? OR p.ref LIKE ?)');v.push(like,like,like,like)}
       return list('payments p LEFT JOIN users u ON u.id=p.uid','p.ref,p.kind,p.target,p.label,p.days,p.amount,p.created,u.name,u.phone',w,v,'p.created DESC')}
