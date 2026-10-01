@@ -509,7 +509,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
 
 <dialog id="itemDlg"><div class="pad"><h2>Add item</h2><form id="itemForm" method="dialog">
  <label>Item name<input name="title" required maxlength="60" placeholder="e.g. Jollof rice and chicken"></label>
- <label>Price (₦)<input name="price" type="number" min="100" step="50" required inputmode="numeric"></label>
+ <label>Price (₦)<input name="price" type="number" min="500" step="50" required inputmode="numeric"></label>
  <label>Description<input name="desc" maxlength="80" placeholder="What comes with it"></label>
  <label>How many do you have? (optional)<input name="qty" type="number" min="0" max="100000" inputmode="numeric" placeholder="Leave empty if there's no limit"></label>
  <p class="lb">Photos (1 to 8)</p><div class="pk" id="pkItem"><input type="file" accept="image/*" multiple hidden><button type="button" class="pill sm alt" data-pick>Add photos</button> <span class="meta pkc"></span><div class="thumbs"></div><span class="err"></span></div>
@@ -524,7 +524,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
  <div class="opt sel" style="margin-top:14px"><span>One-time store fee: ₦5,000<small>Paid online when you open your store. Listing single items stays free.</small></span></div>
  <div class="two"><label>Payout bank<select name="bank_code"><option value="044">Access Bank</option><option value="070">Fidelity Bank</option><option value="011">First Bank</option><option value="214">FCMB</option><option value="058">GTBank</option><option value="50211">Kuda</option><option value="50515">Moniepoint</option><option value="999992">OPay</option><option value="999991">PalmPay</option><option value="221">Stanbic IBTC</option><option value="232">Sterling Bank</option><option value="033">UBA</option><option value="032">Union Bank</option><option value="035">Wema Bank</option><option value="057">Zenith Bank</option></select></label><label>Account number<input name="acct" required inputmode="numeric" pattern="\d{10}" maxlength="10" placeholder="10 digits"></label></div>
   <input type="hidden" name="acctName"><input type="hidden" name="bankManual"><div class="acts" style="margin:0 0 10px"><button type="button" class="pill sm alt" data-verify-bank>Verify account</button><span class="meta bankok"></span></div>
-  <p class="note">Stall holds each buyer's payment until they have their order, then sends it to this account minus a 5% sale fee (never more than ₦2,000).</p>
+  <p class="note">Stall holds each buyer's payment until they have their order, then sends it to this account minus a sale fee of 5% (at least ₦150, never more than ₦2,000).</p>
  <div class="acts"><button class="pill" type="submit">Pay ₦5,000 and open store</button><button class="pill alt" type="button" data-close>Cancel</button></div></form></div></dialog>
 <div id="gate" hidden></div>
 <dialog id="detail"></dialog>
@@ -543,7 +543,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
 <dialog id="sell"><div class="pad"><h2>Sell an item</h2><p class="meta" style="margin:-4px 0 10px"><button class="link" type="button" data-bulk="me">Selling several things? Add them all at once ›</button></p>
  <form id="form" method="dialog">
   <label>What are you selling?<input name="title" required maxlength="60" placeholder="e.g. Engineering Mathematics textbook"></label>
-  <div class="two"><label>Price (₦)<input name="price" type="number" min="100" step="50" required inputmode="numeric"></label><label>Category<select name="cat" id="catSel"></select></label></div>
+  <div class="two"><label>Price (₦)<input name="price" type="number" min="500" step="50" required inputmode="numeric"></label><label>Category<select name="cat" id="catSel"></select></label></div>
   <div class="two"><label>How many do you have?<input name="qty" type="number" min="1" max="100000" value="1" inputmode="numeric" required></label><label>Condition<select name="cond"><option>New</option><option selected>Like new</option><option>Used</option></select></label></div>
   <label>Meet-up spot or delivery area<input name="spot" required maxlength="40" placeholder="e.g. Library steps"></label>
   <label>Details<textarea name="desc" rows="3" maxlength="240" placeholder="Edition, size, defects"></textarea></label>
@@ -552,7 +552,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
   
   <div class="two"><label>Payout bank<select name="bank_code"><option value="044">Access Bank</option><option value="070">Fidelity Bank</option><option value="011">First Bank</option><option value="214">FCMB</option><option value="058">GTBank</option><option value="50211">Kuda</option><option value="50515">Moniepoint</option><option value="999992">OPay</option><option value="999991">PalmPay</option><option value="221">Stanbic IBTC</option><option value="232">Sterling Bank</option><option value="033">UBA</option><option value="032">Union Bank</option><option value="035">Wema Bank</option><option value="057">Zenith Bank</option></select></label><label>Account number<input name="acct" required inputmode="numeric" pattern="\d{10}" maxlength="10" placeholder="10 digits"></label></div>
   <input type="hidden" name="acctName"><input type="hidden" name="bankManual"><div class="acts" style="margin:0 0 10px"><button type="button" class="pill sm alt" data-verify-bank>Verify account</button><span class="meta bankok"></span></div>
-  <p class="note">Free to list. Stall holds each buyer's payment until they have their order, then sends it to this account minus a 5% sale fee (never more than ₦2,000).</p>
+  <p class="note">Free to list. Stall holds each buyer's payment until they have their order, then sends it to this account minus a sale fee of 5% (at least ₦150, never more than ₦2,000).</p>
   <div class="acts"><button class="pill" type="submit">Post listing</button><button class="pill alt" type="button" data-close>Cancel</button></div>
  </form></div></dialog>
 <div class="toast" id="toast" hidden></div>
@@ -686,7 +686,7 @@ function openCheckout(){
 }
 const fetchJ=(u,o)=>fetch(u,o).then(r=>r.json());
 const payEmail=()=>S.user.email||('buyer'+String(S.user.phone||'0').replace(/\D/g,'')+'@stall.app');
-const feeOf=a=>Math.min(Math.round(a*.05),2000);
+const feeOf=a=>Math.min(Math.max(Math.round(a*.05),150),2000,Math.floor(a/2));
 const PRICE={listing:{3:300,7:500},store:{3:500,7:1000},verify:1000,reach:{state:2000,national:5000}},VB='<span class="vb">✓ Verified</span>';
 // Student checks: 1 = confirmed school email, 2 = student ID or admission letter checked.
 const SB=l=>l>=2?'<span class="sb" title="Stall checked a school document">✓ Verified student</span>':l===1?'<span class="sb" title="Confirmed a school email address">✓ School email</span>':'';
@@ -766,7 +766,7 @@ const wa2=p=>`<a class="link" href="tel:${esc(p)}">${esc(p)}</a>`;
 const dlvLine=d=>d&&d.on?`<p class="meta dline">${ico('truck')} Delivers${d.fee?' for '+naira(d.fee):' for free'}${d.note?' · '+esc(d.note):''}</p>`:'';
 // Delivery settings for the seller's own listings ('me') or their store.
 function openDelivery(who){const cur=who==='store'?(myStore()||{}).deliv:(S.user||{}).deliv,d=$('#accDlg'),v=cur||{on:false,fee:0,note:''};
-  d.innerHTML=`<div class="pad"><h2>Delivery</h2><p class="meta">${who==='store'?'For orders from your store.':'For the items you list.'} Buyers can always collect from you. If you also deliver, they can choose delivery and pay your fee with their order. Stall's 5% is on the item price only; you keep the whole delivery fee.</p>
+  d.innerHTML=`<div class="pad"><h2>Delivery</h2><p class="meta">${who==='store'?'For orders from your store.':'For the items you list.'} Buyers can always collect from you. If you also deliver, they can choose delivery and pay your fee with their order. Stall's fee is on the item price only; you keep the whole delivery fee.</p>
    <form id="dlvForm"><label class="opt" style="display:flex;gap:10px;align-items:center;margin-top:14px"><input type="checkbox" name="on" ${v.on?'checked':''} style="width:auto"> <span><b>I deliver</b></span></label>
    <div id="dlvMore" ${v.on?'':'hidden'}><label>Delivery fee (₦)<input name="fee" type="number" min="0" max="20000" inputmode="numeric" value="${v.fee||0}"></label>
    <label>Where and when (optional)<input name="note" maxlength="80" value="${esc(v.note||'')}" placeholder="e.g. Anywhere on campus, same day"></label></div>
@@ -790,7 +790,7 @@ function orderCard(o,seller){const badge={pending:'Awaiting payment',under_revie
    ${o.method==='pickup'&&o.status==='verified'&&!seller?`<div class="onote">${o.stage==='ready'?'<b>Ready for pickup</b>':'Pick up'}${o.pickup?' at '+esc(o.pickup):''}. Bring your release code.</div>`:''}
    ${seller&&o.status==='verified'?'<div class="onote">Payment confirmed by Stall. Hand over the item when the buyer gives you their release code.</div>':''}
    ${seller&&o.status==='verified'&&(NEXT[o.method==='delivery'?'delivery':'pickup'][o.stage||'paid'])?(([to,l])=>`<div class="acts"><button class="pill sm alt" data-stage="${o.id}" data-to="${to}">${l}</button></div>`)(NEXT[o.method==='delivery'?'delivery':'pickup'][o.stage||'paid']):''}
-   ${seller&&o.paidVia==='paystack'&&['verified','disputed'].includes(o.status)?`<div class="onote">Stall is holding <b>${naira(o.amount-o.fee)}</b> for you (after the 5% fee of ${naira(o.fee)}). It's sent to your bank as soon as the buyer's release code is entered${o.holdUntil?', or automatically on '+new Date(o.holdUntil).toLocaleDateString('en-NG',{weekday:'short',day:'numeric',month:'short'})+' if the buyer reports no problem':''}.</div>`:''}
+   ${seller&&o.paidVia==='paystack'&&['verified','disputed'].includes(o.status)?`<div class="onote">Stall is holding <b>${naira(o.amount-o.fee)}</b> for you (after Stall's fee of ${naira(o.fee)}). It's sent to your bank as soon as the buyer's release code is entered${o.holdUntil?', or automatically on '+new Date(o.holdUntil).toLocaleDateString('en-NG',{weekday:'short',day:'numeric',month:'short'})+' if the buyer reports no problem':''}.</div>`:''}
    ${seller&&o.paidVia==='paystack'&&o.status==='released'?`<div class="onote">${o.payout==='paid'?`<b>${naira(o.amount-o.fee)}</b> sent to your bank ✓`:o.payout==='failed'?`Your ${naira(o.amount-o.fee)} payout is delayed. The Stall team is on it.`:`Sending <b>${naira(o.amount-o.fee)}</b> to your bank…`}</div>`:''}
    ${seller&&o.status==='disputed'?`<div class="onote bad">The buyer reported a problem: ${esc((o.note||'').replace(/^Buyer reported: /,''))}. The money stays on hold while Stall looks into it. Don't hand over anything until it's sorted.</div>`:''}
    ${o.status==='refunded'?`<div class="onote">${seller?'This order was cancelled and the buyer refunded.':'Refunded to you. It can take a few working days to show in your account.'}${o.note?' '+esc(o.note):''}</div>`:''}
@@ -1076,7 +1076,7 @@ function openItem(id){const i=get(id);if(!i)return;const st=allStores().find(x=>
   d.innerHTML=`${gal(i)}<div class="pad"><h2 style="margin-bottom:4px">${esc(i.title)}</h2><p class="price" style="font-size:24px;margin:6px 0 12px">${naira(i.price)}</p><p>${esc(i.desc||'')}</p><p class="meta" style="margin-top:12px">${esc(i.seller)} · ${esc(i.spot)}</p>
    <div class="acts">${ok?`<button class="pill" data-inc="${id}">Add to bag</button>`:'<button class="pill" disabled>Unavailable</button>'}<button class="pill alt" data-close>Close</button></div></div>`;d.showModal()}
 const pk1=mkPicker($('#pkSell')),pk2=mkPicker($('#pkItem'));
-document.querySelectorAll('[name=price]').forEach(inp=>inp.addEventListener('input',()=>{const n=inp.closest('form').querySelector('.fh'),p=+inp.value;if(n)n.textContent=p>=100?'When a buyer pays through Stall, you get '+naira(p-feeOf(p))+' after the 5% sale fee.':'The minimum price is ₦100.'}));
+document.querySelectorAll('[name=price]').forEach(inp=>inp.addEventListener('input',()=>{const n=inp.closest('form').querySelector('.fh'),p=+inp.value;if(n)n.textContent=p>=500?'When a buyer pays through Stall, you get '+naira(p-feeOf(p))+' after Stall\'s fee of '+naira(feeOf(p))+'.':'The minimum price is ₦500.'}));
 const SCHOOL={matric:/^[A-Za-z0-9\/-]{4,16}$/};
 // Schools across Nigeria, for sign-up, the school switcher and store locations.
 let SCH=[],STATES=[],CFG={name:'Stall',phone:'',email:''};const schLabel=x=>x.name+(x.short?' ('+x.short+')':'')+' — '+x.state;
@@ -1188,7 +1188,7 @@ async function openInvite(){const d=$('#accDlg');d.innerHTML=`<div class="pad"><
   const sh=$('#invShare');if(sh)sh.onclick=()=>navigator.share({title:'Stall',text:msg,url:r.link}).catch(()=>{})}
 function openBulk(where){const st=where==='store'?myStore():null,d=$('#accDlg');$('#sell').open&&$('#sell').close();
   if(where==='me'&&!(S.user&&S.user.acctSet)){d.innerHTML=`<div class="pad"><h2>Add several items</h2><p class="meta">First post one item with the normal form, so we can add the bank account you'll be paid into. Then come back here to add the rest quickly.</p><div class="acts"><button class="pill" id="bulkFirst">Post my first item</button><button class="pill alt" data-close>Close</button></div></div>`;if(!d.open)d.showModal();$('#bulkFirst').onclick=()=>{d.close();$('#sellBtn').click()};return}
-  const row=i=>`<div class="brow" data-brow="${i}"><button type="button" class="bph" data-bph="${i}" aria-label="Add photo">${ico('image')}</button><input type="file" accept="image/*" hidden data-bfile="${i}"><div class="bf"><input name="t" maxlength="60" placeholder="What is it?"><div class="two"><input name="p" type="number" min="100" inputmode="numeric" placeholder="Price ₦"><input name="q" type="number" min="1" value="1" inputmode="numeric" placeholder="How many"></div></div><span class="bst"></span></div>`;
+  const row=i=>`<div class="brow" data-brow="${i}"><button type="button" class="bph" data-bph="${i}" aria-label="Add photo">${ico('image')}</button><input type="file" accept="image/*" hidden data-bfile="${i}"><div class="bf"><input name="t" maxlength="60" placeholder="What is it?"><div class="two"><input name="p" type="number" min="500" inputmode="numeric" placeholder="Price ₦"><input name="q" type="number" min="1" value="1" inputmode="numeric" placeholder="How many"></div></div><span class="bst"></span></div>`;
   d.innerHTML=`<div class="pad"><h2>Add several items</h2><p class="meta">${st?'Add up to 10 items to '+esc(st.name)+'.':'One photo, a name and a price for each, up to 10 at a time. You can add more photos and details later.'}</p>
    <form id="bulkF">${st?'':`<div class="two"><label>Category<select name="cat">${CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></label><label>Condition<select name="cond"><option>New</option><option selected>Like new</option><option>Used</option></select></label></div>
     <label>Meet-up spot<input name="spot" maxlength="40" required placeholder="e.g. Library steps"></label>`}
@@ -1198,7 +1198,7 @@ function openBulk(where){const st=where==='store'?myStore():null,d=$('#accDlg');
   d.querySelector('#brows').onclick=e=>{const b=e.target.closest('[data-bph]');if(b)d.querySelector(`[data-bfile="${b.dataset.bph}"]`).click()};
   d.querySelector('#brows').onchange=async e=>{const f=e.target.closest('[data-bfile]');if(!f||!f.files[0])return;const i=f.dataset.bfile;try{imgs[i]=await shrinkPhoto(f.files[0]);d.querySelector(`[data-bph="${i}"]`).innerHTML=`<img src="${imgs[i]}" alt="">`}catch(x){toast('Could not read that photo')}};
   $('#bulkF').onsubmit=async e=>{e.preventDefault();const F=e.target,rows=[...d.querySelectorAll('[data-brow]')].map(r=>({r,i:r.dataset.brow,t:r.querySelector('[name=t]').value.trim(),p:r.querySelector('[name=p]').value,q:r.querySelector('[name=q]').value})).filter(x=>x.t||x.p||imgs[x.i]);
-    if(!rows.length)return $('#bErr').textContent='Fill in at least one item.';const bad=rows.find(x=>!x.t||!(+x.p>=100)||!imgs[x.i]);if(bad){$('#bErr').textContent='Each item needs a photo, a name and a price of at least ₦100.';bad.r.classList.add('bad');return}
+    if(!rows.length)return $('#bErr').textContent='Fill in at least one item.';const bad=rows.find(x=>!x.t||!(+x.p>=500)||!imgs[x.i]);if(bad){$('#bErr').textContent='Each item needs a photo, a name and a price of at least ₦500.';bad.r.classList.add('bad');return}
     const sb=F.querySelector('[type=submit]');sb.disabled=true;$('#bErr').textContent='';let okN=0;
     for(const x of rows){const s1=x.r.querySelector('.bst');s1.textContent='…';
       const r=st?await apiPost('stores/item',{title:x.t,price:x.p,qty:x.q,desc:'',imgs:[imgs[x.i]]}):await apiPost('listings',{title:x.t,price:x.p,qty:x.q||1,cat:F.elements.cat.value,cond:F.elements.cond.value,spot:F.elements.spot.value,desc:'',seller:S.user.name,phone:S.user.phone,imgs:[imgs[x.i]]});
@@ -1242,7 +1242,7 @@ const GUIDE={buy:['Buying',[
   ['lock','Add your bank account once','When you first sell, add the account you want to be paid into. Tap <b>Verify account</b> so the name is confirmed automatically.',null],
   ['truck','Offer delivery (optional)','In <b>Account → Delivery</b>, switch on "I deliver" and set your fee. Buyers can then choose delivery, and you keep the whole delivery fee.','delivery'],
   ['box','Handle orders','New paid orders appear under <b>Account → Orders to fulfil</b>. Tap <b>Mark as packed</b>, then <b>Out for delivery</b> or <b>Ready for pickup</b>, so the buyer knows what\'s happening.','selling'],
-  ['wallet','Get paid','Stall holds the buyer\'s money until they have the item. Enter the buyer\'s release code and we send the money to your bank, minus a 5% fee (never more than ₦2,000). If the buyer reports no problem, you\'re paid automatically after 7 days.',null],
+  ['wallet','Get paid','Stall holds the buyer\'s money until they have the item. Enter the buyer\'s release code and we send the money to your bank, minus a 5% fee (at least ₦150, never more than ₦2,000). If the buyer reports no problem, you\'re paid automatically after 7 days.',null],
   ['store','Open a store','Running a campus business? Open a store for a one-time ₦5,000 to list many items in one place, and pay to reach your whole state or the whole country.','stores'],
   ['layers','Add many items at once','Tap <b>Sell</b>, then <b>Selling several things?</b> to add up to 10 items in one go: a photo, name and price each.','sell'],
   ['share','Share your items','Tap <b>Share</b> on any item or your store to send it on WhatsApp or your status. The link opens straight to it.',null],
