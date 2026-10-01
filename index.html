@@ -179,6 +179,17 @@ dialog.adm[open]{display:flex;flex-direction:column}
 .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:8px}
 .stat{background:var(--bg2);border-radius:16px;padding:14px 16px;text-align:left;border:0;width:100%}
 .stat:hover{filter:brightness(.97)}
+/* Earnings dashboard (admin). One series, so one validated hue per mode; text stays in ink colours. */
+:root{--viz1:#2a78d6}html.dark-ui{--viz1:#3987e5}
+.eq{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin:4px 0 14px}.eq div{background:var(--bg2);border-radius:14px;padding:12px 14px}.eq b{display:block;font-size:20px;font-weight:700;letter-spacing:-.02em}.eq span{font-size:13px;color:var(--muted)}
+.ecard{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:12px}.ehead{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:flex-start}
+.ehero{display:block;font-size:30px;font-weight:800;letter-spacing:-.03em;margin:2px 0}.ehead .fchips{margin:0}
+.echart{position:relative;margin-top:12px}.echart svg{display:block;width:100%;overflow:visible}.echart text{fill:var(--muted);font-size:11px;font-family:inherit}
+.echart .gl{stroke:var(--line);stroke-width:1}.echart .bar{fill:var(--viz1)}.echart.hov .bar{opacity:.45}.echart.hov .bar.on{opacity:1}.echart .hit{fill:transparent;cursor:default}
+.etip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:10px;padding:7px 10px;font-size:13px;line-height:1.35;white-space:nowrap;transform:translate(-50%,-100%);margin-top:-8px;z-index:2}.etip b{display:block}
+.erow{display:grid;grid-template-columns:1fr auto auto;gap:6px 14px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}.erow:last-child{border-bottom:0}.erow .n{color:var(--muted);font-size:13px}.erow .a{font-weight:600;text-align:right;min-width:90px}.erow.tot{font-weight:700}
+.erow .sh{grid-column:1/-1;height:4px;border-radius:2px;background:var(--bg2);overflow:hidden}.erow .sh i{display:block;height:100%;background:var(--viz1);border-radius:2px}
+.etbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}.etbl td,.etbl th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}.etbl td:last-child,.etbl th:last-child{text-align:right}
 .stat b{display:block;font-size:28px;font-weight:700;letter-spacing:-.02em}
 .stat span{font-size:14px;color:var(--muted)}
 .stat.hot b{color:#E5484D}
@@ -1433,10 +1444,52 @@ function adminTab(k){AD.tab=k;const S0=ast(k),m=AMETA[k];document.querySelectorA
      <label>Package name<input name="android_pkg" maxlength="100" value="${esc(CFG.androidPkg||'')}" placeholder="app.stall.twa"></label><label>SHA-256 fingerprint(s)<textarea name="android_sha" rows="3" placeholder="AB:CD:EF:…">${esc((CFG.androidSha||'').split(',').join(',\n'))}</textarea></label>
      <p class="meta">Check it: <a class="link" href="/.well-known/assetlinks.json" target="_blank" rel="noopener">/.well-known/assetlinks.json</a></p><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>`;const ff=$('#feeForm');ff.oninput=()=>feePrev(ff);feePrev(ff);return}
   $('#ab').innerHTML=(k==='schools'?`<form id="schAdd" class="atools"><input class="search" name="name" maxlength="90" placeholder="Add a school: full name" required><input class="search" name="short" maxlength="16" placeholder="Short name (optional)" style="flex:0 1 180px"><select name="state" class="sort" required><option value="">State…</option>${STATES.map(x=>`<option>${x}</option>`).join('')}</select><button class="pill sm" type="submit">Add</button></form>`:'')+(k==='codes'?`<form id="codeForm" class="atools"><input class="search" name="label" maxlength="40" placeholder="New code for which shop or vendor?" required><button class="pill sm" type="submit">Create code</button></form><span class="err" id="codeErr"></span><div id="codeOut"></div>`:'')
+   +(k==='money'?'<div id="edash"><p class="meta">Loading earnings…</p></div><p class="lb" style="margin-top:20px">Every payment</p>':'')
    +(AQ[k]?`<div class="atools"><input class="search asearch" type="search" placeholder="${AQ[k]}" value="${esc(S0.q)}"></div>`:'')
    +(AF[k]?`<div class="fchips">${AF[k].map(([v,l])=>`<button class="fchip" data-af="${v}" aria-pressed="${S0.f===v}">${l}</button>`).join('')}</div>`:'')
-   +'<div id="alist"><p class="meta">Loading...</p></div>';
+   +'<div id="alist"><p class="meta">Loading...</p></div>';if(k==='money')earnDash();
   $('#ab').scrollTop=0;adminLoad()}
+// Earnings dashboard: quick figures, a chart for the chosen period, a breakdown by type, and CSV downloads for accounting.
+const EARN_R=[['7d','7 days'],['30d','30 days'],['90d','90 days'],['6m','6 months'],['12m','12 months'],['all','All time']];
+const nk=n=>{const a=Math.abs(n),s=n<0?'−':'';return s+(a>=1e6?'₦'+(+(a/1e6).toFixed(a>=1e7?0:1))+'m':a>=1e3?'₦'+(+(a/1e3).toFixed(a>=1e4?0:1))+'k':'₦'+a)};
+const ekey=(k,unit,long)=>{const[y,m,d]=k.split('-').map(Number),dt=new Date(Date.UTC(y,m-1,d||1));return unit==='day'?dt.toLocaleDateString('en-NG',{timeZone:'UTC',...(long?{weekday:'short'}:{}),day:'numeric',month:'short'}):dt.toLocaleDateString('en-NG',{timeZone:'UTC',month:long?'long':'short',year:'numeric'})};
+const nairaS=n=>n<0?'−'+naira(-n):naira(n);
+async function earnDash(range){const box=()=>$('#edash');if(!box())return;range=range||AD.erange||'30d';AD.erange=range;
+  const r=await fetchJ('/api/admin/earnings?range='+range);if(!box()||AD.erange!==range)return;if(r.error){box().innerHTML='<p class="err">'+esc(r.error)+'</p>';return}
+  const q=r.quick,rl=EARN_R.find(x=>x[0]===range)[1],mx=Math.max(1,...r.cats.map(c=>Math.abs(c.amt)));
+  box().innerHTML=`<div class="eq">${[['Today',q.today],['Yesterday',q.yesterday],['Last 7 days',q.week],['This month',q.month],['Last month',q.lastMonth]].map(([l,v])=>`<div><b>${nairaS(v)}</b><span>${l}</span></div>`).join('')}</div>
+   <div class="ecard"><div class="ehead"><div><p class="meta">${range==='all'?'Earned since the first payment':'Earned in the last '+rl}</p><b class="ehero">${nairaS(r.total)}</b><p class="meta">${r.count} payment${r.count===1?'':'s'} · ${ekey(r.from,'day')} – ${ekey(r.to,'day')} · ${r.unit==='day'?'by day':'by month'}</p></div>
+    <div class="fchips">${EARN_R.map(([k,l])=>`<button class="fchip" data-er="${k}" aria-pressed="${k===range}">${l}</button>`).join('')}</div></div>
+    <div class="echart" id="eChart" role="img" aria-label="Earnings ${r.unit==='day'?'per day':'per month'}, ${esc(rl)}"></div>
+    <p style="margin:8px 0 0"><button class="link" id="eTblBtn" type="button">Show as table</button></p><div id="eTbl" hidden><table class="etbl"><tr><th>${r.unit==='day'?'Day':'Month'}</th><th>Payments</th><th>Earned</th></tr>${r.buckets.slice().reverse().map(b=>`<tr><td>${ekey(b.k,r.unit,1)}</td><td>${b.n}</td><td>${nairaS(b.amt)}</td></tr>`).join('')}</table></div></div>
+   <div class="ecard"><b>Where it came from</b><p class="meta" style="margin:2px 0 6px">${range==='all'?'All time':'Last '+rl}. A sale fee on an order that was later refunded is taken off on the refund date.</p>
+    ${r.cats.map(c=>`<div class="erow"><span>${c.label}</span><span class="n">${c.n}</span><span class="a">${nairaS(c.amt)}</span>${c.amt>0?`<span class="sh"><i style="width:${Math.round(c.amt/mx*100)}%"></i></span>`:''}</div>`).join('')}
+    <div class="erow tot"><span>Total</span><span class="n">${r.count}</span><span class="a">${nairaS(r.total)}</span></div></div>
+   <div class="ecard"><b>Download for your accountant</b><p class="meta" style="margin:2px 0 10px">CSV files open in Excel, Google Sheets or Numbers. The summary has totals by type and by day; the transactions file lists every payment with its Paystack reference. Times are Nigerian time (WAT). Paystack's own charges are in your Paystack settlement reports.</p>
+    <div class="two"><label>From<input type="date" id="eFrom" value="${r.from}" max="${r.to}"></label><label>To<input type="date" id="eTo" value="${r.to}" max="${r.to}"></label></div>
+    <div class="aacts"><button class="pill sm" type="button" data-edl="summary">Download summary</button><button class="pill sm alt" type="button" data-edl="tx">Download all transactions</button></div></div>`;
+  earnChart($('#eChart'),r);
+  box().onclick=e=>{const b=e.target.closest('[data-er],[data-edl],#eTblBtn');if(!b)return;
+    if(b.id==='eTblBtn'){const t=$('#eTbl');t.hidden=!t.hidden;b.textContent=t.hidden?'Show as table':'Hide table';return}
+    if(b.dataset.er){box().querySelectorAll('[data-er]').forEach(x=>x.setAttribute('aria-pressed',x===b));earnDash(b.dataset.er);return}
+    const f=$('#eFrom').value,t=$('#eTo').value;if(!f||!t)return toast('Pick a start and end date');if(f>t)return toast('The start date must be before the end date');
+    location.href='/api/admin/earnings.csv?'+new URLSearchParams({type:b.dataset.edl,from:f,to:t})}}
+// Bar chart, one bar per day or month: 4px rounded ends, square at the zero line, hairline grid, a tooltip on hover or tap.
+function earnChart(el,r){const B=r.buckets,W=Math.max(280,el.clientWidth||600),H=210,pl=46,pr=8,pt=10,pb=24,n=B.length,vals=B.map(b=>b.amt);
+  const nice=v=>{if(v<=0)return 0;const p=10**Math.floor(Math.log10(v)),f=v/p;return(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p};
+  const top=nice(Math.max(0,...vals))||1000,bot=-nice(-Math.min(0,...vals)),y=v=>pt+(top-v)/(top-bot)*(H-pt-pb),y0=y(0),band=(W-pl-pr)/n,bw=Math.max(2,Math.min(24,band*.7)),rr=Math.min(4,bw/2);
+  const ticks=[bot<0?bot:null,0,top/2,top].filter(v=>v!=null),every=Math.max(1,Math.ceil(n/(W<480?4:7)));
+  const bar=(i,v)=>{const x=pl+band*i+(band-bw)/2,h=Math.abs(y(v)-y0);if(!v)return'';if(h<=rr)return`<rect class="bar" data-i="${i}" x="${x}" y="${Math.min(y(v),y0)}" width="${bw}" height="${Math.max(1,h)}"/>`;
+    const e=y(v),s=v>0?1:-1;return`<path class="bar" data-i="${i}" d="M${x},${y0}V${e+s*rr}Q${x},${e} ${x+rr},${e}H${x+bw-rr}Q${x+bw},${e} ${x+bw},${e+s*rr}V${y0}Z"/>`};
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" height="${H}">${ticks.map(v=>`<line class="gl" x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}"/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end">${nk(v)}</text>`).join('')}
+   ${B.map((b,i)=>bar(i,b.amt)).join('')}
+   ${B.map((b,i)=>i%every===0||i===n-1&&n-1-(n-1)%every>=every/2?`<text x="${pl+band*i+band/2}" y="${H-6}" text-anchor="middle">${ekey(b.k,r.unit)}</text>`:'').join('')}
+   ${B.map((b,i)=>`<rect class="hit" data-i="${i}" x="${pl+band*i}" y="${pt}" width="${band}" height="${H-pt-pb}"/>`).join('')}</svg>
+   ${vals.every(v=>!v)?'<p class="meta" style="position:absolute;inset:40% 0 auto;text-align:center">No earnings in this period yet.</p>':''}<div class="etip" hidden></div>`;
+  const tip=el.querySelector('.etip'),svg=el.querySelector('svg'),off=()=>{tip.hidden=true;el.classList.remove('hov');el.querySelectorAll('.bar.on').forEach(x=>x.classList.remove('on'))};
+  const on=e=>{const h=e.target.closest('.hit');if(!h)return off();const i=+h.dataset.i,b=B[i],k=svg.getBoundingClientRect().width/W;off();el.classList.add('hov');const m=el.querySelector('.bar[data-i="'+i+'"]');if(m)m.classList.add('on');
+    tip.innerHTML=`<b>${nairaS(b.amt)}</b>${ekey(b.k,r.unit,1)} · ${b.n} payment${b.n===1?'':'s'}`;tip.hidden=false;tip.style.left=Math.min(Math.max((pl+band*i+band/2)*k,70),el.clientWidth-70)+'px';tip.style.top=(Math.min(y(b.amt),y0))*k+'px'};
+  svg.onpointermove=on;svg.onpointerdown=on;svg.onpointerleave=off}
 async function adminLoad(){const k=AD.tab,S0=ast(k),n=++AD.n,el=()=>n===AD.n&&$('#alist'),qs=p=>'?'+new URLSearchParams({q:S0.q,page:S0.page,...p});
   if(k==='health'){const s=AD.sum;if(el())el().innerHTML=`<div class="hgrid">     <div class="arow hlrow"><span class="aic">${ico('image')}</span><div class="t"><div class="ttl"><b>Automatic photo check</b>${!s.aiOn?bdg('Off','bad'):s.aiLast&&!s.aiLast.ok?bdg('Failing','bad'):bdg(s.aiLast?'Working':'On','ok')}</div>
       <small>${!s.aiOn?'Not connected, so every new listing waits for a person in Photo check. In Cloudflare open stall-app → Settings → Bindings, add a Workers AI binding named <b>AI</b> for Production, then redeploy.':s.aiLast?(s.aiLast.ok?'Last listing photo checked '+aAgo(s.aiLast.t)+'.':'Last check failed '+aAgo(s.aiLast.t)+': '+esc(s.aiLast.err||'unknown error')+'. New listings are coming to you in Photo check until it works again.'):'Connected. No listing photo has been checked yet.'}</small></div></div>
