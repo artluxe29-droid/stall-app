@@ -1,5 +1,6 @@
 :root{--bg:#F5F6FA;--card:#fff;--ink:#0F172A;--muted:#64748B;--line:#E5E7EF;--acc:#FF9F1C}
-@media (prefers-color-scheme:dark){:root{--bg:#0B0F1A;--card:#121828;--ink:#F1F5F9;--muted:#94A3B8;--line:#243049}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0B0F1A;--card:#121828;--ink:#F1F5F9;--muted:#94A3B8;--line:#243049}}
+:root[data-theme="dark"]{--bg:#0B0F1A;--card:#121828;--ink:#F1F5F9;--muted:#94A3B8;--line:#243049}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.65 "Plus Jakarta Sans",-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 .w{max-width:760px;margin:0 auto;padding:18px 16px 60px}
 .top{display:flex;align-items:center;gap:10px;font-weight:800;font-size:22px;letter-spacing:-.04em;color:var(--ink);text-decoration:none}.top img{width:34px;height:34px;border-radius:10px}.top b::after{content:'.';color:var(--acc)}
