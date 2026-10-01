@@ -793,7 +793,7 @@ function orderCard(o,seller){const badge={pending:'Awaiting payment',under_revie
    ${o.method==='pickup'&&o.status==='verified'&&!seller?`<div class="onote">${o.stage==='ready'?'<b>Ready for pickup</b>':'Pick up'}${o.pickup?' at '+esc(o.pickup):''}. Bring your release code.</div>`:''}
    ${seller&&o.status==='verified'?'<div class="onote">Payment confirmed by Stall. Hand over the item when the buyer gives you their release code.</div>':''}
    ${seller&&o.status==='verified'&&(NEXT[o.method==='delivery'?'delivery':'pickup'][o.stage||'paid'])?(([to,l])=>`<div class="acts"><button class="pill sm alt" data-stage="${o.id}" data-to="${to}">${l}</button></div>`)(NEXT[o.method==='delivery'?'delivery':'pickup'][o.stage||'paid']):''}
-   ${seller&&o.paidVia==='paystack'&&['verified','disputed'].includes(o.status)?`<div class="onote">Stall is holding <b>${naira(o.amount-o.fee)}</b> for you (after Stall's fee of ${naira(o.fee)}). It's sent to your bank as soon as the buyer's release code is entered${o.holdUntil?', or automatically on '+new Date(o.holdUntil).toLocaleDateString('en-NG',{weekday:'short',day:'numeric',month:'short'})+' if the buyer reports no problem':''}.</div>`:''}
+   ${seller&&o.paidVia==='paystack'&&['verified','disputed'].includes(o.status)?`<div class="onote">Stall is holding <b>${naira(o.amount-o.fee)}</b> for you (${o.fee?'after Stall\'s fee of '+naira(o.fee):'no Stall fee: launch offer'}). It's sent to your bank as soon as the buyer's release code is entered${o.holdUntil?', or automatically on '+new Date(o.holdUntil).toLocaleDateString('en-NG',{weekday:'short',day:'numeric',month:'short'})+' if the buyer reports no problem':''}.</div>`:''}
    ${seller&&o.paidVia==='paystack'&&o.status==='released'?`<div class="onote">${o.payout==='paid'?`<b>${naira(o.amount-o.fee)}</b> sent to your bank ✓`:o.payout==='failed'?`Your ${naira(o.amount-o.fee)} payout is delayed. The Stall team is on it.`:`Sending <b>${naira(o.amount-o.fee)}</b> to your bank…`}</div>`:''}
    ${seller&&o.status==='disputed'?`<div class="onote bad">The buyer reported a problem: ${esc((o.note||'').replace(/^Buyer reported: /,''))}. The money stays on hold while Stall looks into it. Don't hand over anything until it's sorted.</div>`:''}
    ${o.status==='refunded'?`<div class="onote">${seller?'This order was cancelled and the buyer refunded.':'Refunded to you. It can take a few working days to show in your account.'}${o.note?' '+esc(o.note):''}</div>`:''}
@@ -892,7 +892,7 @@ document.addEventListener('click',e=>{
   if(id0==='tbSell'){S.user&&S.user.role==='vendor'?(myStore()?storePage(myStore().id):view('stores')):$('#sellBtn').click()}
   if(id==='bagBtn')openCart();
   if(id==='goCheckout')openCheckout();
-  if(id==='sellBtn'||id==='sellHero'||id==='sellEmpty'){const f=$('#form').elements;f.seller.value=S.user.name;f.phone.value=S.user.phone;wireBankVerify($('#form'));$('#sell').showModal()}
+  if(id==='sellBtn'||id==='sellHero'||id==='sellEmpty'){const f=$('#form').elements;f.seller.value=S.user.name;f.phone.value=S.user.phone;wireBankVerify($('#form'));earnAll();$('#sell').showModal()}
   if(id==='gNext'){si++;gate()}
   if(id==='toIn'){authMode='in';S.obSeen=1;save();clearTimeout(obT);$('#gate').classList.remove('obg');gate()}
   if(id==='toUp'){authMode='up';gate()}
@@ -913,7 +913,7 @@ document.addEventListener('click',e=>{
   if(id==='navShop'||id==='home'||id==='toShop')view('shop');
   if(id==='navStores'||id==='toStores'||id==='backStores')view('stores');
   if(id==='openStore'){const s=myStore();if(s)storePage(s.id);else{const f=$('#storeForm').elements;f.phone.value=S.user.phone;if(S.user.biz){f.name.value=S.user.biz;f.spot.value=S.user.where;f.cat.value=S.user.cat}wireBankVerify($('#storeForm'));$('#storeDlg').showModal()}}
-  if(id==='addItem')$('#itemDlg').showModal();
+  if(id==='addItem'){earnAll();$('#itemDlg').showModal()}
   if(id==='shopNow'){$('#browse').scrollIntoView()}
 });
 // Install as an app: one-tap prompt on Android/Chrome, guide page on iPhone.
@@ -1080,8 +1080,12 @@ function openItem(id){const i=get(id);if(!i)return;const st=allStores().find(x=>
    <div class="acts">${ok?`<button class="pill" data-inc="${id}">Add to bag</button>`:'<button class="pill" disabled>Unavailable</button>'}<button class="pill alt" data-close>Close</button></div></div>`;d.showModal()}
 const pk1=mkPicker($('#pkSell')),pk2=mkPicker($('#pkItem'));
 // Show sellers exactly what they'll receive for the price they type.
-const earnText=p=>!(p>0)?'<b>Enter a price</b>We\'ll show exactly what you get when it sells.':p<500?'<b>The minimum price is ₦500</b>':`<b>You get ${naira(p-feeOf(p))}</b>Buyer pays ${naira(p)} · Stall's fee ${naira(feeOf(p))} (5%, min ₦150, max ₦2,000). Delivery fees are all yours.`;
+const freeN=()=>(S.user&&S.user.freeLeft)||0,sales=n=>n===1?'sale':n+' sales';
+const earnText=p=>{const n=freeN();if(!(p>0))return n?`<b>Launch offer: no fee on your next ${sales(n)}</b>Enter a price to see exactly what you get.`:'<b>Enter a price</b>We\'ll show exactly what you get when it sells.';if(p<500)return '<b>The minimum price is ₦500</b>';
+  return n?`<b>You get ${naira(p)}</b>Launch offer: no Stall fee on your next ${sales(n)}. After that you'd get ${naira(p-feeOf(p))} (fee ${naira(feeOf(p))}: 5%, min ₦150, max ₦2,000). Delivery fees are always yours.`
+   :`<b>You get ${naira(p-feeOf(p))}</b>Buyer pays ${naira(p)} · Stall's fee ${naira(feeOf(p))} (5%, min ₦150, max ₦2,000). Delivery fees are all yours.`};
 const earnShow=f=>{const n=f.querySelector('[data-earn]'),p=+f.elements.price.value;if(n){n.innerHTML=earnText(p);n.classList.toggle('low',p>0&&p<500)}};
+window.earnAll=()=>document.querySelectorAll('[data-earn]').forEach(n=>earnShow(n.closest('form')));
 document.querySelectorAll('[data-earn]').forEach(n=>{const f=n.closest('form');f.elements.price.addEventListener('input',()=>earnShow(f));f.addEventListener('reset',()=>setTimeout(()=>earnShow(f)));earnShow(f)});
 const SCHOOL={matric:/^[A-Za-z0-9\/-]{4,16}$/};
 // Schools across Nigeria, for sign-up, the school switcher and store locations.
@@ -1201,7 +1205,7 @@ function openBulk(where){const st=where==='store'?myStore():null,d=$('#accDlg');
     <div id="brows">${[0,1,2].map(row).join('')}</div><p><button type="button" class="link" id="bMore">+ Add another item</button></p>
     <span class="err" id="bErr"></span><div class="acts"><button class="pill" type="submit">Post all</button><button class="pill alt" type="button" data-close>Cancel</button></div></form></div>`;if(!d.open)d.showModal();
   let n=3;const imgs={};$('#bMore').onclick=()=>{if(n>=10)return toast('Up to 10 at a time');$('#brows').insertAdjacentHTML('beforeend',row(n++))};
-  d.querySelector('#brows').oninput=e=>{if(!e.target.matches('[data-bp]'))return;const p=+e.target.value,g=e.target.closest('.bf').querySelector('.bget');g.innerHTML=!(p>0)?'':p<500?'Minimum price is ₦500':`You get <b>${naira(p-feeOf(p))}</b> after Stall's ${naira(feeOf(p))} fee`};
+  d.querySelector('#brows').oninput=e=>{if(!e.target.matches('[data-bp]'))return;const p=+e.target.value,g=e.target.closest('.bf').querySelector('.bget');g.innerHTML=!(p>0)?'':p<500?'Minimum price is ₦500':freeN()?`You get <b>${naira(p)}</b> (no fee: launch offer)`:`You get <b>${naira(p-feeOf(p))}</b> after Stall's ${naira(feeOf(p))} fee`};
   d.querySelector('#brows').onclick=e=>{const b=e.target.closest('[data-bph]');if(b)d.querySelector(`[data-bfile="${b.dataset.bph}"]`).click()};
   d.querySelector('#brows').onchange=async e=>{const f=e.target.closest('[data-bfile]');if(!f||!f.files[0])return;const i=f.dataset.bfile;try{imgs[i]=await shrinkPhoto(f.files[0]);d.querySelector(`[data-bph="${i}"]`).innerHTML=`<img src="${imgs[i]}" alt="">`}catch(x){toast('Could not read that photo')}};
   $('#bulkF').onsubmit=async e=>{e.preventDefault();const F=e.target,rows=[...d.querySelectorAll('[data-brow]')].map(r=>({r,i:r.dataset.brow,t:r.querySelector('[name=t]').value.trim(),p:r.querySelector('[name=p]').value,q:r.querySelector('[name=q]').value})).filter(x=>x.t||x.p||imgs[x.i]);
@@ -1380,6 +1384,7 @@ async function openAdmin(){const d=$('#adminDlg');AD.rev=!S.user.admin;if(AD.rev
     if(r&&r.error)return toast(r.error);toast(msg);adminSum();adminLoad()};
   d.onsubmit=async e=>{const f=e.target;e.preventDefault();
     if(f.id==='refForm'){const r=await apiPost('admin/settings',{ref_reward:f.elements.ref_reward.value,ref_cap:f.elements.ref_cap.value,credit_pct:f.elements.credit_pct.value});if(r.error)return toast(r.error);AD.sum.refReward=+f.elements.ref_reward.value;AD.sum.refCap=+f.elements.ref_cap.value;AD.sum.creditPct=+f.elements.credit_pct.value;CFG.creditPct=AD.sum.creditPct;toast('Saved');return}
+    if(f.id==='freeForm'){const r=await apiPost('admin/settings',{free_sales:f.elements.free_sales.value});if(r.error)return toast(r.error);CFG.freeSales=+f.elements.free_sales.value;toast('Saved');return}
     if(f.id==='stuForm'){const r=await apiPost('admin/settings',{require_verified:f.elements.require_verified.checked,school_domains:f.elements.school_domains.value});if(r.error)return toast(r.error);AD.sum.requireVerified=f.elements.require_verified.checked;AD.sum.schoolDomains=f.elements.school_domains.value;toast('Saved');return}
     if(f.id==='andForm'){const r=await apiPost('admin/settings',{android_pkg:f.elements.android_pkg.value,android_sha:f.elements.android_sha.value});if(r.error)return toast(r.error);CFG={...CFG,androidPkg:f.elements.android_pkg.value.trim(),androidSha:f.elements.android_sha.value.toUpperCase().split(/[\s,]+/).filter(Boolean).join(',')};toast('Android app settings saved');return}
     if(f.id==='setForm'){const r=await apiPost('admin/settings',{biz_name:f.elements.biz_name.value,support_phone:f.elements.support_phone.value,support_email:f.elements.support_email.value});if(r.error)return toast(r.error);CFG={...CFG,name:f.elements.biz_name.value,phone:f.elements.support_phone.value,email:f.elements.support_email.value};drawHelp();return toast('Saved')}
@@ -1406,6 +1411,8 @@ function adminTab(k){AD.tab=k;const S0=ast(k),m=AMETA[k];document.querySelectorA
      <form id="refForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('gift')}</span><b>Invite rewards</b></div><p class="meta">When someone who joined with a friend's invite link completes their first order, both get this much Stall credit. Credit can only pay part of featuring items and stores or store reach, never cash. Keep it small so paid featuring keeps its value. Set the reward to 0 to turn rewards off. ${AD.sum.referrals?`So far: ${AD.sum.referrals.n} joined by invite, ${AD.sum.referrals.p} rewarded.`:''}</p>
      <div class="two"><label>Reward for each person (₦)<input name="ref_reward" type="number" min="0" max="5000" value="${AD.sum.refReward!=null?AD.sum.refReward:100}"></label><label>Most anyone can earn a month (₦)<input name="ref_cap" type="number" min="0" max="50000" value="${AD.sum.refCap!=null?AD.sum.refCap:500}"></label></div>
      <label>Credit can pay up to (% of a featuring or reach price)<input name="credit_pct" type="number" min="0" max="100" value="${AD.sum.creditPct!=null?AD.sum.creditPct:50}"></label><p class="meta">Credit held by users right now: ${naira(AD.sum.creditOut||0)}.</p><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>
+     <form id="freeForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('gift')}</span><b>Launch offer for sellers</b></div><p class="meta">Each seller pays no Stall fee on this many of their first paid sales. Sellers see it when they set a price. Stall still pays Paystack's charges on these sales. Set it to 0 to end the offer; sales already paid keep their fee.</p>
+     <label>Fee-free sales per seller<input name="free_sales" type="number" min="0" max="20" value="${CFG.freeSales!=null?CFG.freeSales:3}"></label><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>
      <form id="andForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('phone')}</span><b>Android app (Google Play)</b></div><p class="meta">Lets the Play Store app open Stall full screen, without a browser bar. Use the package name you chose in PWABuilder, and the SHA-256 fingerprint from Play Console → Test and release → App integrity → App signing. You can add more than one fingerprint, separated by commas.</p>
      <label>Package name<input name="android_pkg" maxlength="100" value="${esc(CFG.androidPkg||'')}" placeholder="app.stall.twa"></label><label>SHA-256 fingerprint(s)<textarea name="android_sha" rows="3" placeholder="AB:CD:EF:…">${esc((CFG.androidSha||'').split(',').join(',\n'))}</textarea></label>
      <p class="meta">Check it: <a class="link" href="/.well-known/assetlinks.json" target="_blank" rel="noopener">/.well-known/assetlinks.json</a></p><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>`;return}
