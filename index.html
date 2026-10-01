@@ -688,7 +688,10 @@ function openCheckout(){
   $('#cart').close();d.showModal();
   $('#goPay').onclick=()=>startCheckout(L.map(({i,q})=>({id:i.id,q})));
 }
-const fetchJ=(u,o)=>fetch(u,o).then(r=>r.json());
+// A reply Stall can't read means a problem on Stall's side, not the user's connection; only a failed request means that.
+const SERVER_ERR={error:'Something went wrong on Stall\'s side. Please try again in a moment.'};
+const readJ=r=>r.json().catch(()=>({...SERVER_ERR,_s:r.status}));
+const fetchJ=(u,o)=>fetch(u,o).then(readJ);
 const payEmail=()=>S.user.email||('buyer'+String(S.user.phone||'0').replace(/\D/g,'')+'@stall.app');
 // Stall's sale fee, as set in Admin > Settings > Sale fee (the server works it out the same way).
 const feeC=()=>(typeof CFG!=='undefined'&&CFG.fee)||{rate:5,min:150,cap:2000};
@@ -1161,7 +1164,7 @@ function sceneLive(sec,k){if(k==='find'){const el=sec.querySelector('.typed'),Q=
   if(k==='sell'){const el=sec.querySelector('.count'),end=48500,t0=performance.now();if(CALM){el.textContent=naira(end);return}
     (function f(t){if(!document.contains(sec))return;const p=Math.min(1,(t-t0-500)/1600);el.textContent=naira(Math.max(0,Math.round(end*(1-Math.pow(1-Math.max(0,p),3))/100)*100));if(p<1)requestAnimationFrame(f)})(t0)}}
 let si=S.user||S.obSeen?SL.length:0,rt='student';
-let authMode='up';const apiPost=(p,b)=>fetch('/api/'+p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json()).catch(()=>({error:'Could not reach Stall. Check your connection.'}));
+let authMode='up';const apiPost=(p,b)=>fetch('/api/'+p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}).then(readJ,()=>({error:'Could not reach Stall. Check your connection.'}));
 const SEG=()=>`<div class="seg"><button type="button" id="rtStudent" aria-pressed="${rt==='student'}">I'm a student</button><button type="button" id="rtVendor" aria-pressed="${rt==='vendor'}">I run a shop</button></div>`;
 function vendorGate(g){
   g.innerHTML=`<div class="gin" style="text-align:left"><h1 style="font-size:36px">Create your account</h1>

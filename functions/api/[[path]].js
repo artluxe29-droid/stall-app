@@ -50,11 +50,11 @@ async function sweep(env){await ensure(env);const now=Date.now();if(now-SWEPT<3e
   await env.DB.batch(ids.map(id=>env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,id)));
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='16';
+const SCHEMA_V='17';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
-  for(const q of ['ALTER TABLE listings ADD COLUMN featured_until INTEGER','ALTER TABLE stores ADD COLUMN featured_until INTEGER','ALTER TABLE users ADD COLUMN verified INTEGER NOT NULL DEFAULT 0',
+  for(const q of ['ALTER TABLE stores ADD COLUMN bank_code TEXT','ALTER TABLE stores ADD COLUMN acct_name TEXT','ALTER TABLE stores ADD COLUMN bank_verified INTEGER','ALTER TABLE listings ADD COLUMN featured_until INTEGER','ALTER TABLE stores ADD COLUMN featured_until INTEGER','ALTER TABLE users ADD COLUMN verified INTEGER NOT NULL DEFAULT 0',
     'CREATE TABLE IF NOT EXISTS schools(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE,short TEXT,state TEXT NOT NULL,kind TEXT,active INTEGER NOT NULL DEFAULT 1,created INTEGER)','CREATE INDEX IF NOT EXISTS schools_state ON schools(state)',
     'ALTER TABLE users ADD COLUMN school_id INTEGER','ALTER TABLE users ADD COLUMN state TEXT',
     'ALTER TABLE listings ADD COLUMN school_id INTEGER','ALTER TABLE listings ADD COLUMN state TEXT','ALTER TABLE listings ADD COLUMN qty INTEGER NOT NULL DEFAULT 1','ALTER TABLE listings ADD COLUMN qty_left INTEGER',
@@ -333,7 +333,13 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
     await env.DB.prepare('UPDATE pending_pay SET done=1,result=? WHERE ref=?').bind(JSON.stringify(res),ref).run();
     await logA(env,u,'money',act,label+' · ₦'+got,{who:u.name+' ('+(u.biz||u.phone)+')'});return{ok:true,kind:p.kind,...res}}
   catch(e){await env.DB.prepare('UPDATE pending_pay SET done=0 WHERE ref=?').bind(ref).run();return{error:'Could not finish this payment yet. It will be retried. Reference '+ref}}}
-export async function onRequest({request,env,params,waitUntil}){
+// Any unexpected error comes back as a clear JSON message (not Cloudflare's error page, which the app would read as a lost
+// connection), and the Stall team gets the details on Telegram.
+export async function onRequest(ctx){try{return await route(ctx)}catch(e){
+  const id=Math.random().toString(36).slice(2,8).toUpperCase(),path=[].concat(ctx.params.path||[]).join('/'),msg=String(e&&e.message||e).slice(0,300);
+  console.error('api error',id,path,e&&e.stack||e);try{ctx.waitUntil(tg(ctx.env,'Stall server error '+id+' on /api/'+path+' ('+ctx.request.method+'):\n'+msg))}catch(x){}
+  return new Response(JSON.stringify({error:'Something went wrong on Stall\'s side. The team has been alerted. Please try again in a moment (error '+id+').',errorId:id}),{status:500,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}})}}
+async function route({request,env,params,waitUntil}){
   const path=[].concat(params.path||[]).join('/'),url=new URL(request.url);
   const bump=()=>bumpVer(env);
   if(request.method!=='GET'&&request.method!=='HEAD'&&path!=='paystack/webhook'){const o=request.headers.get('origin');if(o&&o!==url.origin)return J({error:'Request blocked.'},403)}
@@ -587,9 +593,9 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
         const tk=await env.DB.prepare('UPDATE listings SET qty_left=qty_left-?,sold=CASE WHEN qty_left-?<=0 THEN 1 ELSE 0 END WHERE id=? AND qty_left>=?').bind(q,q,rid,q).run();
         if(!tk.meta.changes)return fail(L.qty_left>0?'Only '+L.qty_left+' of "'+L.title+'" left. Reduce the quantity in your bag.':'"'+L.title+'" just sold out.');taken.push(['listing',rid,q]);
         const gk='U'+L.uid;(groups[gk]=groups[gk]||{seller:L.uid,sname:L.un,sphone:L.up,bank:L.bank_name,acct:L.acct_no,acctName:L.acct_name,bcode:L.bcode,bok:L.bok,dl:dlv(L),pickup:L.spot||'',items:[]}).items.push({kind:'listing',ref_id:L.id,title:L.title,price:L.price,q,unique:true})}
-      else{const I=await env.DB.prepare('SELECT i.*,s.id sid,s.name sname,s.phone sphone,s.isopen,s.acct_no,s.acct,s.acct_name,s.bank,s.bank_code bcode,s.bank_verified bok,s.deliv_on,s.deliv_fee,s.deliv_note,s.spot sspot FROM store_items i JOIN stores s ON s.id=i.sid JOIN users u ON u.id=s.uid WHERE i.id=? AND '+LIVE).bind(rid).first();
+      else{const I=await env.DB.prepare('SELECT i.*,s.id sid,s.name sname,s.phone sphone,s.isopen,s.acct,s.acct_name,s.bank,s.bank_code bcode,s.bank_verified bok,s.deliv_on,s.deliv_fee,s.deliv_note,s.spot sspot FROM store_items i JOIN stores s ON s.id=i.sid JOIN users u ON u.id=s.uid WHERE i.id=? AND '+LIVE).bind(rid).first();
         if(!I||!I.avail||!I.isopen||I.review!=='live')return fail('An item in your bag is no longer available.');
-        const acctNo=I.acct_no||I.acct;if(!acctNo||!I.acct_name)return fail('The store for "'+I.title+'" has not set up payment details yet.');
+        const acctNo=I.acct;if(!acctNo||!I.acct_name)return fail('The store for "'+I.title+'" has not set up payment details yet.');
         if(I.qty_left!=null){const tk=await env.DB.prepare('UPDATE store_items SET qty_left=qty_left-? WHERE id=? AND qty_left>=?').bind(q,rid,q).run();
           if(!tk.meta.changes)return fail(I.qty_left>0?'Only '+I.qty_left+' of "'+I.title+'" left. Reduce the quantity in your bag.':'"'+I.title+'" just sold out.');taken.push(['item',rid,q])}
         const gk='S'+I.sid;(groups[gk]=groups[gk]||{seller:0,sname:I.sname,sphone:I.sphone,bank:I.bank,acct:acctNo,acctName:I.acct_name,bcode:I.bcode,bok:I.bok,dl:dlv(I),pickup:I.sspot||'',items:[]}).items.push({kind:'item',ref_id:I.id,title:I.title,price:I.price,q})}}
