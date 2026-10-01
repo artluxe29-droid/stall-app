@@ -1,6 +1,13 @@
-const C='stall-v2',SHELL=['/','/manifest.webmanifest','/icons/icon-192-v2.png'];
+const C='stall-v3',SHELL=['/','/manifest.webmanifest','/icons/icon-192-v2.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(SHELL)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>clients.claim()))});
 self.addEventListener('fetch',e=>{const r=e.request,u=new URL(r.url);
   if(r.method!=='GET'||u.origin!==location.origin||u.pathname.startsWith('/api/'))return;
   e.respondWith(fetch(r).then(x=>{const y=x.clone();caches.open(C).then(c=>c.put(r,y));return x}).catch(()=>caches.match(r).then(m=>m||caches.match('/'))))});
+// Push notifications: the push carries no data, so ask Stall what to show. A notification must always be shown.
+const show=(t,o)=>self.registration.showNotification(t,{icon:'/icons/icon-192-v2.png',badge:'/icons/icon-192-v2.png',...o});
+self.addEventListener('push',e=>{e.waitUntil(fetch('/api/push/inbox',{credentials:'include'}).then(r=>r.ok?r.json():{notes:[]}).then(j=>{const n=j.notes||[];
+  if(!n.length)return show('Stall',{body:'You have a new update.',tag:'stall',data:{url:'/'}});
+  return Promise.all(n.reverse().map(x=>show(x.title,{body:x.body||'',tag:x.tag||'n'+x.id,renotify:!!x.tag,data:{url:x.url||'/'}})))}).catch(()=>show('Stall',{body:'You have a new update.',tag:'stall',data:{url:'/'}})))});
+self.addEventListener('notificationclick',e=>{e.notification.close();const url=new URL((e.notification.data&&e.notification.data.url)||'/',location.origin).href;
+  e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(cs=>{for(const c of cs){if(c.url.startsWith(location.origin)&&'focus'in c){return c.navigate(url).then(w=>(w||c).focus()).catch(()=>c.focus())}}return clients.openWindow(url)}))});

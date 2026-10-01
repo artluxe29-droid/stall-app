@@ -198,6 +198,7 @@ dialog.adm[open]{display:flex;flex-direction:column}
 .gcard .gico{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#FF9F1C,#FF6A3D);color:#fff;flex:none}.gcard .gico .ic{width:22px;height:22px}
 .gtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:12px 0 4px}.gtabs button{flex:none;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:8px 14px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer}.gtabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .gstep{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}.gstep:last-child{border-bottom:0}.gstep .gn{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;background:var(--bg2);color:var(--ink);flex:none}.gstep .gn .ic{width:20px;height:20px}.gstep .gtl{display:block;margin-bottom:2px}.gstep p b{color:var(--ink)}.gstep p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.5}.gstep .link{margin-top:6px;font-size:14px}
+.pnudge{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:0 0 12px}.pnudge .aic{background:#FFF4E5;color:#E8590C;box-shadow:none}.pnudge>div{flex:1;min-width:0}.pnudge p{margin:0;font-size:13px}.pnudge .x{border:0;background:none;font-size:20px;color:var(--muted);cursor:pointer}.chatdlg .pnudge{margin:8px 0 0}.dark-ui .pnudge .aic{background:#2A1C0B}
 .tseg{display:flex;gap:4px;background:var(--bg2);border-radius:14px;padding:4px;margin-top:10px}.tseg button{flex:1;border:0;background:none;border-radius:10px;padding:9px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer}.tseg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:var(--sh)}
 .chatdlg .pad{display:flex;flex-direction:column;height:min(78vh,640px)}.chead{display:flex;gap:10px;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--line)}.chead b{display:block}.chead .meta{font-size:13px}
 .cwarn{font-size:13px;background:#FFF7E6;color:#7A4B00;border-radius:12px;padding:8px 12px;margin:10px 0}.cwarn.hot{background:#FDECEC;color:#9B1C1C}
@@ -770,8 +771,8 @@ function orderCard(o,seller){const badge={pending:'Awaiting payment',under_revie
    ${seller&&o.status==='verified'?`<form data-codeform="${o.id}" class="acts" style="gap:8px"><input name="code" placeholder="STALL-XXXXXX" style="flex:1" required><button class="pill sm" type="submit">Release</button></form>`:''}
    </div>`}
 async function renderOrders(){const r=await fetchJ('/api/orders/mine').catch(()=>({}));const L=r.orders||[],up=updBox('buy');markSeen('b');
-  $('#orderList').innerHTML=up+(L.length?L.map(o=>orderCard(o,false)).join(''):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>When you buy something, it shows up here.</p><div class="acts" style="justify-content:center"><button class="pill" id="toShop">Start shopping</button></div></div>`);
-  $('#orderList').querySelectorAll('[data-rateform]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();if(!f.elements.stars.value)return toast('Tap the stars to rate');
+  $('#orderList').innerHTML=(L.length?nudgeHtml('order'):'')+up+(L.length?L.map(o=>orderCard(o,false)).join(''):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>When you buy something, it shows up here.</p><div class="acts" style="justify-content:center"><button class="pill" id="toShop">Start shopping</button></div></div>`);
+  drawNudges();$('#orderList').querySelectorAll('[data-rateform]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();if(!f.elements.stars.value)return toast('Tap the stars to rate');
     const r=await apiPost('orders/rate',{id:+f.dataset.rateform,stars:+f.elements.stars.value,text:f.elements.text.value});if(r.error)return toast(r.error);toast('Thanks for rating');renderOrders()});
   $('#orderList').querySelectorAll('[data-payid]').forEach(b=>b.onclick=async()=>{const o=(L).find(x=>x.id==b.dataset.payid);PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)});
   $('#orderList').querySelectorAll('[data-showcode]').forEach(b=>b.onclick=async()=>{const o=(L).find(x=>x.id==b.dataset.showcode);PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)})}
@@ -817,6 +818,9 @@ document.addEventListener('click',e=>{
   if(id0==='accDeliv')openDelivery('me');
   if(id0==='themeBtn'){applyTheme(isDark()?'light':'dark');toast(isDark()?'Dark mode on':'Light mode on');return}
   if(b=c('.tseg [data-theme]')){applyTheme(b.dataset.theme);return}
+  if(id0==='accPush'){openPushSettings();return}
+  if(c('[data-pushon]')){enablePush();return}
+  if(c('[data-pushno]')){S.pushAsk=1;save();drawNudges();return}
   if(id0==='accGuide'||id0==='guideGo'){openGuide();return}
   if(id0==='guideX'){S.guideSeen=1;save();$('#guideCard').hidden=true;return}
   if(b=c('[data-gtab]')){openGuide(b.dataset.gtab);return}
@@ -909,10 +913,10 @@ addEventListener('appinstalled',()=>{DIP=null;drawInstall();toast('Stall is inst
 function openAccount(){const u=S.user,d=$('#accDlg');if(!u)return;const ns=NEWS.filter(x=>x.side==='sell').length;
   const row=(id,ic,l,sub)=>`<button class="line" id="${id}" style="width:100%;background:none;border:0;border-bottom:1px solid var(--line);text-align:left;font:inherit;color:inherit"><div class="mini" style="background:var(--bg2);width:44px;height:44px;border-radius:14px;color:var(--ink)">${ico(ic)}</div><div class="t"><b>${l}</b>${sub?`<span class="meta">${sub}</span>`:''}</div><span class="meta">›</span></button>`;
   d.innerHTML=`<div class="pad"><div style="display:flex;gap:14px;align-items:center"><div class="sav" style="width:60px;height:60px;margin:0;font-size:26px;border:0;background:var(--bg2)">${esc((u.name||'?')[0])}</div><div><h2 style="margin:0;font-size:22px">${esc(u.name)}</h2><p class="meta">${u.role==='vendor'?'Campus vendor':esc(u.matric||'')} ${u.verified?VB:''}</p></div></div>
-   <div style="margin-top:14px">${row('accGuide','book2','How Stall works','A quick guide to buying, selling and staying safe')}${row('accSchool','school','My school',u.schoolInfo?esc(u.schoolInfo.name):'Choose your school')}${row('accSelling','box','Orders to fulfil',ns?ns+' new':'Things people bought from you')}${u.role==='student'&&(u.vlevel||0)<2?row('accStu','cap','Verify you\'re a student',u.idCheck==='pending'?'Your document is being checked':'Show a student ID, course form or fees receipt'):''}${row('accMail','megaphone','Email updates',u.emailVerified?(u.emailNotify?'On · '+esc(u.email):'Off · '+esc(u.email)):'Add your email for order updates and password resets')}${row('accMsgs','chat','Messages',CHATN?CHATN+' unread':'Chats with buyers and sellers')}${row('accDeliv','truck','Delivery',u.deliv&&u.deliv.on?'You deliver · '+(u.deliv.fee?naira(u.deliv.fee):'free'):'Off. Buyers collect from you')}${u.verified?'':row('accVerify','badge','Get verified','Show buyers a ✓ badge')}${canInstall()?row('accInstall','phone','Install the app','Add Stall to your home screen'):''}${row('accShare','megaphone','Share Stall','QR code and poster for friends and customers')}${row('accPw','lock','Change password','')}${u.admin||u.reviewer?row('accAdmin','sliders',u.admin?'Admin':'Review payments',''):''}${row('accOut','logout','Sign out','')}${row('accDel','trash','Delete my account','Remove your account and data')}</div>
+   <div style="margin-top:14px">${row('accGuide','book2','How Stall works','A quick guide to buying, selling and staying safe')}${row('accSchool','school','My school',u.schoolInfo?esc(u.schoolInfo.name):'Choose your school')}${row('accSelling','box','Orders to fulfil',ns?ns+' new':'Things people bought from you')}${u.role==='student'&&(u.vlevel||0)<2?row('accStu','cap','Verify you\'re a student',u.idCheck==='pending'?'Your document is being checked':'Show a student ID, course form or fees receipt'):''}${row('accPush','bell','Notifications','<span id="pushSt">…</span>')}${row('accMail','megaphone','Email updates',u.emailVerified?(u.emailNotify?'On · '+esc(u.email):'Off · '+esc(u.email)):'Add your email for order updates and password resets')}${row('accMsgs','chat','Messages',CHATN?CHATN+' unread':'Chats with buyers and sellers')}${row('accDeliv','truck','Delivery',u.deliv&&u.deliv.on?'You deliver · '+(u.deliv.fee?naira(u.deliv.fee):'free'):'Off. Buyers collect from you')}${u.verified?'':row('accVerify','badge','Get verified','Show buyers a ✓ badge')}${canInstall()?row('accInstall','phone','Install the app','Add Stall to your home screen'):''}${row('accShare','megaphone','Share Stall','QR code and poster for friends and customers')}${row('accPw','lock','Change password','')}${u.admin||u.reviewer?row('accAdmin','sliders',u.admin?'Admin':'Review payments',''):''}${row('accOut','logout','Sign out','')}${row('accDel','trash','Delete my account','Remove your account and data')}</div>
    <div style="margin-top:14px"><b>Appearance</b><div class="tseg" role="group" aria-label="Appearance">${[['auto','Automatic'],['light','Light'],['dark','Dark']].map(([k,l])=>`<button type="button" data-theme="${k}" aria-pressed="${themePref()===k}">${l}</button>`).join('')}</div></div>
    <p class="meta" style="margin-top:14px;text-align:center" id="accHelp"></p>
-   <div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;d.showModal();$('#accHelp').innerHTML=$('#helpLinks').innerHTML}
+   <div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;d.showModal();$('#accHelp').innerHTML=$('#helpLinks').innerHTML;pushState().then(st=>{const e=$('#pushSt');if(e)e.textContent={on:'On for this phone',off:'Off. Tap to turn on',denied:'Blocked in browser settings',unsupported:'Not available in this browser'}[st]})}
 // Email code flow, shared by student verification and email updates. done(r) runs after the code is confirmed.
 function emailCodeForm(el,email,done){el.innerHTML=`<form id="emF"><label>Email address<input name="email" type="email" required value="${esc(email||'')}" placeholder="you@school.edu.ng"></label><span class="err" id="emErr"></span><div class="acts"><button class="pill" type="submit">Send code</button></div></form>`;
   $('#emF').onsubmit=async e=>{e.preventDefault();const em=e.target.elements.email.value.trim(),sb=e.target.querySelector('[type=submit]');sb.disabled=true;const r=await apiPost('verify/email/start',{email:em});sb.disabled=false;if(r.error)return $('#emErr').textContent=r.error;
@@ -1128,6 +1132,30 @@ function vendorGate(g){
 }
 let PV=-1;
 let NEWS=[],PN=0,CHATN=0,CHT=null;
+// Push notifications on this device. State: 'unsupported', 'denied', 'on' or 'off'.
+const pushOk=()=>'serviceWorker'in navigator&&'PushManager'in window&&'Notification'in window;
+async function pushState(){if(!pushOk())return 'unsupported';if(Notification.permission==='denied')return 'denied';
+  try{const r=await navigator.serviceWorker.ready,sub=await r.pushManager.getSubscription();return sub?'on':'off'}catch(e){return 'off'}}
+const u8=b=>{const s=atob((b+'='.repeat((4-b.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(s,c=>c.charCodeAt(0))};
+async function enablePush(){if(!pushOk())return toast('This browser can\'t show notifications.');S.pushAsk=1;save();
+  const perm=await Notification.requestPermission();if(perm!=='granted')return toast(perm==='denied'?'Notifications are blocked. Allow them in your browser settings.':'Notifications not turned on');
+  try{const r=await navigator.serviceWorker.ready,k=await fetchJ('/api/push/key');let sub=await r.pushManager.getSubscription();
+    if(!sub)sub=await r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(k.key)});
+    const x=await apiPost('push/subscribe',sub.toJSON());if(x.error)return toast(x.error);await apiPost('push/test',{});toast('Notifications on ✓');drawNudges()}
+  catch(e){toast('Could not turn on notifications on this device.')}}
+async function disablePush(){try{const r=await navigator.serviceWorker.ready,sub=await r.pushManager.getSubscription();if(sub){await apiPost('push/unsubscribe',{endpoint:sub.endpoint});await sub.unsubscribe()}}catch(e){}toast('Notifications off')}
+const iosNoApp=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)&&!(navigator.standalone||matchMedia('(display-mode: standalone)').matches);
+async function openPushSettings(){const d=$('#accDlg'),st=await pushState();
+  d.innerHTML=`<div class="pad"><h2>Notifications</h2><p class="meta">Get a notification on this phone when someone buys from you, sends you a message, or your order moves, even when Stall is closed.</p>
+   <div style="margin-top:14px">${st==='on'?`<p><b>On for this device ✓</b></p><div class="acts"><button class="pill alt" id="pushOff">Turn off</button></div>`
+   :st==='denied'?`<p><b>Blocked.</b> Notifications were blocked for Stall. Open your browser's site settings for Stall, allow notifications, then come back here.</p>`
+   :st==='unsupported'?(iosNoApp()?`<p>On iPhone, first add Stall to your Home Screen: tap <b>Share</b>, then <b>Add to Home Screen</b>. Open Stall from there and turn notifications on.</p>`:`<p>This browser can't show notifications. Try Chrome, or install the Stall app.</p>`)
+   :`<div class="acts"><button class="pill" id="pushOn">Turn on notifications</button></div>`}</div>
+   <div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;if(!d.open)d.showModal();
+  const on=$('#pushOn'),off=$('#pushOff');if(on)on.onclick=async()=>{await enablePush();openPushSettings()};if(off)off.onclick=async()=>{await disablePush();openPushSettings()}}
+// A small "turn on notifications" offer in Orders and in chats, until the person answers once.
+const nudgeHtml=w=>`<div class="pnudge" data-pnudge><span class="aic">${ico('bell')}</span><div><b>${w==='chat'?'Know when they reply':'Know when your order moves'}</b><p class="meta">Get a notification on this phone, even when Stall is closed.</p></div><button class="pill sm" data-pushon>Turn on</button><button class="x" data-pushno aria-label="Not now">×</button></div>`;
+async function drawNudges(){const want=pushOk()&&Notification.permission==='default'&&!S.pushAsk;document.querySelectorAll('[data-pnudge]').forEach(n=>n.hidden=!want)}
 // "How Stall works": a short guide in Account, also offered once to new people on Home. [icon, title, text, action]
 const GUIDE={buy:['Buying',[
   ['all','Find what you need','Home shows what students at your school are selling. Switch to your state or all of Nigeria at the top, tap a category, or search for items and stores.','shop'],
@@ -1152,7 +1180,8 @@ const GUIDE={buy:['Buying',[
   ['cap','Verified students','The ✓ Verified student badge means Stall checked a school document. Get yours under <b>Account → Verify you\'re a student</b>.','verify'],
   ['chat','Report a chat','Rude, suspicious or asking for money outside Stall? Tap <b>Report</b> at the top of the chat.',null]]],
  acc:['Your account',[
-  ['bell','Notifications and email','Switch on notifications so you know when you sell something or get a message. Add your email for order updates and password resets.','email'],
+  ['bell','Notifications','Switch on notifications so you know straight away when you sell something, get a message, or your order moves, even when Stall is closed.','push'],
+  ['mail','Email updates','Add your email for order updates and password reset codes.','email'],
   ['school','Your school','Change your school any time under <b>Account → My school</b>. It decides what you see first on Home.',null],
   ['phone','Install the app','Add Stall to your home screen so it opens like an app, full screen, and loads fast.','install'],
   ['sparkle','Light or dark','Tap the sun or moon at the top, or choose under <b>Account → Appearance</b>.',null],
@@ -1164,7 +1193,7 @@ function openGuide(tab){tab=GUIDE[tab]?tab:(S.user&&S.user.role==='vendor'?'sell
    <div class="acts"><button class="pill alt" data-close>Got it</button></div></div>`;if(!d.open)d.showModal();d.querySelector('.pad').scrollTop=0}
 function guideTry(go){$('#accDlg').close();
   ({shop:()=>{view('shop');$('#q').focus()},filters:()=>{view('shop');$('#browse').scrollIntoView();$('#fPanel').hidden=false},sell:()=>$('#tbSell').click(),orders:()=>view('orders'),selling:()=>view('selling'),stores:()=>view('stores'),
-    delivery:()=>openDelivery('me'),verify:()=>openStudentVerify(),email:()=>openEmailSettings(),install:()=>{canInstall()?doInstall():location.href='/install'}}[go]||(()=>{}))()}
+    delivery:()=>openDelivery('me'),verify:()=>openStudentVerify(),email:()=>openEmailSettings(),push:()=>openPushSettings(),install:()=>{canInstall()?doInstall():location.href='/install'}}[go]||(()=>{}))()}
 // Light / dark mode. 'auto' follows the phone's setting; the choice is saved on this device.
 const themePref=()=>{try{return localStorage.getItem('stall:theme')||'auto'}catch(e){return 'auto'}};
 const isDark=()=>{const t=themePref();return t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches)};
@@ -1181,8 +1210,8 @@ async function openInbox(){clearInterval(CHT);const d=$('#chatDlg');d.innerHTML=
 async function openChat(tid){clearInterval(CHT);const d=$('#chatDlg');let last=0;
   d.innerHTML=`<div class="pad"><div class="chead"><button class="link back" data-inbox aria-label="All messages">←</button><div style="flex:1;min-width:0"><b id="cWith">…</b><span class="meta" id="cTitle"></span></div><button class="link" data-creport="${tid}" style="font-size:13px">Report</button><button class="pill sm alt" data-close>Close</button></div>
    <div class="cwarn" id="cWarn">Keep payments in Stall. Never pay a seller directly or share bank details here. Payments outside Stall aren't protected.</div><div class="cmsgs" id="cMsgs"></div>
-   <form class="cform" id="cForm"><textarea name="body" rows="1" maxlength="1000" placeholder="Write a message" required></textarea><button class="pill" type="submit">Send</button></form></div>`;
-  if(!d.open)d.showModal();
+   ${nudgeHtml('chat')}<form class="cform" id="cForm"><textarea name="body" rows="1" maxlength="1000" placeholder="Write a message" required></textarea><button class="pill" type="submit">Send</button></form></div>`;
+  if(!d.open)d.showModal();drawNudges();
   const add=ms=>{const box=$('#cMsgs');if(!box)return;const near=box.scrollHeight-box.scrollTop-box.clientHeight<80;
     box.insertAdjacentHTML('beforeend',ms.map(m=>`<div class="bub${m.mine?' me':''}">${esc(m.body)}<small>${new Date(m.t).toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit'})}</small></div>`).join(''));if(ms.length){last=ms[ms.length-1].id;if(near||ms.some(m=>m.mine))box.scrollTop=box.scrollHeight}};
   const pull=async first=>{if(document.hidden&&!first)return;const r=await fetchJ('/api/chat/msgs?tid='+tid+'&after='+last).catch(()=>null);if(!r||r.error){if(first)toast((r&&r.error)||'Could not open chat');return}
@@ -1308,6 +1337,7 @@ async function adminLoad(){const k=AD.tab,S0=ast(k),n=++AD.n,el=()=>n===AD.n&&$(
       <small>${!s.emailOn?'Needed for school-email checks, password resets and order emails. Create a free account at resend.com, add and verify your domain, then in Cloudflare add the secret <b>RESEND_API_KEY</b> and the variable <b>EMAIL_FROM</b> (e.g. Stall &lt;hello@yourdomain&gt;), and redeploy.':(s.emailLast&&!s.emailLast.ok?'Last email failed '+aAgo(s.emailLast.t)+': <b>'+esc(s.emailLast.err||'')+'</b>. ':'')+'Sending from <b>'+esc(s.emailFrom||'onboarding@resend.dev (test only: can only send to your own Resend email)')+'</b>.'}</small></div>${s.emailOn?'<div class="aacts"><button class="pill sm alt" data-emtest="1">Send test email</button></div>':''}</div>
      <div class="arow hlrow"><span class="aic">${ico('wallet')}</span><div class="t"><div class="ttl"><b>Seller payouts (Paystack Transfers)</b>${s.psMode==='none'?bdg('Not set up','bad'):s.payoutLast&&!s.payoutLast.ok?bdg('Failing','bad'):bdg(s.payoutLast?'Working':'Not used yet','ok')}</div>
       <small>Buyers' money is held in your Paystack balance (${naira(s.held||0)} held right now) and paid to sellers when an order is released. ${s.payoutLast&&!s.payoutLast.ok?'Last payout failed '+aAgo(s.payoutLast.t)+': <b>'+esc(s.payoutLast.err||'')+'</b>. ':''}In Paystack: turn on Transfers, set settlements to stay in your Paystack balance, and turn off OTP for transfers (Settings → Preferences).${s.payoutsFailed?' <b>'+s.payoutsFailed+' payout'+(s.payoutsFailed>1?'s':'')+' need'+(s.payoutsFailed>1?'':'s')+' a retry in Seller pay.</b>':''}</small></div></div>
+     <div class="arow hlrow"><span class="aic">${ico('bell')}</span><div class="t"><div class="ttl"><b>Push notifications</b>${s.pushLast&&!s.pushLast.ok?bdg('Failing','bad'):bdg(s.pushSubs?'On':'Ready','ok')}</div><small>${(s.pushSubs||0).toLocaleString()} ${s.pushSubs===1?'person has':'people have'} turned on notifications. ${s.pushLast?(s.pushLast.ok?'Last one sent '+aAgo(s.pushLast.t)+'.':'Last one failed '+aAgo(s.pushLast.t)+': '+esc(s.pushLast.err||'')):'No notification sent yet.'} No setup needed: the keys were created automatically.</small></div></div>
      <div class="arow hlrow"><span class="aic">${ico('cloud')}</span><div class="t"><div class="ttl"><b>Photo storage (R2)</b>${s.r2On?bdg('Connected','ok'):bdg('Not connected','warn')}</div><small>${s.r2On?'New photos are saved in Cloudflare R2, which keeps the database small and fast. Use "Move photos to R2" below for older photos.':'Photos are stored in the database, which is fine for now but will fill up. In Cloudflare create an R2 bucket, then in stall-app → Settings → Bindings add an R2 binding named <b>PHOTOS</b> and redeploy.'}</small></div></div>
      <div class="arow hlrow"><span class="aic">${ico('bolt')}</span><div class="t"><div class="ttl"><b>Paystack webhook</b>${s.webhook?bdg('Receiving','ok'):bdg('Not set up','warn')}</div><small>${s.webhook?'Paystack is telling Stall about payments directly, so they finish even if someone closes the app.':'In Paystack go to Settings → API Keys & Webhooks and set the Webhook URL to <b>'+esc(location.origin)+'/api/paystack/webhook</b>. Until then, payments finish when the payer returns to Stall.'}</small></div></div>
      <div class="arow hlrow"><span class="aic">${ico('box')}</span><div class="t"><div class="ttl"><b>Storage</b></div><small>Receipt photos are removed 60 days after an order closes, and sold listings after 30 days. Order records stay.</small><div id="storeOut"></div></div>
@@ -1437,7 +1467,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-hc]');if(b
   toast(r.note||msg);await refreshMe();await loadPub();if(r.kind==='store'&&r.id){renderStores();storePage(r.id)}
   if(r.kind==='order'&&r.oid){const o=await loadOne(r.oid);if(o){PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)}}})();
 // Home-screen shortcuts (long-press the app icon): /?go=sell, /?go=orders, /?go=messages
-(()=>{const g=new URLSearchParams(location.search).get('go');if(!g)return;history.replaceState(null,'','/');let n=0;const run=()=>{if(!S.user){if(++n<20)setTimeout(run,300);return}if(g==='sell')$('#tbSell').click();else if(g==='orders')view('orders');else if(g==='messages')openInbox()};setTimeout(run,300)})();
+(()=>{const sp=new URLSearchParams(location.search),g=sp.get('go');if(!g)return;window.__goT=sp.get('t');history.replaceState(null,'','/');let n=0;const run=()=>{if(!S.user){if(++n<20)setTimeout(run,300);return}if(g==='sell')$('#tbSell').click();else if(g==='orders')view('orders');else if(g==='messages'){const t=+new URLSearchParams(location.search).get('t')||+(window.__goT||0);t?openChat(t):openInbox()}};setTimeout(run,300)})();
 drawInstall();drawGuide();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 </script>
