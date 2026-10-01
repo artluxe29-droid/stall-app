@@ -160,12 +160,26 @@ async function recipFor(env,code,acct,name){const k=code+':'+acct,had=await env.
   const r=await ps(env,'/transferrecipient',{method:'POST',body:JSON.stringify({type:'nuban',name:String(name||'Stall seller').slice(0,100),account_number:acct,bank_code:code,currency:'NGN'})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
   if(!r.status||!r.data||!r.data.recipient_code){await setK(env,'payout_last',JSON.stringify({t:Date.now(),ok:false,err:String(r.message||'No recipient returned').slice(0,200)}));return{error:r.message||'Paystack could not set up this seller.'}}
   await env.DB.prepare('INSERT OR IGNORE INTO ps_recips(k,code,created) VALUES(?,?,?)').bind(k,r.data.recipient_code,Date.now()).run();return{code:r.data.recipient_code}}
-// Sends the seller their share (order total minus Stall's fee). Safe to call again: a paid or in-flight payout is left alone.
+// Asks Paystack what became of each earlier transfer attempt for an order (references stallpay-<order>-1, -2, ...).
+// Returns the first one that went through or is still in flight, so a retry can never pay a seller twice; null if none did.
+const LIVE_X=['success','pending','processing','received','queued','otp'];
+async function prevXfer(env,oid,n){for(let i=n;i>=1;i--){const ref='stallpay-'+oid+'-'+i;let h=0,r;
+    try{const x=await fetch('https://api.paystack.co/transfer/verify/'+encodeURIComponent(ref),{headers:{Authorization:'Bearer '+env.PAYSTACK_SECRET}});h=x.status;r=await x.json().catch(()=>({}))}catch(e){return{ref,st:'unknown',err:String(e&&e.message||e)}}
+    if(r&&r.status&&r.data){if(LIVE_X.includes(r.data.status))return{ref,st:r.data.status}}
+    else if(!(h>=400&&h<500))return{ref,st:'unknown',err:r&&r.message||'HTTP '+h}}// a 4xx means Paystack never created that transfer
+  return null}
+// Sends the seller their share (order total minus Stall's fee). Safe to call again: a paid or in-flight payout is left alone,
+// and before any retry Stall checks the earlier attempts with Paystack and never sends a second transfer while one went through or is pending.
 async function payOut(env,oid){const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(oid).first();if(!o||o.status!=='released'||o.paid_via!=='paystack')return null;const now=Date.now();
   await env.DB.prepare("INSERT OR IGNORE INTO payouts(oid,seller,amount,status,tries,created,updated) VALUES(?,?,?,'queued',0,?,?)").bind(o.id,o.seller,o.amount-(o.fee||0),now,now).run();
   const p=await env.DB.prepare('SELECT * FROM payouts WHERE oid=?').bind(o.id).first();if(['paid','processing'].includes(p.status))return p;
-  const set=async(st,err,ref)=>{await env.DB.batch([env.DB.prepare('UPDATE payouts SET status=?,err=?,ref=IFNULL(?,ref),tries=tries+?,updated=? WHERE oid=?').bind(st,err||null,ref||null,ref?1:0,Date.now(),o.id),env.DB.prepare('UPDATE orders SET payout=? WHERE id=?').bind(st,o.id)]);
+  const set=async(st,err,ref,old)=>{await env.DB.batch([env.DB.prepare('UPDATE payouts SET status=?,err=?,ref=IFNULL(?,ref),tries=tries+?,updated=? WHERE oid=?').bind(st,err||null,ref||null,ref&&!old?1:0,Date.now(),o.id),env.DB.prepare('UPDATE orders SET payout=? WHERE id=?').bind(st,o.id)]);
     await setK(env,'payout_last',JSON.stringify({t:Date.now(),ok:st!=='failed',err:err||null}));if(st==='failed')await tg(env,'Seller payout failed for order #'+o.id+' ('+o.seller_name+', ₦'+p.amount+'): '+err+'\nRetry it in Admin → Seller pay.');return{...p,status:st,err}};
+  if(p.tries>0){const pv=await prevXfer(env,o.id,p.tries);
+    if(pv&&pv.st==='success')return set('paid',null,pv.ref,1);
+    if(pv&&pv.st==='otp')return set('failed','An earlier transfer for this order ('+pv.ref+') is still waiting for an OTP in Paystack, so Stall did not send another. Approve that one in Paystack → Transfers (the order then shows as paid), or ask Paystack to cancel it and retry.',pv.ref,1);
+    if(pv&&pv.st==='unknown')return set('failed','Stall could not check the earlier transfer ('+pv.ref+') with Paystack, so it did not send another. Try again in a few minutes.',null);
+    if(pv)return set('processing',null,pv.ref,1)}
   const rc=await recipFor(env,o.bank_code,o.acct_no,o.acct_name);if(rc.error)return set('failed','Paystack would not accept the seller\'s bank account: '+rc.error);
   const ref='stallpay-'+o.id+'-'+(p.tries+1),r=await ps(env,'/transfer',{method:'POST',body:JSON.stringify({source:'balance',amount:p.amount*100,recipient:rc.code,reference:ref,reason:'Stall order #'+o.id})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
   const st=r.data&&r.data.status;
@@ -774,6 +788,10 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       return list('payouts p JOIN orders o ON o.id=p.oid','p.*,o.title,o.seller_name,o.seller_phone,o.bank_name,o.acct_no,o.acct_name',w,v,'p.updated DESC',
         r=>({oid:r.oid,amount:r.amount,status:r.status,err:r.err,tries:r.tries,how:r.how,ref:r.ref,updated:r.updated,title:r.title,sellerName:r.seller_name,sellerPhone:r.seller_phone,bank:r.bank_name,acct:r.acct_no,acctName:r.acct_name}))}
     if(path==='admin/sellerpay/retry'&&request.method==='POST'){if(!a.is_admin)return J({error:'Only admins can do this.'},403);const p=await env.DB.prepare('SELECT * FROM payouts WHERE oid=?').bind(+b.id).first();if(!p||p.status!=='failed')return J({error:'Only failed payouts can be retried.'},400);
+      if(b.manual&&p.tries>0){const pv=await prevXfer(env,p.oid,p.tries);
+        if(pv&&pv.st==='success'){await env.DB.batch([env.DB.prepare("UPDATE payouts SET status='paid',err=NULL,ref=?,updated=? WHERE oid=?").bind(pv.ref,Date.now(),p.oid),env.DB.prepare("UPDATE orders SET payout='paid' WHERE id=?").bind(p.oid)]);return J({error:'Paystack already paid this seller (transfer '+pv.ref+'). Don\'t pay them by hand. The order now shows as paid.'},409)}
+        if(pv&&pv.st==='unknown')return J({error:'Stall could not check with Paystack whether this seller was already paid. Try again in a few minutes before paying by hand.'},503);
+        if(pv)return J({error:'Paystack still has a transfer for this seller in progress ('+pv.ref+(pv.st==='otp'?', waiting for an OTP':'')+'). Approve it or ask Paystack to cancel it before paying by hand, so the seller isn\'t paid twice.'},409)}
       if(b.manual){await env.DB.batch([env.DB.prepare("UPDATE payouts SET status='paid',how='manual',err=NULL,updated=? WHERE oid=?").bind(Date.now(),p.oid),env.DB.prepare("UPDATE orders SET payout='paid' WHERE id=?").bind(p.oid)]);await logA(env,a,'money','marked a seller payout as paid by hand','Order #'+p.oid+' · ₦'+p.amount,{oid:p.oid});return J({ok:true,status:'paid'})}
       await env.DB.prepare("UPDATE payouts SET status='queued' WHERE oid=?").bind(p.oid).run();const r=await payOut(env,p.oid);await logA(env,a,'money','retried a seller payout','Order #'+p.oid+' · ₦'+p.amount,{oid:p.oid,detail:r&&r.status});return J({ok:true,status:r&&r.status,err:r&&r.err})}
     if(path==='admin/review/delete'&&request.method==='POST'){if(!a.is_admin)return J({error:'Only admins can remove reviews.'},403);const r=await env.DB.prepare('SELECT * FROM reviews WHERE id=?').bind(+b.id).first();if(!r)return J({error:'Review not found.'},404);
@@ -931,8 +949,8 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     let ev={};try{ev=JSON.parse(raw)}catch(e){}waitUntil(setK(env,'webhook_seen',Date.now()).catch(()=>{}));if(ev.event==='charge.success'&&ev.data&&ev.data.reference)waitUntil(fulfil(env,String(ev.data.reference)).catch(()=>{}));
     // Paystack reports how each seller payout ended.
     if(/^transfer\.(success|failed|reversed)$/.test(ev.event||'')&&ev.data&&ev.data.reference)waitUntil((async()=>{await ensure(env);const ok=ev.event==='transfer.success',ref=String(ev.data.reference);
-      const p=await env.DB.prepare('SELECT * FROM payouts WHERE ref=?').bind(ref).first();if(!p||p.status==='paid')return;const err=ok?null:'Paystack: transfer '+ev.event.split('.')[1]+(ev.data.reason?' ('+String(ev.data.reason).slice(0,120)+')':'');
-      await env.DB.batch([env.DB.prepare('UPDATE payouts SET status=?,err=?,updated=? WHERE oid=?').bind(ok?'paid':'failed',err,Date.now(),p.oid),env.DB.prepare('UPDATE orders SET payout=? WHERE id=?').bind(ok?'paid':'failed',p.oid)]);
+      const m=/^stallpay-(\d+)-\d+$/.exec(ref),p=await env.DB.prepare('SELECT * FROM payouts WHERE ref=? OR oid=?').bind(ref,m?+m[1]:-1).first();if(!p||p.status==='paid'||(!ok&&p.ref!==ref))return;const err=ok?null:'Paystack: transfer '+ev.event.split('.')[1]+(ev.data.reason?' ('+String(ev.data.reason).slice(0,120)+')':'');
+      await env.DB.batch([env.DB.prepare('UPDATE payouts SET status=?,err=?,ref=?,updated=? WHERE oid=?').bind(ok?'paid':'failed',err,ref,Date.now(),p.oid),env.DB.prepare('UPDATE orders SET payout=? WHERE id=?').bind(ok?'paid':'failed',p.oid)]);
       if(!ok)await tg(env,'Seller payout failed for order #'+p.oid+' (₦'+p.amount+'). '+err+'\nRetry it in Admin → Seller pay.')})().catch(()=>{}));
     return new Response('ok')}
   if(path==='checkout'&&request.method==='POST'){
