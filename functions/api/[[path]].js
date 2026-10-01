@@ -50,7 +50,7 @@ async function sweep(env){await ensure(env);const now=Date.now();if(now-SWEPT<3e
   await env.DB.batch(ids.map(id=>env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,id)));
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='13';
+const SCHEMA_V='14';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -80,6 +80,8 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN email_notify INTEGER NOT NULL DEFAULT 1','ALTER TABLE users ADD COLUMN vlevel INTEGER NOT NULL DEFAULT 0',
     'CREATE TABLE IF NOT EXISTS codes(k TEXT PRIMARY KEY,h TEXT NOT NULL,data TEXT,exp INTEGER NOT NULL,tries INTEGER NOT NULL DEFAULT 0)',
     'CREATE TABLE IF NOT EXISTS id_checks(uid INTEGER PRIMARY KEY,kind TEXT,photo TEXT,status TEXT NOT NULL,ai TEXT,reason TEXT,created INTEGER NOT NULL,updated INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS id_checks_status ON id_checks(status,updated)',
+    'CREATE TABLE IF NOT EXISTS push_subs(endpoint TEXT PRIMARY KEY,uid INTEGER NOT NULL,created INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS push_subs_uid ON push_subs(uid)',
+    'CREATE TABLE IF NOT EXISTS notes(id INTEGER PRIMARY KEY AUTOINCREMENT,uid INTEGER NOT NULL,title TEXT NOT NULL,body TEXT,url TEXT,tag TEXT,t INTEGER NOT NULL,sent INTEGER NOT NULL DEFAULT 0)','CREATE INDEX IF NOT EXISTS notes_uid ON notes(uid,sent,t)',
     'ALTER TABLE orders ADD COLUMN method TEXT','ALTER TABLE orders ADD COLUMN addr TEXT','ALTER TABLE orders ADD COLUMN dphone TEXT','ALTER TABLE orders ADD COLUMN dstage TEXT','ALTER TABLE orders ADD COLUMN track TEXT',
     'CREATE INDEX IF NOT EXISTS listings_school ON listings(school_id,created)','CREATE INDEX IF NOT EXISTS listings_state ON listings(state,created)','CREATE INDEX IF NOT EXISTS listings_review ON listings(review)','CREATE INDEX IF NOT EXISTS stores_school ON stores(school_id)'])await env.DB.prepare(q).run().catch(()=>{});
   if(!(await env.DB.prepare("SELECT v FROM settings WHERE k='mig_nationwide'").first())){
@@ -161,8 +163,26 @@ async function sendEmail(env,to,subject,html){if(!env.RESEND_API_KEY||!to)return
     const j=await r.json().catch(()=>({}));const ok=r.ok&&!!j.id;await setK(env,'email_last',JSON.stringify({t:Date.now(),ok,err:ok?null:String(j.message||j.name||('HTTP '+r.status)).slice(0,200)}));return ok?{ok:true}:{error:j.message||'Email failed'}}
   catch(e){await setK(env,'email_last',JSON.stringify({t:Date.now(),ok:false,err:String(e&&e.message||e).slice(0,200)})).catch(()=>{});return{error:'Email failed'}}}
 // Order emails go only to confirmed email addresses, and only if the person hasn't turned them off.
-async function notify(env,uid,subject,title,lines,btn,url){try{const u=await env.DB.prepare('SELECT email,email_verified,email_notify FROM users WHERE id=?').bind(uid).first();
+async function notify(env,uid,subject,title,lines,btn,url){try{await ping(env,uid,title,String(lines[0]||'').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').slice(0,180),url?new URL(url).pathname+new URL(url).search:'/');
+  const u=await env.DB.prepare('SELECT email,email_verified,email_notify FROM users WHERE id=?').bind(uid).first();
   if(!u||!u.email_verified||!u.email_notify||!u.email)return;await sendEmail(env,u.email,subject,mailHtml(title,lines,btn,url))}catch(e){}}
+// ---- Push notifications (Web Push). Keys are made on first use and kept in settings (or set VAPID_PUBLIC / VAPID_PRIVATE_JWK).
+// The push itself carries no data: the phone wakes up and fetches /api/push/inbox, so nothing private goes through the push service.
+const b64u=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const PUSH_HOSTS=/^(fcm\.googleapis\.com|android\.googleapis\.com|updates\.push\.services\.mozilla\.com|[a-z0-9.-]+\.push\.apple\.com|[a-z0-9.-]+\.notify\.windows\.com)$/;
+async function vapid(env){if(env.VAPID_PUBLIC&&env.VAPID_PRIVATE_JWK)return{pub:env.VAPID_PUBLIC,jwk:JSON.parse(env.VAPID_PRIVATE_JWK)};
+  const had=await getK(env,'vapid');if(had)return JSON.parse(had);
+  const k=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']),v={pub:b64u(await crypto.subtle.exportKey('raw',k.publicKey)),jwk:await crypto.subtle.exportKey('jwk',k.privateKey)};
+  await env.DB.prepare('INSERT OR IGNORE INTO settings(k,v) VALUES(?,?)').bind('vapid',JSON.stringify(v)).run();return JSON.parse(await getK(env,'vapid'))}
+async function vapidJwt(env,aud){const v=await vapid(env),enc=o=>b64u(E.encode(JSON.stringify(o))),head=enc({typ:'JWT',alg:'ES256'}),body=enc({aud,exp:Math.floor(Date.now()/1000)+12*3600,sub:'mailto:'+((await getK(env,'support_email'))||'hello@stall.app')});
+  const key=await crypto.subtle.importKey('jwk',v.jwk,{name:'ECDSA',namedCurve:'P-256'},false,['sign']);
+  return{jwt:head+'.'+body+'.'+b64u(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},key,E.encode(head+'.'+body))),pub:v.pub}}
+async function ping(env,uid,title,body,url,tag){try{const subs=(await env.DB.prepare('SELECT endpoint FROM push_subs WHERE uid=?').bind(uid).all()).results;if(!subs.length)return;
+  await env.DB.prepare('INSERT INTO notes(uid,title,body,url,tag,t) VALUES(?,?,?,?,?,?)').bind(uid,String(title).slice(0,80),String(body||'').slice(0,180),url||'/',tag||null,Date.now()).run();
+  for(const{endpoint}of subs){const{jwt,pub}=await vapidJwt(env,new URL(endpoint).origin);
+    const r=await fetch(endpoint,{method:'POST',headers:{TTL:'86400',Urgency:'high','content-length':'0',Authorization:'vapid t='+jwt+', k='+pub}}).catch(()=>null);
+    if(r&&(r.status===404||r.status===410))await env.DB.prepare('DELETE FROM push_subs WHERE endpoint=?').bind(endpoint).run();
+    await setK(env,'push_last',JSON.stringify({t:Date.now(),ok:!!r&&r.status<300,err:r&&r.status>=300?'Push service said '+r.status:r?null:'Could not reach the push service'}))}}catch(e){}}
 const SITE=env=>env.SITE_URL||'https://stall-app.pages.dev';
 // One-time 6-digit codes (email check, password reset). Stored hashed, 15 minutes, 5 tries.
 const newCode=async(env,k,data)=>{const c=String(100000+crypto.getRandomValues(new Uint32Array(1))[0]%900000);await env.DB.prepare('INSERT OR REPLACE INTO codes(k,h,data,exp,tries) VALUES(?,?,?,?,0)').bind(k,await sha(k+':'+c),data||null,Date.now()+9e5).run();return c};
@@ -193,7 +213,7 @@ async function cleanup(env,a){const now=Date.now(),D=864e5;
   const old=(await env.DB.prepare("SELECT id FROM listings WHERE sold=1 AND created<? AND id NOT IN (SELECT i.ref_id FROM order_items i JOIN orders o ON o.id=i.oid WHERE i.kind='listing' AND o.status IN ('pending','under_review','verified')) LIMIT 500").bind(now-SOLD_DAYS*D).all()).results.map(r=>r.id);
   if(old.length){const ph=old.map(()=>'?').join(',');await delPhotos(env,old);await env.DB.prepare(`DELETE FROM listings WHERE id IN (${ph})`).bind(...old).run()}
   const ol=(await env.DB.prepare('SELECT DISTINCT lid FROM photos WHERE (lid>0 AND lid NOT IN (SELECT id FROM listings)) OR (lid<0 AND -lid NOT IN (SELECT id FROM store_items)) LIMIT 500').all()).results.map(r=>r.lid),orph=await delPhotos(env,ol);
-  await env.DB.prepare('DELETE FROM sessions WHERE exp<?').bind(now).run();await env.DB.prepare('DELETE FROM attempts WHERE t<?').bind(now-D).run();
+  await env.DB.prepare('DELETE FROM sessions WHERE exp<?').bind(now).run();await env.DB.prepare('DELETE FROM notes WHERE t<?').bind(now-7*D).run().catch(()=>{});await env.DB.prepare('DELETE FROM attempts WHERE t<?').bind(now-D).run();
   await setK(env,'cleanup_at',now);const res={receipts:rc,listings:old.length,orphans:orph};
   if(a||rc||old.length||orph)await logA(env,a,'other','cleaned up storage','Storage',{detail:`Removed ${rc} old receipt photos, ${old.length} old sold listings, ${orph} unused photos`});
   return res}
@@ -533,6 +553,18 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     return J({chats:cu,news:rs.map(r=>({id:r.id,title:r.title,amount:r.amount,status:r.status,note:r.note,side:r.buyer===u.id?'buy':'sell',buyerName:r.buyer_name,sellerName:r.seller_name,updated:r.updated,method:r.method,stage:r.dstage,pickup:r.pickup}))},200,{'cache-control':'no-store'})}
   // Receipts are no longer used: every order is paid through Paystack.
   if(path==='orders/receipt')return J({error:'Pay for this order through Paystack from your Orders page.'},410);
+  if(path.startsWith('push/')){await ensure(env);
+    if(path==='push/key')return J({key:(await vapid(env)).pub});
+    const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);const b=request.method==='POST'?await request.json().catch(()=>({})):{};
+    if(path==='push/subscribe'&&request.method==='POST'){let ep;try{ep=new URL(String(b.endpoint||''))}catch(e){}
+      if(!ep||ep.protocol!=='https:'||!PUSH_HOSTS.test(ep.hostname))return J({error:'That notification service is not supported.'},400);if(!await allow(env,'psub:'+u.id,20,36e5))return slow();
+      await env.DB.prepare('INSERT INTO push_subs(endpoint,uid,created) VALUES(?,?,?) ON CONFLICT(endpoint) DO UPDATE SET uid=excluded.uid').bind(ep.href,u.id,Date.now()).run();return J({ok:true})}
+    if(path==='push/unsubscribe'&&request.method==='POST'){await env.DB.prepare('DELETE FROM push_subs WHERE endpoint=? AND uid=?').bind(String(b.endpoint||''),u.id).run();return J({ok:true})}
+    // Called by the service worker when a push arrives: hands over what to show, once.
+    if(path==='push/inbox'){const rs=(await env.DB.prepare('SELECT id,title,body,url,tag FROM notes WHERE uid=? AND sent=0 AND t>? ORDER BY id DESC LIMIT 5').bind(u.id,Date.now()-2*864e5).all()).results;
+      if(rs.length)await env.DB.prepare('UPDATE notes SET sent=1 WHERE uid=? AND id<=?').bind(u.id,rs[0].id).run();return J({notes:rs})}
+    if(path==='push/test'&&request.method==='POST'){await ping(env,u.id,'Notifications are on','You\'ll hear from Stall when you sell something, get a message, or your order moves.','/');return J({ok:true})}
+    return J({error:'Not found'},404)}
   // Chat between a buyer and a seller about one listing, store or order. Clients poll chat/msgs while a chat is open.
   if(path.startsWith('chat/')){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
     const b=request.method==='POST'?await request.json().catch(()=>({})):{},now=Date.now();
@@ -558,6 +590,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       const r=await env.DB.prepare('INSERT INTO msgs(tid,uid,body,t) VALUES(?,?,?,?)').bind(t.id,u.id,body,now).run();
       await env.DB.prepare('UPDATE threads SET last=?,last_at=?,last_by=?,'+(t.buyer===u.id?'b_seen':'s_seen')+'=? WHERE id=?').bind(body.slice(0,120),now,u.id,now,t.id).run();
       // Account numbers or talk of paying outside Stall: warn both sides, since those payments aren't protected.
+      waitUntil(ping(env,t.buyer===u.id?t.seller:t.buyer,'New message from '+(u.biz||u.name.split(' ')[0]),body.slice(0,140),'/?go=messages&t='+t.id,'chat-'+t.id));
       const warn=/(^|\D)\d(?:[\s-]?\d){9}(\D|$)/.test(body)||/(pay|send|transfer).{0,20}(direct|outside|my account|acct)/i.test(body);
       return J({ok:true,id:r.meta.last_row_id,warn})}
     if(path==='chat/report'&&request.method==='POST'){const t=await mine(b.tid);if(!t)return J({error:'Chat not found.'},404);
@@ -627,7 +660,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       const ai=JSON.parse(await getK(env,'ai_last')||'null'),mo=new Date();mo.setUTCDate(1);mo.setUTCHours(-1,0,0,0);
       const m=(await env.DB.batch([env.DB.prepare("SELECT COUNT(*) c FROM verify_requests WHERE status='pending'"),env.DB.prepare('SELECT IFNULL(SUM(amount),0) c FROM payments'),env.DB.prepare('SELECT IFNULL(SUM(amount),0) c FROM payments WHERE created>=?').bind(+mo),env.DB.prepare('SELECT (SELECT COUNT(*) FROM listings WHERE featured_until>?)+(SELECT COUNT(*) FROM stores WHERE featured_until>?) c').bind(Date.now(),Date.now()),env.DB.prepare('SELECT COUNT(*) c FROM users WHERE verified=1')])).map(x=>x.results[0].c);
       const q2=(await env.DB.batch([env.DB.prepare("SELECT (SELECT COUNT(*) FROM listings WHERE review IN ('review','checking'))+(SELECT COUNT(*) FROM store_items WHERE review IN ('review','checking')) c"),env.DB.prepare('SELECT COUNT(*) c FROM schools WHERE active=0')])).map(x=>x.results[0].c);
-      return J({itemsReview:q2[0],schoolsPending:q2[1],verifyPending:m[0],earned:m[1],earnedMonth:m[2],boosts:m[3],verifiedCount:m[4],review:r[0],delivery:r[1],vendorsPending:r[2],banks:r[3]+r[4],students:r[5],vendors:r[6],stores:r[7],released:r[8],today:r[9],aiOn:!!env.AI,r2On:!!env.PHOTOS,webhook:!!(await getK(env,'webhook_seen')),aiLast:ai,psMode:!env.PAYSTACK_SECRET?'none':/^sk_live_/.test(env.PAYSTACK_SECRET)?'live':'test',bankLast:JSON.parse(await getK(env,'bank_last')||'null'),payoutLast:JSON.parse(await getK(env,'payout_last')||'null'),emailOn:!!env.RESEND_API_KEY,emailFrom:env.EMAIL_FROM||'',emailLast:JSON.parse(await getK(env,'email_last')||'null'),idsPending:(await env.DB.prepare("SELECT COUNT(*) c FROM id_checks WHERE status='pending'").first()).c,requireVerified:(await getK(env,'require_verified'))==='1',schoolDomains:(await getK(env,'school_domains'))||'',studentsVerified:(await env.DB.prepare('SELECT COUNT(*) c FROM users WHERE vlevel>=1').first()).c,payoutsFailed:(await env.DB.prepare("SELECT COUNT(*) c FROM payouts WHERE status='failed'").first()).c,held:(await env.DB.prepare("SELECT IFNULL(SUM(amount-IFNULL(fee,0)),0) c FROM orders WHERE status IN ('verified','disputed') AND paid_via='paystack'").first()).c,cleanupAt:+(await getK(env,'cleanup_at'))||0},200,{'cache-control':'no-store'})}
+      return J({itemsReview:q2[0],schoolsPending:q2[1],verifyPending:m[0],earned:m[1],earnedMonth:m[2],boosts:m[3],verifiedCount:m[4],review:r[0],delivery:r[1],vendorsPending:r[2],banks:r[3]+r[4],students:r[5],vendors:r[6],stores:r[7],released:r[8],today:r[9],aiOn:!!env.AI,r2On:!!env.PHOTOS,webhook:!!(await getK(env,'webhook_seen')),aiLast:ai,psMode:!env.PAYSTACK_SECRET?'none':/^sk_live_/.test(env.PAYSTACK_SECRET)?'live':'test',bankLast:JSON.parse(await getK(env,'bank_last')||'null'),payoutLast:JSON.parse(await getK(env,'payout_last')||'null'),pushLast:JSON.parse(await getK(env,'push_last')||'null'),pushSubs:(await env.DB.prepare('SELECT COUNT(DISTINCT uid) c FROM push_subs').first()).c,emailOn:!!env.RESEND_API_KEY,emailFrom:env.EMAIL_FROM||'',emailLast:JSON.parse(await getK(env,'email_last')||'null'),idsPending:(await env.DB.prepare("SELECT COUNT(*) c FROM id_checks WHERE status='pending'").first()).c,requireVerified:(await getK(env,'require_verified'))==='1',schoolDomains:(await getK(env,'school_domains'))||'',studentsVerified:(await env.DB.prepare('SELECT COUNT(*) c FROM users WHERE vlevel>=1').first()).c,payoutsFailed:(await env.DB.prepare("SELECT COUNT(*) c FROM payouts WHERE status='failed'").first()).c,held:(await env.DB.prepare("SELECT IFNULL(SUM(amount-IFNULL(fee,0)),0) c FROM orders WHERE status IN ('verified','disputed') AND paid_via='paystack'").first()).c,cleanupAt:+(await getK(env,'cleanup_at'))||0},200,{'cache-control':'no-store'})}
     if(path==='admin/orders'&&request.method==='GET'){await sweep(env);
       let st=a.is_admin?url.searchParams.get('status')||'flagged':'flagged';const w=[],v=[];
       if(st==='flagged')w.push("status IN ('under_review','disputed')");
