@@ -128,7 +128,8 @@ const track=(r,st,t)=>JSON.stringify([...JSON.parse(r.track||'[]'),{s:st,t}]);
 const HOLD_DAYS=7;
 // Referrals: everyone gets a short code. When someone who signed up with it completes their first order (buying or selling),
 // both of them get Stall credit (Admin -> Settings, default N300). Credit pays for featuring and store reach, never cash.
-const REF_DEFAULT=300,refReward=async env=>{const v=await getK(env,'ref_reward');return v==null?REF_DEFAULT:Math.max(0,+v||0)};
+// Only a real order counts: at least REF_MIN in items, so a cheap fake order between two accounts can't farm credit.
+const REF_DEFAULT=300,REF_MIN=2000,refReward=async env=>{const v=await getK(env,'ref_reward');return v==null?REF_DEFAULT:Math.max(0,+v||0)};
 async function refCode(env,u){if(u.ref_code)return u.ref_code;const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   for(let i=0;i<5;i++){const c=[...crypto.getRandomValues(new Uint8Array(6))].map(x=>A[x%32]).join('');
     if((await env.DB.prepare('UPDATE users SET ref_code=? WHERE id=? AND ref_code IS NULL').bind(c,u.id).run().catch(()=>({meta:{changes:0}}))).meta.changes)return c}
@@ -159,7 +160,7 @@ async function payOut(env,oid){const o=await env.DB.prepare('SELECT * FROM order
 // Releases a held order to the seller. Only a paid (or disputed) order can be released, and only once.
 async function release(env,o,how){const now=Date.now();
   const ch=(await env.DB.prepare("UPDATE orders SET status='released',code_used=?,dstage='done',track=?,updated=? WHERE id=? AND status IN ('verified','disputed')").bind(how==='code'?1:0,track(o,'done',now),now,o.id).run()).meta.changes;
-  if(ch){await refPay(env,o.buyer).catch(()=>{});await refPay(env,o.seller).catch(()=>{});await payOut(env,o.id);await notify(env,o.seller,'Order complete: '+o.title,'Order complete',['<b>'+esc(o.title)+'</b> has been handed over. We\'re sending <b>₦'+Number(o.amount-(o.fee||0)).toLocaleString('en-NG')+'</b> to your bank now.'],'See your orders',SITE(env)+'/?go=orders')}return!!ch}
+  if(ch){if((o.sub!=null?o.sub:o.amount)>=REF_MIN){await refPay(env,o.buyer).catch(()=>{});await refPay(env,o.seller).catch(()=>{})}await payOut(env,o.id);await notify(env,o.seller,'Order complete: '+o.title,'Order complete',['<b>'+esc(o.title)+'</b> has been handed over. We\'re sending <b>₦'+Number(o.amount-(o.fee||0)).toLocaleString('en-NG')+'</b> to your bank now.'],'See your orders',SITE(env)+'/?go=orders')}return!!ch}
 // Gives the buyer their money back and puts the stock back. Orders not paid through Paystack are just cancelled.
 async function refund(env,o,why){if(!['verified','disputed','under_review'].includes(o.status))return{error:'This order can no longer be refunded.'};
   if(o.paid_via==='paystack'&&o.r_ref){const r=await ps(env,'/refund',{method:'POST',body:JSON.stringify({transaction:o.r_ref})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
@@ -359,7 +360,7 @@ export async function onRequest({request,env,params,waitUntil}){
     waitUntil(tg(env,'Student ID to check\n'+u.name+' ('+(sc?sc.short||sc.name:'')+') - '+u.phone+'\n'+(ai.why||'')+'\nReview it in Admin → Student IDs.'));return J({ok:true,status:'pending'})}
   if(path==='me/referral'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
     const code=await refCode(env,u),c=await env.DB.prepare('SELECT COUNT(*) n,SUM(ref_paid) p FROM users WHERE referred_by=?').bind(u.id).first();
-    return J({code,link:url.origin+'/?r='+code,invited:c.n||0,rewarded:c.p||0,credit:u.credit||0,reward:await refReward(env)})}
+    return J({code,link:url.origin+'/?r='+code,invited:c.n||0,rewarded:c.p||0,credit:u.credit||0,reward:await refReward(env),minOrder:REF_MIN})}
   if(path==='me/notify'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);const b=await request.json().catch(()=>({}));
     await env.DB.prepare('UPDATE users SET email_notify=? WHERE id=?').bind(b.on?1:0,u.id).run();return J({ok:true})}
   // Forgotten password: a code goes to the account's confirmed email. The reply is the same whether or not the account exists.

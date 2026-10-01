@@ -277,6 +277,8 @@ select.sort{background:var(--card);border-radius:16px;border:1px solid var(--lin
 .tag{top:10px;left:10px;border-radius:8px;background:var(--ink);color:var(--bg);font-weight:700;padding:4px 9px;font-size:11.5px}
 .tag.ft{left:10px;right:auto;background:var(--acc);color:var(--acc-ink)}
 .tile .tag+.tag.ft{left:auto;right:10px}
+/* Status sits top-left and Featured bottom-left, so the two badges can never overlap on narrow cards. */
+.tile .tag.ft.fb{top:auto;bottom:10px;left:10px;right:auto}
 .cb{padding:12px 14px 14px}.card h3{font-size:15.5px;font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .meta{font-size:13px}.price{font-size:18px;font-weight:800;letter-spacing:-.02em}
 .cf{padding-top:10px}.cf .pill{border-radius:12px}
@@ -596,7 +598,7 @@ const stk=i=>i.qtyLeft==null||(i.qty||1)<=1&&i.qtyLeft>0?'':`<div class="stk${i.
 const stars=r=>r&&r.n?`<span class="rt">★ ${r.avg.toFixed(1)} <small>(${r.n})</small></span>`:'';
 const starStr=n=>'★★★★★'.slice(0,n)+'☆☆☆☆☆'.slice(0,5-n);
 function cardHtml(i){const s=stat(i),inC=S.cart.includes(i.id);return `
-   <article class="card" data-id="${i.id}"><div class="tile" style="${cv(i)}">${ic(i)}${s?`<span class="tag">${s==='sold'?'Sold':'Reserved'}</span>`:''}${i.featured&&!s?'<span class="tag ft">Featured</span>':''}</div>
+   <article class="card" data-id="${i.id}"><div class="tile" style="${cv(i)}">${ic(i)}${s?`<span class="tag">${s==='sold'?'Sold':'Reserved'}</span>`:''}${i.featured&&!s?'<span class="tag ft fb">Featured</span>':''}</div>
    <div class="cb"><h3>${esc(i.title)}</h3><div class="meta">${S.scope&&S.scope!=='school'&&i.school?'<b>'+esc(i.school)+'</b> · ':''}${esc(i.cond)} · ${esc(i.spot)} · ${ago(i.t)}${i.verified?' · '+VB:i.vlevel?' · '+SB(i.vlevel):''}${i.rating&&i.rating.n?' · '+stars(i.rating):''}</div>${stk(i)}${i.mine&&i.review&&i.review!=='live'?`<div class="rvw ${i.review}">${RV[i.review]}</div>`:''}
    <div class="cf"><span class="price">${naira(i.price)}</span><button class="pill sm ${inC?'alt':''}" data-add="${i.id}" ${s?'disabled':''}>${inC?'In bag':'Add to bag'}</button></div></div></article>`
   document.querySelectorAll('.empty').forEach(()=>{});
@@ -1010,7 +1012,7 @@ function refresh(){render();if(!$('#store').hidden)storePage(cur);if($('#cart').
 function renderStores(){
   $('#openStore').textContent=myStore()?'Manage my store':'Open your store';
   const AS=allStores(),ms=$('#moreStores');ms.hidden=AS.length<=SN;
-  $('#storeGrid').innerHTML=AS.slice(0,SN).map(s=>`<article class="card in" data-store="${s.id}"><div class="tile" style="background:${ci(s.cat).c};color:${ci(s.cat).k}">${sIco(s)}<span class="tag">${s.open?'Open':'Closed'}</span>${s.featured?'<span class="tag ft">Featured</span>':''}</div>
+  $('#storeGrid').innerHTML=AS.slice(0,SN).map(s=>`<article class="card in" data-store="${s.id}"><div class="tile" style="background:${ci(s.cat).c};color:${ci(s.cat).k}">${sIco(s)}<span class="tag">${s.open?'Open':'Closed'}</span>${s.featured?'<span class="tag ft fb">Featured</span>':''}</div>
    <div class="cb"><h3>${esc(s.name)}</h3>${s.verified?VB:''}${s.school&&S.user&&S.user.schoolInfo&&s.school!==(S.user.schoolInfo.short||S.user.schoolInfo.name)?`<div class="meta"><b>${esc(s.school)}</b>${s.reach==='national'?' · Ships nationwide':''}</div>`:''}<div class="meta">${esc(ci(s.cat).name)} · ${esc(s.spot)}${s.vendor?' · Campus vendor':''}</div><div class="meta">${s.items.filter(i=>i.avail).length} available now</div></div></article>`).join('')||`<div class="empty"><h3>No stores yet</h3><p>Campus shops and students can open a store for ₦5,000.</p></div>`;
 }
 function storePage(id){
@@ -1154,7 +1156,7 @@ async function shareThing(id){const r=await myRef(),isS=id[0]==='S',it=isS?allSt
    <div class="acts"><a class="pill" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(text+' '+url)}">Share on WhatsApp</a><button class="pill alt" type="button" data-copy="${esc(url)}">Copy link</button></div><div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;d.showModal()}
 async function openInvite(){const d=$('#accDlg');d.innerHTML=`<div class="pad"><h2>Invite friends</h2><p class="meta">Loading…</p></div>`;if(!d.open)d.showModal();const r=await myRef();if(!r){d.querySelector('.meta').textContent='Could not load your invite link. Try again.';return}
   const n=naira(r.reward),msg=`Join me on Stall, the student marketplace. Buy and sell safely on campus: ${r.link}`;
-  d.innerHTML=`<div class="pad"><h2>Invite friends</h2><p class="meta">${r.reward?`When a friend signs up with your link and completes their first order (buying or selling), you <b>both</b> get <b>${n}</b> Stall credit. Use it to feature your items or store.`:'Share Stall with your friends.'}</p>
+  d.innerHTML=`<div class="pad"><h2>Invite friends</h2><p class="meta">${r.reward?`When a friend signs up with your link and completes their first order of ${naira(r.minOrder||2000)} or more (buying or selling), you <b>both</b> get <b>${n}</b> Stall credit. Use it to feature your items or store.`:'Share Stall with your friends.'}</p>
    <div class="codebox" style="margin-top:14px"><small>Your invite code</small><b>${esc(r.code)}</b><input readonly value="${esc(r.link)}" onclick="this.select()"></div>
    <div class="acts"><a class="pill" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">Share on WhatsApp</a><button class="pill alt" type="button" data-copy="${esc(r.link)}">Copy link</button>${navigator.share?'<button class="pill alt" type="button" id="invShare">More…</button>':''}</div>
    <div class="istats"><div class="stat"><b>${r.invited}</b><span>Friends joined</span></div><div class="stat"><b>${r.rewarded}</b><span>Completed an order</span></div><div class="stat"><b>${naira(r.credit)}</b><span>Your credit</span></div></div>
