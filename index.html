@@ -203,7 +203,8 @@ dialog.adm[open]{display:flex;flex-direction:column}
 .brow{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}.brow.bad .bf input{border-color:#E5484D}.bph{width:64px;height:64px;border-radius:14px;border:1.5px dashed var(--line);background:var(--bg2);display:grid;place-items:center;color:var(--muted);flex:none;overflow:hidden;padding:0;cursor:pointer}.bph img{width:100%;height:100%;object-fit:cover}.bf{flex:1;min-width:0;display:grid;gap:6px}.bf input{margin:0;width:100%;min-width:0;box-sizing:border-box;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);font:inherit;color:inherit}.bf .two{display:grid;grid-template-columns:1fr 84px;gap:6px}
 .codebox input{width:100%;box-sizing:border-box}
 .istats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.istats .stat{padding:12px}.istats .stat b{font-size:22px}.istats .stat span{font-size:12.5px}
-a.pill{text-decoration:none}.bst{width:20px;font-weight:700;padding-top:20px}.brow .bst:not(:empty){color:var(--green)}.brow.bad .bst{color:#E5484D}
+a.pill{text-decoration:none}.bst{width:20px;font-weight:700;padding-top:20px}
+.yget{margin:8px 0 14px;padding:10px 12px;border-radius:12px;background:var(--bg2);font-size:13px;color:var(--muted);line-height:1.45}.yget b{display:block;font-size:17px;color:var(--green);letter-spacing:-.01em}.yget.low b{color:#E5484D}.bget{display:block;font-size:12px;color:var(--muted);margin-top:4px}.bget b{color:var(--green)}.brow .bst:not(:empty){color:var(--green)}.brow.bad .bst{color:#E5484D}
 .sbtn{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .slogo{width:100%;height:100%;object-fit:cover;display:block}.tile .slogo{width:62%;height:auto;aspect-ratio:1;border-radius:22px;box-shadow:0 6px 20px rgba(0,0,0,.12)}.sav.haslogo{padding:0;overflow:hidden;background:#fff!important}
 .lnudge{display:flex;gap:12px;align-items:center;background:var(--card);border:1px dashed var(--acc);border-radius:16px;padding:12px 14px;margin:12px 0}.lnudge>div{flex:1;min-width:0}.lnudge p{margin:0;font-size:13px}.lnudge .aic{background:#FFF4E5;color:#E8590C;box-shadow:none}.dark-ui .lnudge .aic{background:#2A1C0B}
@@ -510,6 +511,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
 <dialog id="itemDlg"><div class="pad"><h2>Add item</h2><form id="itemForm" method="dialog">
  <label>Item name<input name="title" required maxlength="60" placeholder="e.g. Jollof rice and chicken"></label>
  <label>Price (₦)<input name="price" type="number" min="500" step="50" required inputmode="numeric"></label>
+ <div class="yget" data-earn></div>
  <label>Description<input name="desc" maxlength="80" placeholder="What comes with it"></label>
  <label>How many do you have? (optional)<input name="qty" type="number" min="0" max="100000" inputmode="numeric" placeholder="Leave empty if there's no limit"></label>
  <p class="lb">Photos (1 to 8)</p><div class="pk" id="pkItem"><input type="file" accept="image/*" multiple hidden><button type="button" class="pill sm alt" data-pick>Add photos</button> <span class="meta pkc"></span><div class="thumbs"></div><span class="err"></span></div>
@@ -544,6 +546,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
  <form id="form" method="dialog">
   <label>What are you selling?<input name="title" required maxlength="60" placeholder="e.g. Engineering Mathematics textbook"></label>
   <div class="two"><label>Price (₦)<input name="price" type="number" min="500" step="50" required inputmode="numeric"></label><label>Category<select name="cat" id="catSel"></select></label></div>
+  <div class="yget" data-earn></div>
   <div class="two"><label>How many do you have?<input name="qty" type="number" min="1" max="100000" value="1" inputmode="numeric" required></label><label>Condition<select name="cond"><option>New</option><option selected>Like new</option><option>Used</option></select></label></div>
   <label>Meet-up spot or delivery area<input name="spot" required maxlength="40" placeholder="e.g. Library steps"></label>
   <label>Details<textarea name="desc" rows="3" maxlength="240" placeholder="Edition, size, defects"></textarea></label>
@@ -1076,7 +1079,10 @@ function openItem(id){const i=get(id);if(!i)return;const st=allStores().find(x=>
   d.innerHTML=`${gal(i)}<div class="pad"><h2 style="margin-bottom:4px">${esc(i.title)}</h2><p class="price" style="font-size:24px;margin:6px 0 12px">${naira(i.price)}</p><p>${esc(i.desc||'')}</p><p class="meta" style="margin-top:12px">${esc(i.seller)} · ${esc(i.spot)}</p>
    <div class="acts">${ok?`<button class="pill" data-inc="${id}">Add to bag</button>`:'<button class="pill" disabled>Unavailable</button>'}<button class="pill alt" data-close>Close</button></div></div>`;d.showModal()}
 const pk1=mkPicker($('#pkSell')),pk2=mkPicker($('#pkItem'));
-document.querySelectorAll('[name=price]').forEach(inp=>inp.addEventListener('input',()=>{const n=inp.closest('form').querySelector('.fh'),p=+inp.value;if(n)n.textContent=p>=500?'When a buyer pays through Stall, you get '+naira(p-feeOf(p))+' after Stall\'s fee of '+naira(feeOf(p))+'.':'The minimum price is ₦500.'}));
+// Show sellers exactly what they'll receive for the price they type.
+const earnText=p=>!(p>0)?'<b>Enter a price</b>We\'ll show exactly what you get when it sells.':p<500?'<b>The minimum price is ₦500</b>':`<b>You get ${naira(p-feeOf(p))}</b>Buyer pays ${naira(p)} · Stall's fee ${naira(feeOf(p))} (5%, min ₦150, max ₦2,000). Delivery fees are all yours.`;
+const earnShow=f=>{const n=f.querySelector('[data-earn]'),p=+f.elements.price.value;if(n){n.innerHTML=earnText(p);n.classList.toggle('low',p>0&&p<500)}};
+document.querySelectorAll('[data-earn]').forEach(n=>{const f=n.closest('form');f.elements.price.addEventListener('input',()=>earnShow(f));f.addEventListener('reset',()=>setTimeout(()=>earnShow(f)));earnShow(f)});
 const SCHOOL={matric:/^[A-Za-z0-9\/-]{4,16}$/};
 // Schools across Nigeria, for sign-up, the school switcher and store locations.
 let SCH=[],STATES=[],CFG={name:'Stall',phone:'',email:''};const schLabel=x=>x.name+(x.short?' ('+x.short+')':'')+' — '+x.state;
@@ -1188,13 +1194,14 @@ async function openInvite(){const d=$('#accDlg');d.innerHTML=`<div class="pad"><
   const sh=$('#invShare');if(sh)sh.onclick=()=>navigator.share({title:'Stall',text:msg,url:r.link}).catch(()=>{})}
 function openBulk(where){const st=where==='store'?myStore():null,d=$('#accDlg');$('#sell').open&&$('#sell').close();
   if(where==='me'&&!(S.user&&S.user.acctSet)){d.innerHTML=`<div class="pad"><h2>Add several items</h2><p class="meta">First post one item with the normal form, so we can add the bank account you'll be paid into. Then come back here to add the rest quickly.</p><div class="acts"><button class="pill" id="bulkFirst">Post my first item</button><button class="pill alt" data-close>Close</button></div></div>`;if(!d.open)d.showModal();$('#bulkFirst').onclick=()=>{d.close();$('#sellBtn').click()};return}
-  const row=i=>`<div class="brow" data-brow="${i}"><button type="button" class="bph" data-bph="${i}" aria-label="Add photo">${ico('image')}</button><input type="file" accept="image/*" hidden data-bfile="${i}"><div class="bf"><input name="t" maxlength="60" placeholder="What is it?"><div class="two"><input name="p" type="number" min="500" inputmode="numeric" placeholder="Price ₦"><input name="q" type="number" min="1" value="1" inputmode="numeric" placeholder="How many"></div></div><span class="bst"></span></div>`;
+  const row=i=>`<div class="brow" data-brow="${i}"><button type="button" class="bph" data-bph="${i}" aria-label="Add photo">${ico('image')}</button><input type="file" accept="image/*" hidden data-bfile="${i}"><div class="bf"><input name="t" maxlength="60" placeholder="What is it?"><div class="two"><input name="p" type="number" min="500" inputmode="numeric" placeholder="Price ₦" data-bp><input name="q" type="number" min="1" value="1" inputmode="numeric" placeholder="How many"></div><span class="bget"></span></div><span class="bst"></span></div>`;
   d.innerHTML=`<div class="pad"><h2>Add several items</h2><p class="meta">${st?'Add up to 10 items to '+esc(st.name)+'.':'One photo, a name and a price for each, up to 10 at a time. You can add more photos and details later.'}</p>
    <form id="bulkF">${st?'':`<div class="two"><label>Category<select name="cat">${CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></label><label>Condition<select name="cond"><option>New</option><option selected>Like new</option><option>Used</option></select></label></div>
     <label>Meet-up spot<input name="spot" maxlength="40" required placeholder="e.g. Library steps"></label>`}
     <div id="brows">${[0,1,2].map(row).join('')}</div><p><button type="button" class="link" id="bMore">+ Add another item</button></p>
     <span class="err" id="bErr"></span><div class="acts"><button class="pill" type="submit">Post all</button><button class="pill alt" type="button" data-close>Cancel</button></div></form></div>`;if(!d.open)d.showModal();
   let n=3;const imgs={};$('#bMore').onclick=()=>{if(n>=10)return toast('Up to 10 at a time');$('#brows').insertAdjacentHTML('beforeend',row(n++))};
+  d.querySelector('#brows').oninput=e=>{if(!e.target.matches('[data-bp]'))return;const p=+e.target.value,g=e.target.closest('.bf').querySelector('.bget');g.innerHTML=!(p>0)?'':p<500?'Minimum price is ₦500':`You get <b>${naira(p-feeOf(p))}</b> after Stall's ${naira(feeOf(p))} fee`};
   d.querySelector('#brows').onclick=e=>{const b=e.target.closest('[data-bph]');if(b)d.querySelector(`[data-bfile="${b.dataset.bph}"]`).click()};
   d.querySelector('#brows').onchange=async e=>{const f=e.target.closest('[data-bfile]');if(!f||!f.files[0])return;const i=f.dataset.bfile;try{imgs[i]=await shrinkPhoto(f.files[0]);d.querySelector(`[data-bph="${i}"]`).innerHTML=`<img src="${imgs[i]}" alt="">`}catch(x){toast('Could not read that photo')}};
   $('#bulkF').onsubmit=async e=>{e.preventDefault();const F=e.target,rows=[...d.querySelectorAll('[data-brow]')].map(r=>({r,i:r.dataset.brow,t:r.querySelector('[name=t]').value.trim(),p:r.querySelector('[name=p]').value,q:r.querySelector('[name=q]').value})).filter(x=>x.t||x.p||imgs[x.i]);
