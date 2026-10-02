@@ -499,6 +499,38 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
 @media (max-height:700px){.sc{width:min(260px,70vw)}.obtxt h1{font-size:30px}.obtxt p{font-size:15px;margin-top:8px}}
 @media (prefers-reduced-motion:reduce){.blob,.ring,.core,.chipf,.pc,.caret,.spark,.ob.last .obgo{animation:none!important}.obtrack{transition:none}
   .pc,.paid,.lcard,.codecap,.code span,.feat,.vbadge{opacity:1!important;transform:none!important}.shield .sh,.shield .tk{stroke-dashoffset:0}}
+/* home refresh: tighter hero, category cards, compact trust row on phones */
+.promo{border-radius:32px;isolation:isolate}
+.promo::after{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background-image:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1px);background-size:18px 18px;-webkit-mask-image:linear-gradient(90deg,transparent 30%,#000);mask-image:linear-gradient(90deg,transparent 30%,#000)}
+.promo .row .pill{min-height:48px;font-weight:700}
+.promo h1{max-width:none;font-size:clamp(30px,4.6vw,50px)}.promo .pt>p:not(.naija-line){max-width:40ch}
+.trust div{border:1px solid var(--line);box-shadow:none}
+.trust i{background:rgba(255,159,28,.14)}.trust i .ic{color:#C2410C}
+:root[data-theme="dark"] .trust i .ic{color:var(--acc)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .trust i .ic{color:var(--acc)}}
+.sec h3{font-size:21px}
+.cats{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;padding:2px 0 6px}
+.hc{width:auto;min-height:44px;gap:10px;padding:14px 8px 12px;border-radius:20px;background:var(--card);border:1px solid var(--line);transition:transform .2s,border-color .2s,box-shadow .2s}
+.hc span{width:48px;height:48px;border-radius:16px;box-shadow:none}.hc span .ic{width:24px;height:24px}
+.hc:hover{transform:translateY(-2px);box-shadow:var(--sh)}.hc:hover span{transform:none}
+.hc[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}.hc[aria-pressed="true"] span{outline:0}
+@media (max-width:760px){.cats{display:flex;overflow-x:auto;gap:8px;margin:0 -18px;padding:2px 18px 6px;scroll-padding:0 18px;scroll-snap-type:x proximity}.hc{flex:none;width:auto;min-width:76px;padding:10px 12px;gap:8px;font-size:12.5px;border-radius:18px;white-space:nowrap}.hc span{width:44px;height:44px;border-radius:14px}}
+@media (max-width:560px){
+  .home{padding-top:12px}
+  .promo{border-radius:26px;padding:22px 20px 20px;gap:0}
+  .promo h1{font-size:clamp(28px,8vw,32px);margin:12px 0 4px;max-width:13ch}
+  .promo .pt>p:not(.naija-line){display:none}
+  .promo h1 br{display:none}
+  .eyebrow{font-size:11px;padding:4px 9px}
+  .promo .row{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;width:100%}.promo .row .pill{padding:12px 10px}
+  .promo .row:has(#sellHero[hidden]){grid-template-columns:1fr}
+  .trust{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible;gap:8px;margin-top:10px}
+  .trust div{flex-direction:column;align-items:flex-start;gap:8px;padding:12px;font-size:12.5px;line-height:1.25;border-radius:16px}
+  .trust small{display:none}
+  .appcard{padding:10px 12px;border-radius:18px}.appcard small{display:none}.gcard .gico,.appcard img{width:38px;height:38px;border-radius:12px}
+  .sec{margin:22px 0 10px}.sec h3{font-size:19px}
+}
+@media (prefers-reduced-motion:reduce){.hc{transition:none}.hc:hover{transform:none}}
 </style>
 </head>
 <body>
@@ -519,7 +551,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
 <section id="shop">
   <div class="home">
     <div class="promo">
-      <div class="pt"><span class="eyebrow">Nigeria's student marketplace</span><h1>Everything you <span class="rw"><b id="rw">need</b></span>,<br>right on campus.</h1><p class="naija-line" id="naijaLine" hidden></p>
+      <div class="pt"><span class="eyebrow">Nigeria's student marketplace</span><h1>Everything you <span class="rw"><b id="rw">need</b></span>, <br>right on campus.</h1><p class="naija-line" id="naijaLine" hidden></p>
         <p>Textbooks, gadgets, meals and hostel essentials from fellow students and campus stores.</p>
         <div class="row"><button class="pill acc" id="shopNow">Shop now</button><button class="pill ghost" id="sellHero">Sell something</button></div></div>
       <div class="pa" aria-hidden="true" id="promoArt"></div>
