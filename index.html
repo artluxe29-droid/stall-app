@@ -39,6 +39,13 @@ nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;height:52px;back
 .link:hover{text-decoration:underline}
 .wrap{max-width:1080px;margin:0 auto;padding:0 18px 60px}
 .tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:24px 0 8px}
+.qwrap{position:relative;flex:1 1 260px;display:flex}.qwrap .search{flex:1;padding-right:54px}
+.mic{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:12px;border:0;background:var(--acc);color:#1A1206;display:grid;place-items:center}.mic:active{transform:translateY(-50%) scale(.94)}
+.vnote{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:2px 0 8px}.vnote b{color:var(--ink)}.vnote .tag2{background:var(--bg2);border-radius:99px;padding:3px 10px;color:var(--ink)}
+.vdlg{max-width:420px}.vdlg .pad{text-align:center}.vring{width:96px;height:96px;margin:10px auto 14px;border-radius:50%;background:var(--acc);color:#1A1206;display:grid;place-items:center;position:relative}.vring::after{content:'';position:absolute;inset:-10px;border-radius:50%;border:3px solid var(--acc);opacity:.5;animation:vpulse 1.4s ease-out infinite}.vring.off::after{animation:none;opacity:0}
+@keyframes vpulse{0%{transform:scale(.85);opacity:.6}100%{transform:scale(1.25);opacity:0}}
+.vtxt{min-height:52px;font-size:19px;font-weight:600;color:var(--ink);margin:6px 0 10px;line-height:1.35}.vtxt.dim{color:var(--muted);font-weight:500;font-size:15px}
+.vex{font-size:13px;color:var(--muted);text-align:left;background:var(--bg2);border-radius:14px;padding:10px 14px;margin:6px 0 4px}.vex li{margin:3px 0}
 .search{flex:1 1 260px;padding:12px 18px;border-radius:980px;border:1px solid var(--line);background:var(--bg2);outline-offset:0}
 select.sort{padding:11px 14px;border-radius:980px;border:1px solid var(--line);background:var(--bg2)}
 .chips{display:none;gap:8px;overflow-x:auto;padding:6px 0 14px;scrollbar-width:none}
@@ -504,9 +511,10 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
   </div>
   <div class="wrap" id="browse">
     <div class="scope" id="scopeSeg"></div>
-    <div class="tools"><input class="search" id="q" type="search" placeholder="Search items and stores" aria-label="Search items and stores">
+    <div class="tools"><div class="qwrap"><input class="search" id="q" type="search" placeholder="Search items and stores" aria-label="Search items and stores"><button class="mic" id="micBtn" type="button" aria-label="Search by voice" title="Search by voice" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button></div>
       <select class="sort" id="sort" aria-label="Sort"><option value="new">Newest</option><option value="top">Top rated sellers</option><option value="lo">Price: low to high</option><option value="hi">Price: high to low</option></select>
       <button class="fbtn" id="fBtn" type="button" aria-expanded="false" aria-controls="fPanel">Filters<b id="fN" hidden></b></button></div>
+    <div id="voiceNote" class="vnote" hidden></div>
     <div id="recent" class="recent" hidden></div>
     <form id="fPanel" class="fpanel" hidden><div class="two"><label>Min price (₦)<input name="min" type="number" min="0" inputmode="numeric" placeholder="Any"></label><label>Max price (₦)<input name="max" type="number" min="0" inputmode="numeric" placeholder="Any"></label></div>
       <label>Condition<select name="cond"><option value="">Any</option><option>New</option><option>Like new</option><option>Used</option></select></label>
@@ -555,6 +563,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
 <dialog id="accDlg"></dialog>
 <dialog id="revDlg"></dialog>
 <dialog id="chatDlg" class="chatdlg"></dialog>
+<dialog id="voiceDlg" class="vdlg"></dialog>
 <dialog id="schDlg"></dialog>
 <datalist id="schoolList"></datalist>
 <dialog id="pwDlg"><form class="pad" id="pwForm"><h2>Change password</h2><label>Current password<input name="old" type="password" autocomplete="current-password" required></label><label>New password<input name="pw" type="password" autocomplete="new-password" minlength="8" required></label><span class="err" id="pwErr"></span>
@@ -1029,7 +1038,55 @@ function openVerify(){const d=$('#verDlg'),u=S.user,st=u.verify;
     catch(x){sb.disabled=false;$('#verErr').textContent='Could not read that photo. Try another.'}}}
 $('#pwForm').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('[type=submit]');b.disabled=true;const r=await apiPost('password',{old:f.elements.old.value,password:f.elements.pw.value});b.disabled=false;
   if(r.error)return $('#pwErr').textContent=r.error;$('#pwDlg').close();toast('Password changed')};
-$('#q').oninput=e=>{q=e.target.value.trim().toLowerCase();drawRecent();clearTimeout(qT);qT=setTimeout(()=>{loadPub();if(q.length>=2)setTimeout(()=>{if(q.length>=2&&PUB.length+SHITS.length){S.recent=[q,...(S.recent||[]).filter(x=>x!==q&&!q.startsWith(x))].slice(0,6);save()}},1500)},300)};
+// Voice search (English): speak naturally, e.g. "fairly used HP laptop under 150k in my school". The phone turns speech into
+// text (Nigerian English); we pick out the price, condition and other filters, and search for the rest.
+const VSR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const vNum=s=>{const m=String(s).match(/(\d+(?:\.\d+)?)\s*(thousand|grand|million|mil|k|m)?\b/);if(!m)return null;const u=m[2]||'';return Math.round(+m[1]*(/^(k|thousand|grand)$/.test(u)?1e3:/^(m|million|mil)$/.test(u)?1e6:1))};
+function parseVoice(raw){const r={min:'',max:'',cond:'',dl:'',vf:'',r4:'',scope:''},N='(\\d+(?:\\.\\d+)?\\s*(?:thousand|grand|million|mil|k|m)?\\b)';
+  let t=' '+String(raw||'').toLowerCase().replace(/₦|naira|ngn/g,' ').replace(/(\d),(\d)/g,'$1$2').replace(/[^a-z0-9.' ]/g,' ').replace(/\s+/g,' ')+' ';
+  const cut=(re,fn)=>{t=t.replace(re,(...m)=>{fn(...m);return ' '})};
+  cut(new RegExp('between '+N+' (?:and|to) '+N),(_,a,b)=>{r.min=vNum(a);r.max=vNum(b)});
+  cut(new RegExp('(?:under|below|less than|not more than|no more than|not above|not pass|no pass|not over|maximum|max|at most|within|up to|cheaper than|for less than) '+N),(_,a)=>{r.max=vNum(a)});
+  cut(new RegExp('(?:above|over|more than|at least|minimum|starting from|from) '+N),(_,a)=>{r.min=vNum(a)});
+  cut(new RegExp('(?:around|about|roughly|for) '+N),(_,a)=>{const v=vNum(a);if(v>=100&&!r.max){r.min=Math.round(v*.8);r.max=Math.round(v*1.2)}});
+  cut(/\b(?:like new|fairly used|neatly used|uk used|london used|tokunbo|clean used|foreign used)\b/,()=>{r.cond='Like new'});
+  cut(/\b(?:brand new|new)\b/,()=>{if(!r.cond)r.cond='New'});
+  cut(/\b(?:used|second hand|secondhand|pre owned|preowned)\b/,()=>{if(!r.cond)r.cond='Used'});
+  cut(/\b(?:that|who|which|wey)? ?(?:can )?(?:deliver(?:s|y)?|delivery|door delivery)\b/,()=>{r.dl='1'});
+  cut(/\b(?:from )?verified (?:sellers?|students?|vendors?)?\b/,()=>{r.vf='1'});
+  cut(/\b(?:4|four) stars?(?: and above| and up| plus)?|top rated|highly rated|good reviews?\b/,()=>{r.r4='1'});
+  cut(/\b(?:in|on|around) (?:my|our|this) (?:school|campus)|\bon campus\b/,()=>{r.scope='school'});
+  cut(/\b(?:in|around) (?:my|our|this) state\b/,()=>{r.scope='state'});
+  cut(/\b(?:anywhere in nigeria|all over nigeria|across nigeria|whole nigeria|all nigeria|anywhere|nationwide)\b/,()=>{r.scope='all'});
+  const FILL=new Set("i i'm im am want wanna need looking look for find me show search buy get a an the some any please abeg dey wey one that which is are with cost costs costing price priced budget my on stall in of cheap cheaper good nice sell selling someone who can also it to and or have has do does there here something thing things like seller sellers vendor vendors".split(' '));
+  r.q=t.split(' ').filter(w=>w&&!FILL.has(w)).map(w=>w.length>4&&/[^s]s$/.test(w)?w.slice(0,-1):w).join(' ').trim();
+  return r}
+function applyVoice(raw){const r=parseVoice(raw),E=$('#fPanel').elements;
+  E.min.value=r.min||'';E.max.value=r.max||'';E.cond.value=r.cond||'';E.dl.checked=!!r.dl;E.vf.checked=!!r.vf;E.r4.checked=!!r.r4;
+  FL={min:E.min.value,max:E.max.value,cond:E.cond.value,dl:r.dl,vf:r.vf,r4:r.r4};const n=fCount();$('#fN').hidden=!n;$('#fN').textContent=n;
+  if(r.scope&&S.user&&(r.scope!=='school'||S.user.schoolInfo)){S.scope=r.scope;save();drawScope()}
+  $('#q').value=r.q;q=r.q.toLowerCase();drawRecent();
+  const tags=[r.q&&'“'+esc(r.q)+'”',r.min&&r.max?naira(r.min)+' – '+naira(r.max):r.max?'under '+naira(r.max):r.min?'over '+naira(r.min):'',r.cond,r.dl&&'seller delivers',r.vf&&'verified sellers',r.r4&&'4★ and up',r.scope&&{school:'my school',state:'my state',all:'all Nigeria'}[r.scope]].filter(Boolean);
+  const v=$('#voiceNote');v.innerHTML=`🎤 <span>You said “${esc(raw.trim())}”</span>${tags.map(x=>`<span class="tag2">${x}</span>`).join('')}<button class="link" type="button" id="vClear">Clear</button>`;v.hidden=false;
+  $('#vClear').onclick=()=>{v.hidden=true;$('#q').value='';q='';$('#fPanel').reset();FL={};$('#fN').hidden=true;loadPub()};
+  loadPub();$('#q').scrollIntoView({block:'start',behavior:'smooth'});return r}
+let VREC=null;
+function openVoice(){if(!VSR)return toast('Voice search isn\'t available in this browser. Try Chrome.');const d=$('#voiceDlg');let fin='',lang='en-NG';
+  d.innerHTML=`<div class="pad"><h2>Search by voice</h2><div class="vring" id="vRing"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+   <div class="vtxt dim" id="vTxt">Listening… say what you're looking for.</div>
+   <ul class="vex"><li>“Fairly used HP laptop under 150k”</li><li>“Brand new sneakers between 15k and 25k”</li><li>“Textbooks in my school from verified sellers”</li></ul>
+   <div class="acts"><button class="pill" type="button" id="vDone">Search</button><button class="pill alt" type="button" id="vCancel">Cancel</button></div></div>`;
+  if(!d.open)d.showModal();const tx=$('#vTxt'),ring=$('#vRing');
+  const start=()=>{try{VREC&&VREC.abort()}catch(e){}const rec=new VSR();VREC=rec;rec.lang=lang;rec.interimResults=true;rec.maxAlternatives=1;rec.continuous=false;
+    rec.onresult=e=>{let s='';fin='';for(const x of e.results){s+=x[0].transcript;if(x.isFinal)fin+=x[0].transcript}tx.textContent=s;tx.classList.remove('dim')};
+    rec.onerror=e=>{if(e.error==='language-not-supported'&&lang!=='en-US'){lang='en-US';return setTimeout(start,50)}ring.classList.add('off');tx.classList.add('dim');
+      tx.textContent={'not-allowed':'Allow microphone access for Stall in your browser settings, then try again.','service-not-allowed':'Allow microphone access for Stall in your browser settings, then try again.','no-speech':'Didn\'t catch that. Tap Search to try again.','network':'Voice search needs an internet connection.','audio-capture':'No microphone found.'}[e.error]||'Something went wrong. Tap Search to try again.'};
+    rec.onend=()=>{ring.classList.add('off');const said=(fin||tx.textContent||'').trim();if(fin.trim()&&d.open){d.close();applyVoice(said)}};
+    ring.classList.remove('off');try{rec.start()}catch(e){}};
+  $('#vDone').onclick=()=>{const said=tx.classList.contains('dim')?'':tx.textContent.trim();if(said){try{VREC.abort()}catch(e){}d.close();applyVoice(said)}else{tx.textContent='Listening… say what you\'re looking for.';start()}};
+  $('#vCancel').onclick=()=>{try{VREC.abort()}catch(e){}d.close()};d.onclose=()=>{try{VREC&&VREC.abort()}catch(e){}};start()}
+if(VSR){$('#micBtn').hidden=false;$('#micBtn').onclick=openVoice}
+$('#q').oninput=e=>{$('#voiceNote').hidden=true;q=e.target.value.trim().toLowerCase();drawRecent();clearTimeout(qT);qT=setTimeout(()=>{loadPub();if(q.length>=2)setTimeout(()=>{if(q.length>=2&&PUB.length+SHITS.length){S.recent=[q,...(S.recent||[]).filter(x=>x!==q&&!q.startsWith(x))].slice(0,6);save()}},1500)},300)};
 $('#q').onfocus=()=>drawRecent(true);
 // Recent searches show under the box while it's empty.
 function drawRecent(focus){const r=$('#recent'),L=S.recent||[];if(q||!L.length||(!focus&&document.activeElement!==$('#q'))){r.hidden=true;return}
