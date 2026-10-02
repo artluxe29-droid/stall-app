@@ -218,6 +218,9 @@ async function earnRows(env,from,to){
     ...back.map(r=>({t:r.t,ref:r.ref+'-R',cat:'refund',label:'Refunded order #'+r.id+': '+r.title,who:r.buyer_name||'',amount:-r.amount}))].sort((a,b)=>a.t-b.t)}
 const sumCats=rows=>EARN_CATS.map(([k,l])=>{const x=rows.filter(r=>r.cat===k);return{key:k,label:l,n:x.length,amt:x.reduce((a,r)=>a+r.amount,0)}}).filter(c=>c.n||c.key!=='refund');
 const csvCell=v=>{const t=String(v==null?'':v);return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t};
+// Words that identify an item for price matching ("iPhone 11 Pro Max 128GB" → iphone, 11, pro, max, 128gb); filler words are dropped.
+const P_STOP=new Set('the and for with new used like fairly neat very good brand original clean sale selling sell one set of in on a an my is it this that uk tokunbo nigerian quality cheap available'.split(' '));
+const priceWords=t=>[...new Set(String(t||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>(w.length>=2||/^\d$/.test(w))&&!P_STOP.has(w)))].slice(0,6);
 // Releases a held order to the seller. Only a paid (or disputed) order can be released, and only once.
 async function release(env,o,how){const now=Date.now();
   const ch=(await env.DB.prepare("UPDATE orders SET status='released',code_used=?,dstage='done',track=?,updated=? WHERE id=? AND status IN ('verified','disputed')").bind(how==='code'?1:0,track(o,'done',now),now,o.id).run()).meta.changes;
@@ -477,6 +480,18 @@ async function route({request,env,params,waitUntil}){
     const salt=rnd(16),t=cookie(request,'stall_s');await env.DB.prepare('UPDATE users SET salt=?,pw=? WHERE id=?').bind(salt,await pbk(pw,salt),u.id).run();
     await env.DB.prepare('DELETE FROM sessions WHERE uid=? AND h!=?').bind(u.id,await sha(t)).run();return J({ok:true})}
   if(path==='logout'){const t=cookie(request,'stall_s');if(t)await env.DB.prepare('DELETE FROM sessions WHERE h=?').bind(await sha(t)).run();return J({ok:true},200,{'set-cookie':'stall_s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'})}
+  // Suggested price for a new listing: what similar items on Stall (last 6 months) are listed or sold for.
+  if(path==='price-hint'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
+    const ws=priceWords(url.searchParams.get('t')),cond=String(url.searchParams.get('cond')||'');if(!ws.length)return J({n:0});
+    const key=ws.slice(0,4),since=Date.now()-180*864e5,lk=key.map(w=>'%'+w+'%'),or=key.map(()=>'LOWER(title) LIKE ?').join(' OR ');
+    const L=(await env.DB.prepare("SELECT title,price,cond,sold,uid FROM listings WHERE review='live' AND created>? AND ("+or+") ORDER BY created DESC LIMIT 200").bind(since,...lk).all()).results;
+    const I=(await env.DB.prepare("SELECT i.title,i.price,s.uid FROM store_items i JOIN stores s ON s.id=i.sid WHERE i.review='live' AND i.created>? AND ("+or.replace(/title/g,'i.title')+") ORDER BY i.created DESC LIMIT 100").bind(since,...lk).all()).results;
+    const need=Math.max(1,Math.ceil(ws.length*.6)),hit=r=>{const t=' '+String(r.title).toLowerCase().replace(/[^a-z0-9 ]/g,' ')+' ';return ws.filter(w=>t.includes(' '+w+' ')).length>=need};
+    let m=[...L,...I].filter(r=>r.uid!==u.id&&r.price>0&&hit(r));const same=m.filter(r=>r.cond&&r.cond===cond);if(cond&&same.length>=3)m=same;
+    // Drop outliers (an "iPhone 11 case" among iPhone 11s): keep prices within a third and three times the middle one.
+    if(m.length>=3){const md=m.map(r=>r.price).sort((a,b)=>a-b)[m.length>>1];m=m.filter(r=>r.price>=md/3&&r.price<=md*3)}
+    if(m.length<3)return J({n:m.length});const p=m.map(r=>r.price).sort((a,b)=>a-b),q=x=>{const v=p[Math.min(p.length-1,Math.round(x*(p.length-1)))];return v>=1000?Math.round(v/100)*100:Math.round(v/50)*50};
+    return J({n:m.length,sold:m.filter(r=>r.sold).length,low:q(.25),mid:q(.5),high:q(.75),cond:cond&&same.length>=3?cond:null})}
   if(path==='config')return J({creditPct:await creditPct(env),fee:await feeCfg(env),freeSales:await freeSales(env),androidPkg:(await getK(env,'android_pkg'))||'',androidSha:(await getK(env,'android_sha'))||'',name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES},200,{'cache-control':'public, max-age=60'});
   if(path==='schools'&&request.method==='GET'){await ensure(env);return J({schools:(await env.DB.prepare('SELECT id,name,short,state,kind FROM schools WHERE active=1 ORDER BY name').all()).results,states:STATES},200,{'cache-control':'public, max-age=3600'})}
   if(path==='me/delivery'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);

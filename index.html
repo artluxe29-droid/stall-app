@@ -216,6 +216,7 @@ dialog.adm[open]{display:flex;flex-direction:column}
 .istats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.istats .stat{padding:12px}.istats .stat b{font-size:22px}.istats .stat span{font-size:12.5px}
 a.pill{text-decoration:none}.bst{width:20px;font-weight:700;padding-top:20px}
 .fprow{display:grid;grid-template-columns:1.1fr .9fr 1.3fr;gap:8px;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}.fprow span:last-child{text-align:right;font-weight:600;color:var(--green)}.fprow .neg{color:#E5484D!important}.fprow.fph span{font-size:12px;color:var(--muted)!important;font-weight:600}
+.phint{margin:8px 0 0;padding:10px 12px;border-radius:12px;border:1px dashed var(--line);font-size:13px;color:var(--muted);line-height:1.45;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}.phint b{color:var(--ink)}.phint .pill{flex:none}
 .yget{margin:8px 0 14px;padding:10px 12px;border-radius:12px;background:var(--bg2);font-size:13px;color:var(--muted);line-height:1.45}.yget b{display:block;font-size:17px;color:var(--green);letter-spacing:-.01em}.yget.low b{color:#E5484D}.bget{display:block;font-size:12px;color:var(--muted);margin-top:4px}.bget b{color:var(--green)}.brow .bst:not(:empty){color:var(--green)}.brow.bad .bst{color:#E5484D}
 .sbtn{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .slogo{width:100%;height:100%;object-fit:cover;display:block}.tile .slogo{width:62%;height:auto;aspect-ratio:1;border-radius:22px;box-shadow:0 6px 20px rgba(0,0,0,.12)}.sav.haslogo{padding:0;overflow:hidden;background:#fff!important}
@@ -528,7 +529,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
 <dialog id="itemDlg"><div class="pad"><h2>Add item</h2><form id="itemForm" method="dialog">
  <label>Item name<input name="title" required maxlength="60" placeholder="e.g. Jollof rice and chicken"></label>
  <label>Price (₦)<input name="price" type="number" min="500" step="50" required inputmode="numeric"></label>
- <div class="yget" data-earn></div>
+ <div class="phint" data-phint hidden></div><div class="yget" data-earn></div>
  <label>Description<input name="desc" maxlength="80" placeholder="What comes with it"></label>
  <label>How many do you have? (optional)<input name="qty" type="number" min="0" max="100000" inputmode="numeric" placeholder="Leave empty if there's no limit"></label>
  <p class="lb">Photos (1 to 8)</p><div class="pk" id="pkItem"><input type="file" accept="image/*" multiple hidden><button type="button" class="pill sm alt" data-pick>Add photos</button> <span class="meta pkc"></span><div class="thumbs"></div><span class="err"></span></div>
@@ -563,7 +564,7 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
  <form id="form" method="dialog">
   <label>What are you selling?<input name="title" required maxlength="60" placeholder="e.g. Engineering Mathematics textbook"></label>
   <div class="two"><label>Price (₦)<input name="price" type="number" min="500" step="50" required inputmode="numeric"></label><label>Category<select name="cat" id="catSel"></select></label></div>
-  <div class="yget" data-earn></div>
+  <div class="phint" data-phint hidden></div><div class="yget" data-earn></div>
   <div class="two"><label>How many do you have?<input name="qty" type="number" min="1" max="100000" value="1" inputmode="numeric" required></label><label>Condition<select name="cond"><option>New</option><option selected>Like new</option><option>Used</option></select></label></div>
   <label>Meet-up spot or delivery area<input name="spot" required maxlength="40" placeholder="e.g. Library steps"></label>
   <label>Details<textarea name="desc" rows="3" maxlength="240" placeholder="Edition, size, defects"></textarea></label>
@@ -1108,6 +1109,14 @@ const earnText=p=>{const n=freeN();if(!(p>0))return n?`<b>Launch offer: no fee o
   return n?`<b>You get ${naira(p)}</b>Launch offer: no Stall fee on your next ${sales(n)}. After that you'd get ${naira(p-feeOf(p))} (fee ${naira(feeOf(p))}: ${feeDesc()}). Delivery fees are always yours.`
    :`<b>You get ${naira(p-feeOf(p))}</b>Buyer pays ${naira(p)} · Stall's fee ${naira(feeOf(p))}: ${feeDesc()}. Delivery fees are all yours.`};
 const earnShow=f=>{const n=f.querySelector('[data-earn]'),p=+f.elements.price.value;if(n){n.innerHTML=earnText(p);n.classList.toggle('low',p>0&&p<500)}};
+// Suggested price: as the seller types a title (and picks a condition), show what similar items on Stall go for.
+function priceHint(f){const box=f.querySelector('[data-phint]');if(!box)return;const t=(f.elements.title.value||'').trim(),cond=f.elements.cond?f.elements.cond.value:'';clearTimeout(f._phT);
+  if(t.length<3){box.hidden=true;return}
+  f._phT=setTimeout(async()=>{const r=await fetchJ('/api/price-hint?'+new URLSearchParams({t,cond})).catch(()=>null);if(f.elements.title.value.trim()!==t)return;
+    if(!r||!(r.n>=3)){box.hidden=true;return}
+    box.innerHTML=`<span>💡 Similar items on Stall${r.cond?' ('+esc(r.cond.toLowerCase())+')':''}: <b>${naira(r.low)}${r.high>r.low?' – '+naira(r.high):''}</b>, most around <b>${naira(r.mid)}</b> <small>(${r.n} item${r.n===1?'':'s'})</small></span><button type="button" class="pill sm alt" data-useprice="${r.mid}">Use ${naira(r.mid)}</button>`;box.hidden=false},600)}
+document.querySelectorAll('[data-phint]').forEach(box=>{const f=box.closest('form');f.elements.title.addEventListener('input',()=>priceHint(f));if(f.elements.cond)f.elements.cond.addEventListener('change',()=>priceHint(f));
+  f.addEventListener('reset',()=>{box.hidden=true});box.addEventListener('click',e=>{const b=e.target.closest('[data-useprice]');if(!b)return;f.elements.price.value=b.dataset.useprice;f.elements.price.dispatchEvent(new Event('input',{bubbles:true}));toast('Price set to '+naira(+b.dataset.useprice)+'. You can still change it.')})});
 window.earnAll=()=>document.querySelectorAll('[data-earn]').forEach(n=>earnShow(n.closest('form')));
 document.querySelectorAll('[data-earn]').forEach(n=>{const f=n.closest('form');f.elements.price.addEventListener('input',()=>earnShow(f));f.addEventListener('reset',()=>setTimeout(()=>earnShow(f)));earnShow(f)});
 const SCHOOL={matric:/^[A-Za-z0-9\/-]{4,16}$/};
