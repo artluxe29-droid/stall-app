@@ -50,11 +50,13 @@ async function sweep(env){await ensure(env);const now=Date.now();if(now-SWEPT<3e
   await env.DB.batch(ids.map(id=>env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,id)));
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='18';
+const SCHEMA_V='19';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
-  for(const q of ['ALTER TABLE payouts ADD COLUMN auto INTEGER NOT NULL DEFAULT 0','ALTER TABLE stores ADD COLUMN bank_code TEXT','ALTER TABLE stores ADD COLUMN acct_name TEXT','ALTER TABLE stores ADD COLUMN bank_verified INTEGER','ALTER TABLE listings ADD COLUMN featured_until INTEGER','ALTER TABLE stores ADD COLUMN featured_until INTEGER','ALTER TABLE users ADD COLUMN verified INTEGER NOT NULL DEFAULT 0',
+  for(const q of ['CREATE TABLE IF NOT EXISTS collections(id INTEGER PRIMARY KEY AUTOINCREMENT,code TEXT NOT NULL UNIQUE,uid INTEGER NOT NULL,title TEXT NOT NULL,cls TEXT,descr TEXT,amount INTEGER NOT NULL,expected INTEGER,deadline INTEGER,status TEXT NOT NULL DEFAULT \'open\',created INTEGER NOT NULL)',
+    'CREATE INDEX IF NOT EXISTS collections_uid ON collections(uid)','CREATE TABLE IF NOT EXISTS collect_pays(id INTEGER PRIMARY KEY AUTOINCREMENT,cid INTEGER NOT NULL,uid INTEGER NOT NULL,name TEXT,matric TEXT,amount INTEGER NOT NULL,fee INTEGER NOT NULL DEFAULT 0,ref TEXT UNIQUE,ticked INTEGER NOT NULL DEFAULT 0,created INTEGER NOT NULL,UNIQUE(cid,uid))',
+    'CREATE TABLE IF NOT EXISTS ps_subs(k TEXT PRIMARY KEY,code TEXT NOT NULL,created INTEGER)','ALTER TABLE payouts ADD COLUMN auto INTEGER NOT NULL DEFAULT 0','ALTER TABLE stores ADD COLUMN bank_code TEXT','ALTER TABLE stores ADD COLUMN acct_name TEXT','ALTER TABLE stores ADD COLUMN bank_verified INTEGER','ALTER TABLE listings ADD COLUMN featured_until INTEGER','ALTER TABLE stores ADD COLUMN featured_until INTEGER','ALTER TABLE users ADD COLUMN verified INTEGER NOT NULL DEFAULT 0',
     'CREATE TABLE IF NOT EXISTS schools(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE,short TEXT,state TEXT NOT NULL,kind TEXT,active INTEGER NOT NULL DEFAULT 1,created INTEGER)','CREATE INDEX IF NOT EXISTS schools_state ON schools(state)',
     'ALTER TABLE users ADD COLUMN school_id INTEGER','ALTER TABLE users ADD COLUMN state TEXT',
     'ALTER TABLE listings ADD COLUMN school_id INTEGER','ALTER TABLE listings ADD COLUMN state TEXT','ALTER TABLE listings ADD COLUMN qty INTEGER NOT NULL DEFAULT 1','ALTER TABLE listings ADD COLUMN qty_left INTEGER',
@@ -210,7 +212,7 @@ async function payJobs(env){await ensure(env);const now=Date.now();if(now-(+(awa
 // Earnings for the dashboard and accounting. Days and months are in Nigerian time (WAT, UTC+1). A sale fee on an order that
 // was later refunded counts as a negative entry on the refund date, so totals match what Stall actually kept.
 const WAT=36e5,dayK=t=>new Date(t+WAT).toISOString().slice(0,10),watMs=(y,m,d)=>Date.UTC(y,m,d)-WAT;
-const EARN_CATS=[['commission','Sale fees'],['store','Store openings'],['boostL','Featured listings'],['boostS','Featured stores'],['reach','Store reach'],['verify','Verified badges'],['refund','Refunded sale fees']];
+const EARN_CATS=[['commission','Sale fees'],['store','Store openings'],['boostL','Featured listings'],['boostS','Featured stores'],['reach','Store reach'],['verify','Verified badges'],['collect','Class collection fees'],['refund','Refunded sale fees']];
 async function earnRows(env,from,to){
   const pays=(await env.DB.prepare('SELECT p.ref,p.kind,p.target,p.label,p.amount,p.created t,u.name,u.phone FROM payments p LEFT JOIN users u ON u.id=p.uid WHERE p.created>=? AND p.created<? AND p.amount>0 ORDER BY p.created').bind(from,to).all()).results;
   const back=(await env.DB.prepare("SELECT o.id,o.title,o.updated t,o.buyer_name,p.ref,p.amount FROM orders o JOIN payments p ON p.kind='commission' AND p.target='O'||o.id WHERE o.status='refunded' AND o.updated>=? AND o.updated<? AND p.amount>0").bind(from,to).all()).results;
@@ -221,6 +223,18 @@ const csvCell=v=>{const t=String(v==null?'':v);return /[",\n]/.test(t)?'"'+t.rep
 // Words that identify an item for price matching ("iPhone 11 Pro Max 128GB" → iphone, 11, pro, max, 128gb); filler words are dropped.
 const P_STOP=new Set('the and for with new used like fairly neat very good brand original clean sale selling sell one set of in on a an my is it this that uk tokunbo nigerian quality cheap available'.split(' '));
 const priceWords=t=>[...new Set(String(t||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>(w.length>=2||/^\d$/.test(w))&&!P_STOP.has(w)))].slice(0,6);
+// Class collections: a class rep collects dues, handout or trip money from classmates. Each payment goes straight to the rep's
+// verified bank account through a Paystack subaccount (Stall never holds it); Stall's small fee per payment is split off by Paystack.
+const COLLECT_FEE_DEFAULT=50,collectFee=async env=>{const v=await getK(env,'collect_fee');return v==null?COLLECT_FEE_DEFAULT:Math.min(1000,Math.max(0,+v||0))};
+// What the payer pays on top so the rep receives the full amount: Stall's fee plus Paystack's charge on the total.
+const collectCharge=(a,st)=>{let t=a+st;for(let i=0;i<5;i++)t=a+st+Math.min(Math.round(t*.015)+(t>=2500?100:0),2000);return t-a};
+async function subFor(env,u){if(!u.bank_verified||!u.acct_no||!u.bank_code)return{error:'Add and verify the bank account the class money should go to.'};
+  const k=u.bank_code+':'+u.acct_no,c=await env.DB.prepare('SELECT code FROM ps_subs WHERE k=?').bind(k).first();if(c)return{code:c.code};
+  const r=await ps(env,'/subaccount',{method:'POST',body:JSON.stringify({business_name:String(u.name||'Class rep').slice(0,80)+' (Stall class collections)',settlement_bank:u.bank_code,account_number:u.acct_no,percentage_charge:0})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
+  if(!r.status||!r.data||!r.data.subaccount_code)return{error:'Paystack could not set up payments to that account: '+(r.message||'unknown error')};
+  await env.DB.prepare('INSERT OR IGNORE INTO ps_subs(k,code,created) VALUES(?,?,?)').bind(k,r.data.subaccount_code,Date.now()).run();return{code:r.data.subaccount_code}}
+const collOpen=c=>c&&c.status==='open'&&!(c.deadline&&Date.now()>c.deadline);
+const mask=m=>{m=String(m||'');return m.length>4?'•••'+m.slice(-4):m};
 // Releases a held order to the seller. Only a paid (or disputed) order can be released, and only once.
 async function release(env,o,how){const now=Date.now();
   const ch=(await env.DB.prepare("UPDATE orders SET status='released',code_used=?,dstage='done',track=?,updated=? WHERE id=? AND status IN ('verified','disputed')").bind(how==='code'?1:0,track(o,'done',now),now,o.id).run()).meta.changes;
@@ -355,6 +369,10 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
       if(note)await tg(env,'Order needs a look\n'+o.title+' - ₦'+p.amount+'\n'+note+'\nOrder #'+o.id);
       if(st==='verified'&&o.status!=='verified')await notify(env,o.seller,'New paid order: '+o.title,'You have a new order',[esc(o.buyer_name)+' paid <b>₦'+Number(p.amount).toLocaleString('en-NG')+'</b> for <b>'+esc(o.title)+'</b>'+(d.method==='delivery'?', to be delivered to '+esc(d.addr||''):', for pickup')+'.','Stall is holding the money. You\'re paid as soon as the buyer gives you their release code.'],'Open your orders',SITE(env)+'/?go=orders');
       res={oid:o.id,fee,status:st};act='paid order #'+o.id+' through Paystack (Stall fee ₦'+fee+')';label=o.title}
+    else if(p.kind==='collect'){const c=await env.DB.prepare('SELECT * FROM collections WHERE id=?').bind(d.cid).first();if(!c)throw new Error('collection missing');
+      const ins=await env.DB.prepare('INSERT OR IGNORE INTO collect_pays(cid,uid,name,matric,amount,fee,ref,created) VALUES(?,?,?,?,?,?,?,?)').bind(c.id,u.id,u.name,u.matric||u.phone,d.amount,d.fee||0,ref,now).run();
+      if(!ins.meta.changes)await tg(env,'Paid twice for a class collection: '+u.name+' ('+u.phone+') paid again for "'+c.title+'" (reference '+ref+'). The money went to the class rep; ask them to refund it.');
+      res={code:c.code,title:c.title};act='paid into a class collection';label='Class: '+c.title}
     else if(p.kind==='verify'){await env.DB.prepare('UPDATE users SET verified=1 WHERE id=?').bind(u.id).run();await env.DB.prepare("UPDATE verify_requests SET status='paid',updated=? WHERE uid=?").bind(now,u.id).run();act='paid for verified badge'}
     else if(p.kind==='reach'){const id=+String(d.target).slice(1),cur=await env.DB.prepare('SELECT reach,reach_until FROM stores WHERE id=?').bind(id).first()||{};
       const until=(cur.reach===d.level&&(cur.reach_until||0)>now?cur.reach_until:now)+REACH_DAYS*864e5;await env.DB.prepare('UPDATE stores SET reach=?,reach_until=? WHERE id=?').bind(d.level,until,id).run();res={until};act='upgraded store reach ('+d.level+', '+REACH_DAYS+' days)'}
@@ -362,8 +380,8 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
       const until=Math.max(cur,now)+d.days*864e5;await env.DB.prepare('UPDATE '+tbl+' SET featured_until=? WHERE id=?').bind(until,id).run();res={until};act='featured '+(tbl==='listings'?'listing':'store')+' for '+d.days+' days'}
     if(d.credit>0){await env.DB.prepare('UPDATE users SET credit=MAX(0,credit-?) WHERE id=?').bind(d.credit,u.id).run();await env.DB.prepare('INSERT INTO credit_log(uid,amt,why,t) VALUES(?,?,?,?)').bind(u.id,-d.credit,label,now).run()}
     await bumpVer(env);
-    const got=opt.credit?0:p.kind==='order'?res.fee:p.amount;if(opt.credit)label=label+' (paid with credit)';
-    await env.DB.prepare('INSERT OR IGNORE INTO payments(ref,uid,kind,target,label,days,amount,created) VALUES(?,?,?,?,?,?,?,?)').bind(ref,u.id,p.kind==='order'?'commission':p.kind,res.id||(p.kind==='order'?'O'+res.oid:d.target)||null,label,p.kind==='reach'?REACH_DAYS:(d.days||null),got,now).run();
+    const got=opt.credit?0:p.kind==='order'?res.fee:p.kind==='collect'?(d.fee||0):p.amount;if(opt.credit)label=label+' (paid with credit)';
+    await env.DB.prepare('INSERT OR IGNORE INTO payments(ref,uid,kind,target,label,days,amount,created) VALUES(?,?,?,?,?,?,?,?)').bind(ref,u.id,p.kind==='order'?'commission':p.kind,res.id||(p.kind==='order'?'O'+res.oid:p.kind==='collect'?'C'+d.cid:d.target)||null,label,p.kind==='reach'?REACH_DAYS:(d.days||null),got,now).run();
     await env.DB.prepare('UPDATE pending_pay SET done=1,result=? WHERE ref=?').bind(JSON.stringify(res),ref).run();
     await logA(env,u,'money',act,label+' · ₦'+got,{who:u.name+' ('+(u.biz||u.phone)+')'});return{ok:true,kind:p.kind,...res}}
   catch(e){await env.DB.prepare('UPDATE pending_pay SET done=0 WHERE ref=?').bind(ref).run();return{error:'Could not finish this payment yet. It will be retried. Reference '+ref}}}
@@ -480,6 +498,39 @@ async function route({request,env,params,waitUntil}){
     const salt=rnd(16),t=cookie(request,'stall_s');await env.DB.prepare('UPDATE users SET salt=?,pw=? WHERE id=?').bind(salt,await pbk(pw,salt),u.id).run();
     await env.DB.prepare('DELETE FROM sessions WHERE uid=? AND h!=?').bind(u.id,await sha(t)).run();return J({ok:true})}
   if(path==='logout'){const t=cookie(request,'stall_s');if(t)await env.DB.prepare('DELETE FROM sessions WHERE h=?').bind(await sha(t)).run();return J({ok:true},200,{'set-cookie':'stall_s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'})}
+  if(path.startsWith('collect/')){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);const b=request.method==='POST'?await request.json().catch(()=>({})):{};
+    const own=async code=>{const c=await env.DB.prepare('SELECT * FROM collections WHERE code=?').bind(String(code||'')).first();return c&&c.uid===u.id?c:null};
+    if(path==='collect/create'&&request.method==='POST'){
+      if(!(u.vlevel>=1||u.is_admin))return J({error:'Verify that you\'re a student first (Account → Verify you\'re a student), so your classmates know the collection is genuine.',verify:true},403);
+      if(!await allow(env,'coll:'+u.id,10,864e5))return slow();
+      const title=clean(b.title,80),cls=clean(b.cls,60),descr=clean(b.descr,300),amount=Math.round(+b.amount),expected=b.expected?Math.round(+b.expected):null;
+      if(title.length<3)return J({error:'Give the collection a name, e.g. "CSC 301 handout".'},400);if(!(amount>=100&&amount<=500000))return J({error:'Enter an amount from ₦100 to ₦500,000 per person.'},400);
+      if(expected!=null&&!(expected>=1&&expected<=3000))return J({error:'Enter how many people should pay (1 to 3,000), or leave it empty.'},400);
+      let deadline=null;if(b.deadline){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(b.deadline);if(!m)return J({error:'Pick a valid closing date.'},400);deadline=watMs(+m[1],+m[2]-1,+m[3]+1)-1;if(deadline<Date.now())return J({error:'The closing date has already passed.'},400)}
+      if(b.bank_code){const code=String(b.bank_code),acct=String(b.acct_no||'').replace(/\D/g,'');if(!BANKS[code]||acct.length!==10)return J({error:'Choose a bank and enter a 10-digit account number.'},400);
+        const r=await ps(env,'/bank/resolve?account_number='+acct+'&bank_code='+code).catch(()=>({status:false}));if(!r.status||!r.data||!r.data.account_name)return J({error:'Could not verify that account. Check the number and bank.'},400);
+        await env.DB.prepare('UPDATE users SET bank_code=?,bank_name=?,acct_no=?,acct_name=?,bank_verified=1 WHERE id=?').bind(code,BANKS[code],acct,r.data.account_name,u.id).run();Object.assign(u,{bank_code:code,bank_name:BANKS[code],acct_no:acct,acct_name:r.data.account_name,bank_verified:1})}
+      const sub=await subFor(env,u);if(sub.error)return J({error:sub.error,bank:true},400);
+      let code;for(let i=0;i<5;i++){code=Array.from(crypto.getRandomValues(new Uint8Array(6)),x=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[x%32]).join('');if(!await env.DB.prepare('SELECT 1 FROM collections WHERE code=?').bind(code).first())break}
+      await env.DB.prepare('INSERT INTO collections(code,uid,title,cls,descr,amount,expected,deadline,status,created) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(code,u.id,title,cls||null,descr||null,amount,expected,deadline,'open',Date.now()).run();
+      await logA(env,u,'money','created a class collection',title+' · ₦'+amount+' each',{who:u.name+' ('+u.phone+')'});return J({ok:true,code,link:url.origin+'/?collect='+code})}
+    if(path==='collect/mine'){const rs=(await env.DB.prepare('SELECT c.*,(SELECT COUNT(*) FROM collect_pays p WHERE p.cid=c.id) n,(SELECT IFNULL(SUM(amount),0) FROM collect_pays p WHERE p.cid=c.id) total FROM collections c WHERE c.uid=? ORDER BY c.created DESC LIMIT 100').bind(u.id).all()).results;
+      return J({items:rs.map(c=>({code:c.code,title:c.title,cls:c.cls,amount:c.amount,expected:c.expected,deadline:c.deadline,open:collOpen(c),status:c.status,n:c.n,total:c.total,created:c.created})),bank:u.bank_verified&&u.acct_no?{bank:u.bank_name,acct:'••••'+String(u.acct_no).slice(-4),name:u.acct_name}:null})}
+    if(path==='collect/view'){const c=await env.DB.prepare('SELECT c.*,r.name rname,r.vlevel rv,r.school_id rs FROM collections c JOIN users r ON r.id=c.uid WHERE c.code=?').bind(String(url.searchParams.get('code')||'').toUpperCase()).first();
+      if(!c)return J({error:'This collection doesn\'t exist. Check the link with your class rep.'},404);const owner=c.uid===u.id||!!u.is_admin,st=await collectFee(env),ch=collectCharge(c.amount,st);
+      const ps0=(await env.DB.prepare('SELECT id,uid,name,matric,amount,ref,ticked,created FROM collect_pays WHERE cid=? ORDER BY created DESC').bind(c.id).all()).results,mine=ps0.find(p=>p.uid===u.id),sch=c.rs?await schoolOf(env,c.rs):null;
+      return J({c:{code:c.code,title:c.title,cls:c.cls,descr:c.descr,amount:c.amount,charge:ch,total:c.amount+ch,expected:c.expected,deadline:c.deadline,open:collOpen(c),status:c.status,rep:c.rname,repVerified:(c.rv||0)>=1,school:sch&&sch.short||sch&&sch.name||null},
+        owner,mine:mine?{t:mine.created,ref:owner||mine?mine.ref:null}:null,n:ps0.length,total:ps0.reduce((a,p)=>a+p.amount,0),
+        paid:ps0.map(p=>owner?{id:p.id,name:p.name,matric:p.matric,t:p.created,ref:p.ref,ticked:!!p.ticked}:{name:p.name,matric:mask(p.matric),t:p.created})})}
+    if(path==='collect/status'&&request.method==='POST'){const c=await own(b.code);if(!c)return J({error:'Collection not found.'},404);
+      await env.DB.prepare('UPDATE collections SET status=? WHERE id=?').bind(b.open?'open':'closed',c.id).run();return J({ok:true})}
+    if(path==='collect/tick'&&request.method==='POST'){const c=await own(b.code);if(!c)return J({error:'Collection not found.'},404);
+      await env.DB.prepare('UPDATE collect_pays SET ticked=? WHERE id=? AND cid=?').bind(b.on?1:0,+b.id,c.id).run();return J({ok:true})}
+    if(path==='collect/csv'){const c=await own(url.searchParams.get('code'));if(!c)return J({error:'Collection not found.'},404);
+      const rs=(await env.DB.prepare('SELECT name,matric,amount,ref,ticked,created FROM collect_pays WHERE cid=? ORDER BY created').bind(c.id).all()).results,L=[[c.title+(c.cls?' · '+c.cls:'')],['Amount per person (NGN)',c.amount],['Paid',rs.length+(c.expected?' of '+c.expected:'')],['Total collected (NGN)',rs.reduce((a,r)=>a+r.amount,0)],[],['#','Name','Matric number','Amount (NGN)','Date','Time (WAT)','Paystack reference','Received / collected']];
+      rs.forEach((r,i)=>L.push([i+1,r.name,r.matric,r.amount,dayK(r.created),new Date(r.created+WAT).toISOString().slice(11,16),r.ref,r.ticked?'Yes':'']));
+      return new Response('\ufeff'+L.map(r=>r.map(csvCell).join(',')).join('\r\n'),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="stall-collection-'+c.code+'.csv"','cache-control':'no-store'}})}
+    return J({error:'Not found'},404)}
   // Suggested price for a new listing: what similar items on Stall (last 6 months) are listed or sold for.
   if(path==='price-hint'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
     const ws=priceWords(url.searchParams.get('t')),cond=String(url.searchParams.get('cond')||'');if(!ws.length)return J({n:0});
@@ -492,7 +543,7 @@ async function route({request,env,params,waitUntil}){
     if(m.length>=3){const md=m.map(r=>r.price).sort((a,b)=>a-b)[m.length>>1];m=m.filter(r=>r.price>=md/3&&r.price<=md*3)}
     if(m.length<3)return J({n:m.length});const p=m.map(r=>r.price).sort((a,b)=>a-b),q=x=>{const v=p[Math.min(p.length-1,Math.round(x*(p.length-1)))];return v>=1000?Math.round(v/100)*100:Math.round(v/50)*50};
     return J({n:m.length,sold:m.filter(r=>r.sold).length,low:q(.25),mid:q(.5),high:q(.75),cond:cond&&same.length>=3?cond:null})}
-  if(path==='config')return J({creditPct:await creditPct(env),fee:await feeCfg(env),freeSales:await freeSales(env),androidPkg:(await getK(env,'android_pkg'))||'',androidSha:(await getK(env,'android_sha'))||'',name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES},200,{'cache-control':'public, max-age=60'});
+  if(path==='config')return J({creditPct:await creditPct(env),collectFee:await collectFee(env),fee:await feeCfg(env),freeSales:await freeSales(env),androidPkg:(await getK(env,'android_pkg'))||'',androidSha:(await getK(env,'android_sha'))||'',name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES},200,{'cache-control':'public, max-age=60'});
   if(path==='schools'&&request.method==='GET'){await ensure(env);return J({schools:(await env.DB.prepare('SELECT id,name,short,state,kind FROM schools WHERE active=1 ORDER BY name').all()).results,states:STATES},200,{'cache-control':'public, max-age=3600'})}
   if(path==='me/delivery'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
     const d=dlvIn(await request.json().catch(()=>({})));if(d.error)return J(d,400);
@@ -904,6 +955,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
         if(!(r>=0&&r<=20))return J({error:'Enter a fee rate from 0% to 20%.'},400);if(!(mn>=0&&mn<=5000))return J({error:'Enter a minimum fee from ₦0 to ₦5,000.'},400);
         if(!(cp>=0&&cp<=50000))return J({error:'Enter a maximum fee from ₦0 to ₦50,000.'},400);if(cp<mn)return J({error:'The maximum fee can\'t be lower than the minimum.'},400);
         await setK(env,'fee_rate',r);await setK(env,'fee_min',mn);await setK(env,'fee_cap',cp);await logA(env,a,'other','changed the sale fee',r+'%, min ₦'+mn+', max ₦'+cp)}
+      if('collect_fee' in b){const v=Math.round(+b.collect_fee);if(!(v>=0&&v<=1000))return J({error:'Enter a class collection fee from ₦0 to ₦1,000.'},400);await setK(env,'collect_fee',v)}
       if('free_sales' in b){const v=Math.round(+b.free_sales);if(!(v>=0&&v<=20))return J({error:'Enter a number of sales from 0 to 20.'},400);await setK(env,'free_sales',v)}
       if('credit_pct' in b){const v=Math.round(+b.credit_pct);if(!(v>=0&&v<=100))return J({error:'Enter a percentage from 0 to 100.'},400);await setK(env,'credit_pct',v)}
       if('require_verified' in b)await setK(env,'require_verified',b.require_verified?'1':'0');
@@ -978,6 +1030,11 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
         // Stall's fee is on the items only, not on the delivery fee.
         const total=base+(method==='delivery'?o.d_fee||0:0),fee=feeOf(base,await feeCfg(env));
         w={amount:total,label:o.title};data={oid:o.id,method,addr:method==='delivery'?addr:null,dphone:method==='delivery'?dphone:null,fee}}
+      else if(kind==='collect'){const c=await env.DB.prepare('SELECT c.*,r.bank_code,r.acct_no,r.bank_verified,r.name rname FROM collections c JOIN users r ON r.id=c.uid WHERE c.code=?').bind(target).first();
+        if(!c)return J({error:'Collection not found.'},404);if(!collOpen(c))return J({error:'This collection is closed.'},400);if(c.uid===u.id)return J({error:'You can\'t pay into your own collection.'},400);
+        if(await env.DB.prepare('SELECT 1 FROM collect_pays WHERE cid=? AND uid=?').bind(c.id,u.id).first())return J({error:'You have already paid for this.'},400);
+        const sub=await subFor(env,{name:c.rname,bank_code:c.bank_code,acct_no:c.acct_no,bank_verified:c.bank_verified});if(sub.error)return J({error:'The class rep\'s bank account isn\'t ready for payments yet. Ask them to check it on Stall.'},400);
+        const st=await collectFee(env),ch=collectCharge(c.amount,st);w={amount:c.amount+ch,label:'Class: '+c.title,split:{subaccount:sub.code,transaction_charge:st*100,bearer:'subaccount'}};data={cid:c.id,code:c.code,amount:c.amount,fee:st}}
       else if(kind==='store'){if(u.role==='student'&&!(u.vlevel>=1)&&(await getK(env,'require_verified'))==='1')return J({error:'Verify that you\'re a student before you sell: confirm your school email or upload your student ID in Account → Verify.',verify:true},403);const d=b.d||{},bad=storeBad(d);if(bad)return J({error:bad},400);if(await env.DB.prepare('SELECT 1 FROM stores WHERE uid=?').bind(u.id).first())return J({error:'You already have a store.'},409);
         if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);w={amount:STORE_FEE,label:'Store: '+clean(d.name,40)};data={d}}
       else{w=await what(kind,target,days);if(w.error)return J(w,400);data.level=w.level||null}
@@ -988,7 +1045,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
         const cref='CR'+rnd(8);await env.DB.prepare('INSERT INTO pending_pay(ref,uid,kind,data,amount,label,created,done) VALUES(?,?,?,?,?,?,?,0)').bind(cref,u.id,kind,JSON.stringify(data),w.amount,w.label||kind,Date.now()).run();
         const f=await fulfil(env,cref,{credit:true});if(f.error){await env.DB.prepare('UPDATE users SET credit=credit+? WHERE id=?').bind(cr,u.id).run();return J(f,400)}return J({...f,credit:true})}
       if(cr){data.credit=cr;w={...w,amount:w.amount-cr,label:(w.label||kind)+' (₦'+cr+' credit used)'}}
-      const r=await ps(env,'/transaction/initialize',{method:'POST',body:JSON.stringify({email:u.email||('user'+u.phone+'@stall.app'),amount:w.amount*100,currency:'NGN',callback_url:url.origin+'/',metadata:{kind,target,days,uid:u.id,level:w.level||null}})});
+      const r=await ps(env,'/transaction/initialize',{method:'POST',body:JSON.stringify({email:u.email||('user'+u.phone+'@stall.app'),amount:w.amount*100,currency:'NGN',callback_url:url.origin+'/',metadata:{kind,target,days,uid:u.id,level:w.level||null},...(w.split||{})})});
       if(!r.status)return J({error:r.message||'Could not start payment.'},502);
       await env.DB.prepare('INSERT INTO pending_pay(ref,uid,kind,data,amount,label,created,done) VALUES(?,?,?,?,?,?,?,0)').bind(r.data.reference,u.id,kind,JSON.stringify(data),w.amount,w.label||kind,Date.now()).run();
       return J({url:r.data.authorization_url,ref:r.data.reference})}
