@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "description": "Only these paths run Functions: the API, and the few pages the website/app routing needs. Everything else is served straight from the CDN.",
+  "include": ["/", "/app", "/app/", "/install", "/api/*", "/.well-known/*"],
+  "exclude": []
+}
