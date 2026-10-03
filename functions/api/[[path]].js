@@ -41,23 +41,23 @@ async function restock(env,ids){if(!ids.length)return;const ph=ids.map(()=>'?').
   const st=its.map(i=>i.kind==='listing'?env.DB.prepare('UPDATE listings SET qty_left=IFNULL(qty_left,0)+?,sold=0 WHERE id=?').bind(i.q,i.ref_id):env.DB.prepare('UPDATE store_items SET qty_left=qty_left+? WHERE id=? AND qty_left IS NOT NULL').bind(i.q,i.ref_id));
   if(st.length)await env.DB.batch(st)}
 let SWEPT=0;
-async function sweep(env){await ensure(env);const now=Date.now();if(now-SWEPT<3e4)return;SWEPT=now;
-  const H=HOLD_DAYS*864e5,Q="SELECT * FROM orders WHERE status='verified' AND paid_at IS NOT NULL AND ",all=(q,...v)=>env.DB.prepare(q).bind(...v).all().then(r=>r.results);
+async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();if(now-SWEPT<3e4)return;SWEPT=now;
+  const Q="SELECT * FROM orders WHERE status='verified' AND paid_at IS NOT NULL AND ",all=(q,...v)=>env.DB.prepare(q).bind(...v).all().then(r=>r.results);
   // Seller marked it handed over and the buyer neither confirmed nor reported a problem in time: the seller is paid.
-  for(const o of await all(Q+'handed_at IS NOT NULL AND handed_at<? LIMIT 5',now-HAND_MS))await release(env,o,'handover').catch(()=>{});
-  // On the way / ready for pickup for HOLD_DAYS and nobody reported a problem: the seller is paid.
-  for(const o of await all(Q+"handed_at IS NULL AND dstage IN ('on_way','ready') AND IFNULL(staged_at,paid_at)<? LIMIT 5",now-H))await release(env,o,'auto').catch(()=>{});
-  // The seller didn't move the order on for HOLD_DAYS: the buyer is refunded and the seller gets a strike.
-  for(const o of await all(Q+"handed_at IS NULL AND IFNULL(dstage,'paid') IN ('paid','packed') AND IFNULL(staged_at,paid_at)<? LIMIT 5",now-H)){
-    const r=await refund(env,o,'The seller didn\'t send it within '+HOLD_DAYS+' days.').catch(()=>({error:1}));if(!r.error)await strike(env,o.seller,'no_delivery',o.id).catch(()=>{})}
-  // One reminder to the buyer about a day before the seller is paid automatically.
-  for(const o of await all(Q+"handed_at IS NULL AND reminded IS NULL AND dstage IN ('on_way','ready') AND IFNULL(staged_at,paid_at)<? LIMIT 10",now-H+864e5)){
+  for(const o of await all(Q+'handed_at IS NOT NULL AND handed_at<? LIMIT 5',now-TM.hand))await release(env,o,'handover').catch(()=>{});
+  // On the way / ready for pickup for TM.pay and nobody reported a problem: the seller is paid.
+  for(const o of await all(Q+"handed_at IS NULL AND dstage IN ('on_way','ready') AND IFNULL(staged_at,paid_at)<? LIMIT 5",now-TM.pay))await release(env,o,'auto').catch(()=>{});
+  // The seller didn't move the order on for TM.send: the buyer is refunded and the seller gets a strike.
+  for(const o of await all(Q+"handed_at IS NULL AND IFNULL(dstage,'paid') IN ('paid','packed') AND IFNULL(staged_at,paid_at)<? LIMIT 5",now-TM.send)){
+    const r=await refund(env,o,'The seller didn\'t send it within '+dur(TM.send)+'.').catch(()=>({error:1}));if(!r.error)await strike(env,o.seller,'no_delivery',o.id).catch(()=>{})}
+  // One reminder to the buyer a quarter of the way before the seller is paid automatically (6 hours before, with 24 hours).
+  for(const o of await all(Q+"handed_at IS NULL AND reminded IS NULL AND dstage IN ('on_way','ready') AND IFNULL(staged_at,paid_at)<? LIMIT 10",now-TM.pay*.75)){
     await env.DB.prepare('UPDATE orders SET reminded=? WHERE id=?').bind(now,o.id).run();
-    await notify(env,o.buyer,'Seller gets paid tomorrow: '+o.title,'Do you have your order?',['The seller of <b>'+esc(o.title)+'</b> will be paid automatically in about a day.','If you have it, tap <b>I\'ve got it</b>. If it hasn\'t come or something is wrong, tap <b>Report a problem</b> before then.'],'Open your orders',SITE(env)+'/?go=orders').catch(()=>{})}
-  // A problem report the other side didn't answer within DISP_MS is decided for the side that reported it.
+    await notify(env,o.buyer,'Seller gets paid in '+dur(TM.pay/4)+': '+o.title,'Do you have your order?',['The seller of <b>'+esc(o.title)+'</b> will be paid automatically in about '+dur(TM.pay/4)+'.','If you have it, tap <b>I\'ve got it</b>. If it hasn\'t come or something is wrong, tap <b>Report a problem</b> before then.'],'Open your orders',SITE(env)+'/?go=orders').catch(()=>{})}
+  // A problem report the other side didn't answer within TM.answer is decided for the side that reported it.
   for(const o of await all("SELECT * FROM orders WHERE status='disputed' AND disp_due<? AND disp_reply IS NULL LIMIT 5",now)){
     if(o.disp_by==='seller'){if(await release(env,o,'dispute').catch(()=>false))await strike(env,o.buyer,'no_response',o.id).catch(()=>{})}
-    else{const r=await refund(env,o,'The seller didn\'t answer the buyer\'s report within 24 hours.').catch(()=>({error:1}));if(!r.error)await strike(env,o.seller,'no_response',o.id).catch(()=>{})}}
+    else{const r=await refund(env,o,'The seller didn\'t answer the buyer\'s report in time.').catch(()=>({error:1}));if(!r.error)await strike(env,o.seller,'no_response',o.id).catch(()=>{})}}
   const stale=(await env.DB.prepare("SELECT id FROM orders WHERE status='pending' AND deadline<?").bind(now).all()).results;
   if(!stale.length)return;const ids=stale.map(s=>s.id);
   await env.DB.batch(ids.map(id=>env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,id)));
@@ -152,13 +152,20 @@ const track=(r,st,t)=>JSON.stringify([...JSON.parse(r.track||'[]'),{s:st,t}]);
 // (release code, buyer confirms, or the fair-deal timers below). Refunds go back to the buyer's card or account.
 // Fair deal, the same for both sides:
 // - Handing over is final: the buyer checks the item, then gives the release code.
-// - If the buyer won't give the code, the seller marks it handed over; the buyer has HAND_MS to confirm or report a problem, then the seller is paid.
-// - On the way / ready for HOLD_DAYS with no problem reported: the seller is paid. Not moved on for HOLD_DAYS: the buyer is refunded.
-// - Either side can report a problem; the other side has DISP_MS to answer or it's decided for the side that reported it.
+// - If the buyer won't give the code, the seller marks it handed over; the buyer has TM.hand to confirm or report a problem, then the seller is paid.
+// - On the way / ready for TM.pay with no problem reported: the seller is paid. Not moved on for TM.send: the buyer is refunded.
+// - Either side can report a problem; the other side has TM.answer to answer or it's decided for the side that reported it.
+//   Either side can also settle it themselves (accept, or withdraw the report); only reports both sides contest need the Stall team.
+// The timers are set in Admin -> Settings.
 // - Strikes (lost problem reports, no-shows, late cancels, unanswered reports) count for STRIKE_DAYS; STRIKE_BLOCK of them pause the account.
-const HOLD_DAYS=3,HAND_MS=2*36e5,DISP_MS=24*36e5,MOVED=['on_way','ready'],STRIKE_WARN=3,STRIKE_BLOCK=5,STRIKE_DAYS=30,BLOCK_DAYS=14;
+const TMD={hand:30,answer:4,send:24,pay:24},TMR={hand:[5,720],answer:[1,48],send:[1,168],pay:[1,168]};// hand in minutes, the rest in hours
+let TM={hand:TMD.hand*6e4,answer:TMD.answer*36e5,send:TMD.send*36e5,pay:TMD.pay*36e5},TMT=0;
+async function tmr(env){if(Date.now()-TMT<6e4)return TM;const o={};
+  for(const k in TMD){const v=+(await getK(env,'t_'+k));o[k]=(v>=TMR[k][0]&&v<=TMR[k][1]?v:TMD[k])*(k==='hand'?6e4:36e5)}TM=o;TMT=Date.now();return TM}
+const dur=ms=>ms<36e5?Math.round(ms/6e4)+' minutes':ms===36e5?'1 hour':Math.round(ms/36e5)+' hours';
+const OBJ_MS=864e5,MOVED=['on_way','ready'],STRIKE_WARN=3,STRIKE_BLOCK=5,STRIKE_DAYS=30,BLOCK_DAYS=14;
 const dday=t=>new Date(t).toLocaleDateString('en-NG',{weekday:'short',day:'numeric',month:'short',timeZone:'Africa/Lagos'});
-const STRIKE_WHY={no_delivery:'an order you didn\'t send within '+HOLD_DAYS+' days',seller_cancel:'cancelling an order after packing it',no_show:'not turning up to collect an order',lost_dispute:'a problem report that was decided against you',no_response:'not answering a problem report within 24 hours'};
+const STRIKE_WHY={no_delivery:'an order you didn\'t send in time',seller_cancel:'cancelling an order after packing it',no_show:'not turning up to collect an order',lost_dispute:'a problem report that was decided against you',no_response:'not answering a problem report in time'};
 async function strike(env,uid,kind,oid){const now=Date.now();
   await env.DB.prepare('INSERT INTO strikes(uid,kind,oid,created) VALUES(?,?,?,?)').bind(uid,kind,oid||null,now).run();
   const n=(await env.DB.prepare('SELECT COUNT(*) c FROM strikes WHERE uid=? AND void=0 AND created>?').bind(uid,now-STRIKE_DAYS*864e5).first()).c,u=await env.DB.prepare('SELECT name,restricted_until,warned_at FROM users WHERE id=?').bind(uid).first();if(!u)return;
@@ -589,7 +596,7 @@ async function route({request,env,params,waitUntil}){
     if(m.length>=3){const md=m.map(r=>r.price).sort((a,b)=>a-b)[m.length>>1];m=m.filter(r=>r.price>=md/3&&r.price<=md*3)}
     if(m.length<3)return J({n:m.length});const p=m.map(r=>r.price).sort((a,b)=>a-b),q=x=>{const v=p[Math.min(p.length-1,Math.round(x*(p.length-1)))];return v>=1000?Math.round(v/100)*100:Math.round(v/50)*50};
     return J({n:m.length,sold:m.filter(r=>r.sold).length,low:q(.25),mid:q(.5),high:q(.75),cond:cond&&same.length>=3?cond:null})}
-  if(path==='config')return J({creditPct:await creditPct(env),collectFee:await collectFee(env),fee:await feeCfg(env),freeSales:await freeSales(env),androidPkg:(await getK(env,'android_pkg'))||'',androidSha:(await getK(env,'android_sha'))||'',name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES},200,{'cache-control':'public, max-age=60'});
+  if(path==='config'){await tmr(env);return J({timers:{hand:TM.hand/6e4,answer:TM.answer/36e5,send:TM.send/36e5,pay:TM.pay/36e5},creditPct:await creditPct(env),collectFee:await collectFee(env),fee:await feeCfg(env),freeSales:await freeSales(env),androidPkg:(await getK(env,'android_pkg'))||'',androidSha:(await getK(env,'android_sha'))||'',name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES},200,{'cache-control':'public, max-age=60'})}
   if(path==='schools'&&request.method==='GET'){await ensure(env);return J({schools:(await env.DB.prepare('SELECT id,name,short,state,kind FROM schools WHERE active=1 ORDER BY name').all()).results,states:STATES},200,{'cache-control':'public, max-age=3600'})}
   if(path==='me/delivery'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
     const d=dlvIn(await request.json().catch(()=>({})));if(d.error)return J(d,400);
@@ -722,8 +729,8 @@ async function route({request,env,params,waitUntil}){
 const naira=n=>'₦'+Number(n||0).toLocaleString('en-NG');
 const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.acct_no,acctName:r.acct_name,status:r.status,deadline:r.deadline,code:r.status==='verified'?r.code:null,note:r.note,updated:r.updated,buyerName:r.buyer_name,buyerPhone:r.buyer_phone,sellerName:r.seller_name,sellerPhone:r.seller_phone,card:!!r.bank_ok&&!!env.PAYSTACK_SECRET,fee:r.fee!=null?r.fee:feeOf(r.amount),paidVia:r.paid_via||null,
   sub:r.sub!=null?r.sub:r.amount,deliv:{on:!!r.d_on,fee:r.d_fee||0,note:r.d_note||''},pickup:r.pickup||'',method:r.method||null,addr:r.addr||'',dphone:r.dphone||'',stage:r.dstage||null,track:JSON.parse(r.track||'[]'),rated:r.rated||null,payout:r.payout||null,paidAt:r.paid_at||null,
-  holdUntil:r.status==='verified'&&!r.handed_at&&MOVED.includes(r.dstage)?(r.staged_at||r.paid_at)+HOLD_DAYS*864e5:null,refundAt:r.status==='verified'&&!r.handed_at&&!MOVED.includes(r.dstage)&&r.paid_at?(r.staged_at||r.paid_at)+HOLD_DAYS*864e5:null,
-  handedAt:r.handed_at||null,handUntil:r.handed_at?r.handed_at+HAND_MS:null,early:(r.dstage||'paid')==='paid',dispBy:r.disp_by||null,dispDue:r.status==='disputed'?r.disp_due||null:null,dispReply:r.disp_reply||null,brate:r.brate||null});
+  holdUntil:r.status==='verified'&&!r.handed_at&&MOVED.includes(r.dstage)?(r.staged_at||r.paid_at)+TM.pay:null,refundAt:r.status==='verified'&&!r.handed_at&&!MOVED.includes(r.dstage)&&r.paid_at?(r.staged_at||r.paid_at)+TM.send:null,
+  handedAt:r.handed_at||null,handUntil:r.handed_at?r.handed_at+TM.hand:null,early:(r.dstage||'paid')==='paid',dispBy:r.disp_by||null,dispDue:r.status==='disputed'?r.disp_due||null:null,dispReply:r.disp_reply||null,brate:r.brate||null});
   if(path==='orders/create'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);if(!await allow(env,'ord:'+u.id,30,36e5))return slow();
     await sweep(env);const pz=paused(u);if(pz)return pz;
     const b=await request.json().catch(()=>({})),ids=Array.isArray(b.items)?b.items.slice(0,60):[];
@@ -764,7 +771,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     await bump();return J({orders:made})}
   if(path==='orders/mine'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);
     const rs=(await env.DB.prepare('SELECT * FROM orders WHERE buyer=? ORDER BY created DESC LIMIT 100').bind(u.id).all()).results;
-    const ns=new Set((await env.DB.prepare("SELECT oid FROM strikes WHERE uid=? AND kind='no_show' AND void=0 AND created>?").bind(u.id,Date.now()-2*864e5).all()).results.map(x=>x.oid));
+    const ns=new Set((await env.DB.prepare("SELECT oid FROM strikes WHERE uid=? AND kind='no_show' AND void=0 AND created>?").bind(u.id,Date.now()-OBJ_MS).all()).results.map(x=>x.oid));
     return J({orders:rs.map(r=>({...oRow(r),noShow:ns.has(r.id)}))})}
   if(path==='orders/selling'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);
     const rs=(await env.DB.prepare('SELECT * FROM orders WHERE seller=? ORDER BY created DESC LIMIT 100').bind(u.id).all()).results,bids=[...new Set(rs.map(r=>r.buyer))];
@@ -859,7 +866,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     const b=await request.json().catch(()=>({})),o=await env.DB.prepare('SELECT * FROM orders WHERE id=? AND buyer=?').bind(+b.id,u.id).first();
     if(!o)return J({error:'Order not found.'},404);if(o.status!=='verified')return J({error:'This order is not waiting for you.'},400);
     await release(env,o,'buyer');return J({ok:true})}
-  if(['orders/report','orders/cancel','orders/handed','orders/evidence','orders/object','orders/rate-buyer'].includes(path)&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
+  if(['orders/report','orders/cancel','orders/handed','orders/evidence','orders/object','orders/rate-buyer','orders/settle'].includes(path)&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);await tmr(env);
     const b=await request.json().catch(()=>({})),o=await env.DB.prepare('SELECT * FROM orders WHERE id=? AND (buyer=? OR seller=?)').bind(+b.id,u.id,u.id).first();
     if(!o)return J({error:'Order not found.'},404);
     const side=o.buyer===u.id?'buyer':'seller',other=side==='buyer'?o.seller:o.buyer,Them=side==='buyer'?'The buyer':'The seller',now=Date.now(),go=['Open your orders',SITE(env)+'/?go=orders'];
@@ -868,18 +875,30 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     if(path==='orders/report'){
       if(o.status!=='verified')return J({error:'You can only report a problem on a paid order before it\'s complete.'},400);
       if(txt.length<10)return J({error:'Tell us what went wrong in a sentence or two.'},400);
-      if(!(await env.DB.prepare("UPDATE orders SET status='disputed',note=?,disp_by=?,disp_at=?,disp_due=?,disp_reply=NULL,updated=? WHERE id=? AND status='verified'").bind(Them+' reported: '+txt,side,now,now+DISP_MS,now,o.id).run()).meta.changes)return J({error:'This order just changed. Refresh and try again.'},409);
+      if(!(await env.DB.prepare("UPDATE orders SET status='disputed',note=?,disp_by=?,disp_at=?,disp_due=?,disp_reply=NULL,updated=? WHERE id=? AND status='verified'").bind(Them+' reported: '+txt,side,now,now+TM.answer,now,o.id).run()).meta.changes)return J({error:'This order just changed. Refresh and try again.'},409);
       await ev();
-      waitUntil(notify(env,other,'Problem reported: '+o.title,Them+' reported a problem',[Them+' of <b>'+esc(o.title)+'</b> said: “'+esc(txt)+'”.','The money stays on hold. Give your side, with a photo if you can, within 24 hours: open the order and tap <b>Give your side</b>. If you don\'t answer in time, Stall decides for '+Them.toLowerCase()+'.'],...go));
-      waitUntil(tg(env,'Problem reported by the '+side+' on order #'+o.id+'\n'+o.title+' - ₦'+o.amount+'\nBuyer: '+o.buyer_name+' · Seller: '+o.seller_name+'\n'+txt+(ph?'\n(photo attached)':'')+'\nThe other side has 24 hours to answer. Decide in Admin → Flagged.'));return J({ok:true})}
+      waitUntil(notify(env,other,'Problem reported: '+o.title,Them+' reported a problem',[Them+' of <b>'+esc(o.title)+'</b> said: “'+esc(txt)+'”.','The money stays on hold. Open the order within '+dur(TM.answer)+' and either tap <b>'+(side==='buyer'?'Accept and refund':'Accept and release')+'</b>, or <b>Give your side</b> with a photo if you can. If you don\'t answer in time, it\'s decided for '+Them.toLowerCase()+'.'],...go));return J({ok:true})}
     if(path==='orders/evidence'){
       if(o.status!=='disputed')return J({error:'This order has no open problem report.'},400);
       if(!txt&&!ph)return J({error:'Write what happened or add a photo.'},400);
       if(!await allow(env,'ev:'+o.id+':'+u.id,10,864e5))return slow();
       await ev();const first=side!==o.disp_by&&!o.disp_reply;
       if(first)await env.DB.prepare('UPDATE orders SET disp_reply=?,updated=? WHERE id=?').bind(now,now,o.id).run();
-      if(first)waitUntil(notify(env,other,'Reply to your report: '+o.title,Them+' gave their side',['<b>'+esc(o.title)+'</b>: '+esc(txt||'(photo)'),'The Stall team will look at both sides and decide, usually within 48 hours.'],...go));
-      waitUntil(tg(env,'New '+(first?'answer':'evidence')+' from the '+side+' on order #'+o.id+' ('+o.title+')\n'+(txt||'')+(ph?'\n(photo attached)':'')+(first?'\nBoth sides have spoken. Decide in Admin → Flagged.':'')));return J({ok:true})}
+      if(first)waitUntil(notify(env,other,'Reply to your report: '+o.title,Them+' gave their side',['<b>'+esc(o.title)+'</b>: '+esc(txt||'(photo)'),'If you agree with them, open the order and tap <b>Withdraw report</b>. Otherwise the Stall team will look at both sides and decide.'],...go));
+      // Only now does a person need to look: both sides have spoken and neither gave way.
+      if(first)waitUntil(tg(env,'Needs your decision: order #'+o.id+' ('+o.title+', ₦'+o.amount+')\n'+o.buyer_name+' (buyer) vs '+o.seller_name+' (seller)\nReport: '+String(o.note||'').slice(0,300)+'\nAnswer: '+(txt||'(photo)')+'\nAdmin → Flagged → See both sides.'));return J({ok:true})}
+    if(path==='orders/settle'){
+      if(o.status!=='disputed')return J({error:'This order has no open problem report.'},400);
+      const reporter=side===o.disp_by;
+      if(b.how==='withdraw'){if(!reporter)return J({error:'Only the side that reported it can withdraw the report.'},403);
+        await env.DB.prepare("UPDATE orders SET status='verified',disp_by=NULL,disp_at=NULL,disp_due=NULL,disp_reply=NULL,note=NULL,updated=? WHERE id=? AND status='disputed'").bind(now,o.id).run();
+        waitUntil(notify(env,other,'Report withdrawn: '+o.title,'The problem report was withdrawn',[Them+' withdrew their report on <b>'+esc(o.title)+'</b>. The order carries on as normal.'],...go));return J({ok:true})}
+      if(b.how!=='accept'||reporter)return J({error:'Only the other side can accept the report.'},403);
+      // Accepting gives the reporter what they asked for, with no strike for anyone.
+      if(side==='seller'){const r=await refund(env,o,'The seller accepted the problem report and refunded you.');if(r.error)return J(r,502)}
+      else{if(!await release(env,o,'settled'))return J({error:'This order just changed. Refresh and try again.'},409);
+        waitUntil(notify(env,o.seller,'Buyer accepted: '+o.title,'Your report was accepted',['The buyer accepted your report on <b>'+esc(o.title)+'</b>, so you\'re being paid.'],...go))}
+      return J({ok:true})}
     if(path==='orders/cancel'){
       if(o.status!=='verified')return J({error:'Only paid orders waiting for delivery can be cancelled.'},400);
       const early=(o.dstage||'paid')==='paid';
@@ -888,23 +907,23 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
         if(!await allow(env,'bcancel:'+u.id,5,864e5))return slow();
         const r=await refund(env,o,'The buyer cancelled before it was packed.');if(r.error)return J(r,502);
         waitUntil(notify(env,o.seller,'Order cancelled: '+o.title,'The buyer cancelled',['The buyer cancelled <b>'+esc(o.title)+'</b> before you packed it, and was refunded. No strike for anyone.'],...go));
-        waitUntil(tg(env,'Buyer cancelled order #'+o.id+' ('+o.title+', ₦'+o.amount+') before packing. Refunded.'));return J({ok:true})}
+        return J({ok:true})}
       const noshow=!!b.noshow&&MOVED.includes(o.dstage)&&!o.handed_at;
       const r=await refund(env,o,noshow?'The seller said the buyer didn\'t come to collect it or couldn\'t be reached.':'Cancelled by the seller'+(txt?': '+txt:'')+'.');if(r.error)return J(r,502);
       if(noshow)await strike(env,o.buyer,'no_show',o.id).catch(()=>{});else if(!early)await strike(env,o.seller,'seller_cancel',o.id).catch(()=>{});
-      waitUntil(tg(env,'Seller cancelled order #'+o.id+' ('+o.title+', ₦'+o.amount+')'+(noshow?' saying the buyer didn\'t show up (buyer strike)':early?'':' after packing (seller strike)')+'. Buyer refunded.'));return J({ok:true})}
+      return J({ok:true})}
     if(path==='orders/handed'){
       if(side!=='seller')return J({error:'Only the seller can do this.'},403);
       if(o.status!=='verified')return J({error:'Only paid orders can be marked as handed over.'},400);
       if(o.handed_at)return J({error:'You already marked this as handed over.'},400);
       await env.DB.prepare('UPDATE orders SET handed_at=?,updated=? WHERE id=? AND status=\'verified\'').bind(now,now,o.id).run();await ev();
-      waitUntil(notify(env,o.buyer,'Did you get it? '+o.title,'The seller says you have your order',['The seller says they handed over <b>'+esc(o.title)+'</b>.','If you have it, tap <b>I\'ve got it</b>. If you don\'t, or something is wrong, tap <b>Report a problem</b> within 2 hours. After that the seller is paid automatically.'],...go));return J({ok:true,until:now+HAND_MS})}
+      waitUntil(notify(env,o.buyer,'Did you get it? '+o.title,'The seller says you have your order',['The seller says they handed over <b>'+esc(o.title)+'</b>.','If you have it, tap <b>I\'ve got it</b>. If you don\'t, or something is wrong, tap <b>Report a problem</b> within '+dur(TM.hand)+'. After that the seller is paid automatically.'],...go));return J({ok:true,until:now+TM.hand})}
     if(path==='orders/object'){
       if(side!=='buyer')return J({error:'Only the buyer can do this.'},403);
-      const s=await env.DB.prepare("SELECT id FROM strikes WHERE uid=? AND oid=? AND kind='no_show' AND void=0 AND created>?").bind(u.id,o.id,now-2*864e5).first();
+      const s=await env.DB.prepare("SELECT id FROM strikes WHERE uid=? AND oid=? AND kind='no_show' AND void=0 AND created>?").bind(u.id,o.id,now-OBJ_MS).first();
       if(!s)return J({error:'There is nothing to object to on this order.'},400);
       await env.DB.prepare('UPDATE strikes SET void=1 WHERE id=?').bind(s.id).run();
-      waitUntil(tg(env,'Buyer '+o.buyer_name+' says the seller\'s no-show claim on order #'+o.id+' ('+o.title+') isn\'t true. The strike was removed. Check the chat if it keeps happening with '+o.seller_name+'.'));return J({ok:true})}
+      return J({ok:true})}
     if(path==='orders/rate-buyer'){
       if(side!=='seller')return J({error:'Only the seller can do this.'},403);
       const stars=Math.round(+b.stars);if(!(stars>=1&&stars<=5))return J({error:'Choose 1 to 5 stars.'},400);
@@ -929,7 +948,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       const rs=(await env.DB.prepare('SELECT '+cols+' FROM '+from+wh+' ORDER BY '+order+' LIMIT ? OFFSET ?').bind(...v,PS,pg*PS).all()).results;
       return J({items:rs.map(map),total,ps:PS},200,{'cache-control':'no-store'})};
     if(path==='admin/summary'){await sweep(env);waitUntil(dailyCleanup(env));waitUntil(payJobs(env).catch(()=>{}));const c=s=>env.DB.prepare('SELECT COUNT(*) c FROM '+s),mid=new Date();mid.setUTCHours(-1,0,0,0);
-      const r=(await env.DB.batch([c("orders WHERE status IN ('under_review','disputed')"),c("orders WHERE status='verified'"),c("users WHERE role='vendor' AND status='pending'"),c('users WHERE bank_verified=0'),c('stores WHERE bank_verified=0'),c("users WHERE role='student'"),c("users WHERE role='vendor'"),c('stores'),c("orders WHERE status='released'"),c('orders WHERE created>=?').bind(+mid)])).map(x=>x.results[0].c);
+      const r=(await env.DB.batch([c("orders WHERE status='under_review' OR (status='disputed' AND disp_reply IS NOT NULL)"),c("orders WHERE status='verified'"),c("users WHERE role='vendor' AND status='pending'"),c('users WHERE bank_verified=0'),c('stores WHERE bank_verified=0'),c("users WHERE role='student'"),c("users WHERE role='vendor'"),c('stores'),c("orders WHERE status='released'"),c('orders WHERE created>=?').bind(+mid)])).map(x=>x.results[0].c);
       if(!a.is_admin)return J({review:r[0]});
       const ai=JSON.parse(await getK(env,'ai_last')||'null'),mo=new Date();mo.setUTCDate(1);mo.setUTCHours(-1,0,0,0);
       const m=(await env.DB.batch([env.DB.prepare("SELECT COUNT(*) c FROM verify_requests WHERE status='pending'"),env.DB.prepare('SELECT IFNULL(SUM(amount),0) c FROM payments'),env.DB.prepare('SELECT IFNULL(SUM(amount),0) c FROM payments WHERE created>=?').bind(+mo),env.DB.prepare('SELECT (SELECT COUNT(*) FROM listings WHERE featured_until>?)+(SELECT COUNT(*) FROM stores WHERE featured_until>?) c').bind(Date.now(),Date.now()),env.DB.prepare('SELECT COUNT(*) c FROM users WHERE verified=1')])).map(x=>x.results[0].c);
@@ -1052,6 +1071,21 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       if(b.id){await env.DB.prepare('UPDATE schools SET name=?,short=?,state=?,active=1 WHERE id=?').bind(n,sh,st,+b.id).run();await env.DB.batch(['users','listings','stores'].map(tb=>env.DB.prepare('UPDATE '+tb+' SET state=? WHERE school_id=?').bind(st,+b.id)))}
       else await env.DB.prepare('INSERT INTO schools(name,short,state,kind,active,created) VALUES(?,?,?,?,1,?)').bind(n,sh,st,String(b.kind||'university'),Date.now()).run();
       await logA(env,a,'other',b.id?'approved/updated school':'added school',n+' · '+st);return J({ok:true})}
+    // Wipes everything people made while testing, before going live. Test Paystack keys only; admins, settings and schools stay.
+    if(path==='admin/clear-test'){if(/^sk_live_/.test(env.PAYSTACK_SECRET||''))return J({error:'Stall is using a live Paystack key, so real data can\'t be cleared.'},403);
+      const T=['orders','order_items','payouts','payments','pending_pay','threads','msgs','reviews','strikes','evidence','collections','collect_pays','listings','photos','store_items','stores','verify_requests','id_checks','push_subs','notes','credit_log','attempts','codes','vendor_codes','ps_recips','ps_subs'];
+      const cnt=async q=>(await env.DB.prepare(q).first().catch(()=>({c:0}))).c;
+      const what={users:await cnt('SELECT COUNT(*) c FROM users WHERE IFNULL(is_admin,0)=0'),orders:await cnt('SELECT COUNT(*) c FROM orders'),listings:await cnt('SELECT COUNT(*) c FROM listings'),stores:await cnt('SELECT COUNT(*) c FROM stores'),payments:await cnt('SELECT COUNT(*) c FROM payments'),chats:await cnt('SELECT COUNT(*) c FROM threads'),collections:await cnt('SELECT COUNT(*) c FROM collections')};
+      if(request.method!=='POST')return J({what},200,{'cache-control':'no-store'});
+      if(!a.is_admin)return J({error:'Not allowed'},403);if(b.confirm!=='CLEAR')return J({error:'Type CLEAR to confirm.'},400);
+      if(env.PHOTOS){const lids=(await env.DB.prepare('SELECT DISTINCT lid FROM photos').all()).results.map(r=>r.lid);for(let i=0;i<lids.length;i+=50)await delPhotos(env,lids.slice(i,i+50)).catch(()=>{})}
+      for(const t of T)await env.DB.prepare('DELETE FROM '+t).run().catch(()=>{});
+      await env.DB.prepare("DELETE FROM sessions WHERE uid NOT IN (SELECT id FROM users WHERE is_admin=1)").run();
+      await env.DB.prepare('DELETE FROM users WHERE IFNULL(is_admin,0)=0').run();
+      await env.DB.prepare('UPDATE users SET rating_sum=0,rating_n=0,brating_sum=0,brating_n=0,credit=0,restricted_until=NULL,warned_at=NULL').run().catch(()=>{});
+      await env.DB.prepare("DELETE FROM admin_log WHERE kind!='other'").run().catch(()=>{});
+      await logA(env,a,'other','cleared all test data',Object.entries(what).map(([k,v])=>v+' '+k).join(', '));await bumpVer(env);
+      return J({ok:true,what})}
     if(path==='admin/settings'&&request.method==='POST'){for(const k of ['biz_name','support_phone','support_email'])if(k in b)await setK(env,k,String(b[k]||'').trim().slice(0,120));
       if('ref_reward' in b){const v=Math.round(+b.ref_reward);if(!(v>=0&&v<=5000))return J({error:'Enter a referral reward from ₦0 to ₦5,000.'},400);await setK(env,'ref_reward',v)}
       if('ref_cap' in b){const v=Math.round(+b.ref_cap);if(!(v>=0&&v<=50000))return J({error:'Enter a monthly cap from ₦0 to ₦50,000.'},400);await setK(env,'ref_cap',v)}
@@ -1059,6 +1093,8 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
         if(!(r>=0&&r<=20))return J({error:'Enter a fee rate from 0% to 20%.'},400);if(!(mn>=0&&mn<=5000))return J({error:'Enter a minimum fee from ₦0 to ₦5,000.'},400);
         if(!(cp>=0&&cp<=50000))return J({error:'Enter a maximum fee from ₦0 to ₦50,000.'},400);if(cp<mn)return J({error:'The maximum fee can\'t be lower than the minimum.'},400);
         await setK(env,'fee_rate',r);await setK(env,'fee_min',mn);await setK(env,'fee_cap',cp);await logA(env,a,'other','changed the sale fee',r+'%, min ₦'+mn+', max ₦'+cp)}
+      if('t_hand' in b){for(const k in TMD){const v=Math.round(+b['t_'+k]);if(!(v>=TMR[k][0]&&v<=TMR[k][1]))return J({error:'Enter '+({hand:'the handover window in minutes',answer:'the time to answer a report in hours',send:'the time to send in hours',pay:'the automatic payment time in hours'})[k]+', from '+TMR[k][0]+' to '+TMR[k][1]+'.'},400)}
+        for(const k in TMD)await setK(env,'t_'+k,Math.round(+b['t_'+k]));TMT=0;await logA(env,a,'other','changed the order timers',['hand','answer','send','pay'].map(k=>k+' '+b['t_'+k]).join(', '))}
       if('collect_fee' in b){const v=Math.round(+b.collect_fee);if(!(v>=0&&v<=1000))return J({error:'Enter a class collection fee from ₦0 to ₦1,000.'},400);await setK(env,'collect_fee',v)}
       if('free_sales' in b){const v=Math.round(+b.free_sales);if(!(v>=0&&v<=20))return J({error:'Enter a number of sales from 0 to 20.'},400);await setK(env,'free_sales',v)}
       if('credit_pct' in b){const v=Math.round(+b.credit_pct);if(!(v>=0&&v<=100))return J({error:'Enter a percentage from 0 to 100.'},400);await setK(env,'credit_pct',v)}
