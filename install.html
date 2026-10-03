@@ -65,6 +65,7 @@ h1,h2,h3,p{margin:0}button,a{font:inherit}
         <a class="btn ghost" href="/">Open Stall</a>
       </div>
       <p class="note" id="note" hidden></p>
+      <div class="note" id="chromeNote" hidden><b style="color:#fff">Open this page in Chrome to install.</b> Installing from this browser can make Google Play Protect block the app. Chrome installs Stall safely.<div class="cta" style="margin-top:10px"><a class="btn acc" id="chromeBtn">Open in Chrome</a></div></div>
     </div>
     <div class="qr"><div id="qrBig"></div><small>Scan with your phone camera</small></div>
   </div>
@@ -116,8 +117,11 @@ $('#tA').onclick=()=>tab(0);$('#tI').onclick=()=>tab(1);if(ios)tab(1);
 const note=m=>{$('#note').textContent=m;$('#note').hidden=false};
 if(standalone){note('You already have Stall installed. Open it from your home screen.');$('#howBtn').hidden=true}
 else if(iosOther)note('On iPhone, Stall can only be installed from Safari. Tap "Copy link" below and paste it into Safari.');
+// Other Android browsers (Phoenix, Opera, Samsung Internet, Mi, UC, in-app browsers…) wrap the site in their own app file built for an old Android version, which Google Play Protect blocks. Chrome installs it safely.
+const andOther=!ios&&/Android/i.test(ua)&&(/SamsungBrowser|OPR\/|Opera|OPiOS|OPT\/|EdgA|Firefox|PHX|Phoenix|MiuiBrowser|XiaoMi|HeyTap|UCBrowser|UCWEB|VivoBrowser|YaBrowser|Silk|; wv\)|FBAN|FBAV|Instagram|Snapchat|Twitter/i.test(ua)||!/Chrome\//.test(ua));
+if(andOther&&!standalone){$('#chromeNote').hidden=false;$('#chromeBtn').href='intent://'+location.host+'/install#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent('https://play.google.com/store/apps/details?id=com.android.chrome')+';end';$('#sA li:first-child span').innerHTML='<b style="display:inline">Use Chrome.</b> Other browsers can make a copy of the app that Google Play Protect blocks.'}
 let dip=null;
-addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;$('#installBtn').hidden=false;$('#howBtn').hidden=true});
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();if(andOther)return;dip=e;$('#installBtn').hidden=false;$('#howBtn').hidden=true});
 $('#installBtn').onclick=async()=>{if(!dip)return;dip.prompt();const r=await dip.userChoice.catch(()=>({}));dip=null;$('#installBtn').hidden=true;if(r&&r.outcome==='accepted')note('Installing… look for the Stall icon on your home screen.');else $('#howBtn').hidden=false};
 addEventListener('appinstalled',()=>{note('Stall is installed. Open it from your home screen.');$('#installBtn').hidden=true});
 $('#waBtn').href='https://wa.me/?text='+encodeURIComponent('Buy and sell on campus with Stall. Get the app here: '+link);
