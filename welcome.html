@@ -65,8 +65,8 @@ h1,h2,h3,p{margin:0}a{color:inherit}button,input,select,textarea{font:inherit;co
 @keyframes floor{to{background-position:0 64px,0 0}}
 .stars{position:absolute;inset:0;background-image:radial-gradient(1px 1px at 20% 30%,#fff8,transparent),radial-gradient(1px 1px at 70% 20%,#fff6,transparent),radial-gradient(1.5px 1.5px at 40% 70%,#fff5,transparent),radial-gradient(1px 1px at 85% 60%,#fff7,transparent),radial-gradient(1px 1px at 10% 85%,#fff5,transparent),radial-gradient(1.5px 1.5px at 55% 12%,#fff6,transparent);opacity:.6}
 .hero .w{position:relative;display:grid;grid-template-columns:1.05fr .95fr;gap:30px;align-items:center;width:100%}
-.hero h1{font-size:clamp(46px,8.4vw,104px);line-height:.95;font-weight:800;letter-spacing:-.055em;margin:18px 0 22px}
-.hero h1 .wd{display:inline-block;opacity:0;transform:translateY(60%) rotateX(-70deg);transform-origin:50% 100%;animation:wd 1s var(--ease) forwards;animation-delay:calc(var(--i)*.09s + .15s)}
+.hero h1{font-size:clamp(46px,8.4vw,104px);line-height:1.02;font-weight:800;letter-spacing:-.05em;margin:18px 0 22px}
+.hero h1 .wd{display:inline-block;padding-bottom:.12em;margin-bottom:-.12em;opacity:0;transform:translateY(60%) rotateX(-70deg);transform-origin:50% 100%;animation:wd 1s var(--ease) forwards;animation-delay:calc(var(--i)*.09s + .15s)}
 @keyframes wd{to{opacity:1;transform:none}}
 .hero .lead{color:#B8C2D3;font-size:clamp(17px,1.7vw,20px);max-width:44ch}
 .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
@@ -104,6 +104,15 @@ h1,h2,h3,p{margin:0}a{color:inherit}button,input,select,textarea{font:inherit;co
 .scroll-hint::after{content:'';position:absolute;left:50%;top:8px;width:4px;height:8px;border-radius:2px;background:var(--acc);transform:translateX(-50%);animation:sh 1.8s infinite}
 @keyframes sh{60%{transform:translate(-50%,12px);opacity:0}}
 @media(max-width:900px){.hero .w{grid-template-columns:1fr;text-align:left}.scene{height:500px;margin-top:-10px}.phone{width:230px;height:474px}.scr .list{top:150px}.oc{width:150px;margin-left:-75px}}
+/* the real phone: proportions match the app screenshots (9:16) */
+.phone.real{width:262px;height:auto;padding:9px;border-radius:40px;animation:float 7s ease-in-out infinite}
+.phone.real::before{display:none}
+.phone.real .scr{height:auto;aspect-ratio:9/16;border-radius:32px;background:#F5F6FA}
+.phone.real .shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.04);transition:opacity .9s var(--ease),transform 3.6s ease-out}
+.phone.real .shot.on{opacity:1;transform:none}
+.phone.real .scr::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,rgba(255,255,255,.22),rgba(255,255,255,0) 32%);pointer-events:none;z-index:2}
+.phone.real .cam{position:absolute;top:9px;left:50%;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;background:#0b1020;box-shadow:0 0 0 2px rgba(11,16,32,.25);z-index:3}
+.phone.real .btn-side{position:absolute;right:-3px;top:110px;width:3px;height:54px;border-radius:0 3px 3px 0;background:#2a3555}
 /* marquee */
 .marq{border-block:1px solid var(--line);background:var(--bg2);overflow:hidden;white-space:nowrap;padding:16px 0}
 .marq .mt{display:inline-flex;gap:46px;animation:mq 38s linear infinite;padding-left:46px}
@@ -189,6 +198,11 @@ h1,h2,h3,p{margin:0}a{color:inherit}button,input,select,textarea{font:inherit;co
 .vault .fc svg{width:40px;height:40px;color:var(--green)}
 .vault .f1{transform:translateZ(60px)}.vault .f2{transform:rotateY(180deg) translateZ(60px)}.vault .f3{transform:rotateY(90deg) translateZ(60px)}.vault .f4{transform:rotateY(-90deg) translateZ(60px)}.vault .f5{transform:rotateX(90deg) translateZ(60px)}.vault .f6{transform:rotateX(-90deg) translateZ(60px)}
 .vault.glow .fc{box-shadow:0 0 40px rgba(34,197,139,.45);border-color:rgba(34,197,139,.6)}
+.vtag{position:absolute;left:50%;top:16px;transform:translateX(-50%);padding:7px 14px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid var(--line);font-weight:700;font-size:14px;white-space:nowrap;color:var(--ink);transition:opacity .3s;z-index:6}
+.vtag:empty{opacity:0}.vtag b{color:var(--acc2)}
+.road{position:absolute;left:12%;right:12%;bottom:28px;height:0;border-top:2px dashed rgba(255,255,255,.14)}
+.road span{position:absolute;left:50%;top:6px;transform:translateX(-50%);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
+.pkg::after{content:'Item';position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);font-size:11px;font-weight:800;color:#E9C79A;letter-spacing:.04em}
 .vlab{position:absolute;left:50%;top:calc(50% + 86px);transform:translateX(-50%);font-weight:800;font-size:13px;color:var(--green);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
 .coin{position:absolute;left:0;top:0;width:58px;height:58px;margin:-29px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#FFF1C2,#FFC233 45%,#D88A00);box-shadow:inset 0 -4px 8px rgba(0,0,0,.25),0 10px 20px -6px rgba(0,0,0,.6);display:grid;place-items:center;font-weight:800;color:#6B4200;font-size:22px;opacity:0;z-index:4}
 .pkg{position:absolute;left:0;top:0;width:52px;height:52px;margin:-26px;border-radius:12px;background:linear-gradient(160deg,#C08A52,#8A5A2B);box-shadow:0 10px 18px -6px rgba(0,0,0,.6);opacity:0;z-index:3;display:grid;place-items:center}
@@ -299,17 +313,16 @@ footer{padding:90px 0 calc(40px + env(safe-area-inset-bottom,0));border-top:1px 
  .nav .w{height:62px}.nav .btn.sm{padding:9px 14px;font-size:13px;border-radius:12px}.logo{font-size:20px}.logo img{width:30px;height:30px;border-radius:9px}
  .hero{min-height:auto;padding:100px 0 20px}
  .hero .w{gap:6px}
- .hero h1{font-size:clamp(44px,13vw,58px);line-height:.98;margin:16px 0 18px}
+ .hero h1{font-size:clamp(42px,12.4vw,56px);line-height:1.04;margin:16px 0 20px}
  .hero .lead{font-size:16.5px;max-width:36ch}
  .hero .eyebrow .full{display:none}
  .cta{margin-top:26px}.hero .cta .btn{width:100%}
  .trust{flex-direction:column;gap:10px;margin-top:24px;font-size:14px}
- .scene{height:430px;margin-top:8px}
- .phone{width:206px;height:424px;border-radius:38px;padding:10px}.scr{border-radius:30px}.phone::before{top:18px;width:70px;height:20px}
- .scr .bar{padding-top:38px;font-size:16px}.scr .list{top:138px}.scr .chips span{font-size:9.5px;padding:5px 8px}
- .oc.fl{width:150px;margin:0;left:auto;top:auto;padding:10px 12px;animation:fl 6s ease-in-out infinite}
+ .scene{height:auto;padding:26px 0 18px;margin-top:6px}
+ .phone.real{width:218px;border-radius:34px;padding:8px}.phone.real .scr{border-radius:27px}
+ .oc.fl{width:146px;margin:0;left:auto;top:auto;padding:10px 12px;border-radius:16px;animation:fl 6s ease-in-out infinite;transform:none!important}
  .oc.fl b{font-size:12.5px}.oc.fl .p{font-size:13.5px}.oc.fl em{font-size:10.5px}
- .oc.f0{left:-64px;top:60px;transform:translateZ(60px) rotateY(18deg)}.oc.f1{right:-64px;bottom:70px;transform:translateZ(60px) rotateY(-14deg);animation-delay:-3s}
+ .oc.f0{left:-58px;top:70px}.oc.f1{right:-58px;bottom:60px;animation-delay:-3s}
  @keyframes fl{50%{margin-top:-10px}}
  .orbit{animation:none}.scroll-hint{display:none}
  .marq{padding:13px 0}.marq span{font-size:14px}
@@ -331,7 +344,7 @@ footer{padding:90px 0 calc(40px + env(safe-area-inset-bottom,0));border-top:1px 
  .stage{height:250px;margin-top:26px;border-radius:24px}
  .actor{width:70px}.actor.buyer{left:14px}.actor.seller{right:14px}.actor .av{width:54px;height:54px;border-radius:17px}.actor .av svg{width:26px;height:26px}.actor b{font-size:12.5px;margin-top:8px}.actor small{display:none}
  .vault{width:84px;height:84px;margin:-42px}.vault .f1{transform:translateZ(42px)}.vault .f2{transform:rotateY(180deg) translateZ(42px)}.vault .f3{transform:rotateY(90deg) translateZ(42px)}.vault .f4{transform:rotateY(-90deg) translateZ(42px)}.vault .f5{transform:rotateX(90deg) translateZ(42px)}.vault .f6{transform:rotateX(-90deg) translateZ(42px)}.vault .fc svg{width:28px;height:28px}
- .vlab{top:calc(50% + 62px);font-size:11px}
+ .vlab{top:calc(50% + 56px);font-size:10.5px}.vtag{font-size:12.5px;top:12px;padding:6px 12px}.road{left:8%;right:8%;bottom:24px}.road span{font-size:9.5px}.stage{height:290px}
  .coin{width:44px;height:44px;margin:-22px;font-size:17px}.pkg{width:40px;height:40px;margin:-20px}.codechip{font-size:11px;padding:6px 9px}
  .cap{margin-top:16px;min-height:96px}.cap .n{width:34px;height:34px;border-radius:11px}.cap p{font-size:16.5px}.cap p small{font-size:14.5px}
  .vctl{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}.vctl .dots{grid-column:1/-1;margin:0 0 6px}.vctl .btn{width:100%}
@@ -401,13 +414,11 @@ footer{padding:90px 0 calc(40px + env(safe-area-inset-bottom,0));border-top:1px 
   </div>
   <div class="scene" id="scene">
    <div class="rig" id="rig">
-    <div class="phone" id="heroPhone"><div class="scr">
-     <div class="bar"><b>Stall</b><i></i></div>
-     <div class="sb"><svg class="ic" style="width:15px;height:15px" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-search"/></svg><span class="ty" id="typer"></span><span class="cu"></span></div>
-     <div class="chips"><span>All</span><span>Books</span><span>Gadgets</span><span>Food</span><span>Hostel</span></div>
-     <div class="list"><div class="track" id="track"></div></div>
-     <div class="tab"><i class="on"></i><i></i><i></i><i></i><i></i></div>
-    </div></div>
+    <div class="phone real" id="heroPhone"><div class="scr" id="shots">
+     <img class="shot on" src="/site/home.webp" alt="The Stall app home screen" width="450" height="800" fetchpriority="high">
+     <img class="shot" data-src="/site/browse.webp" alt="Browsing items" width="450" height="800"><img class="shot" data-src="/site/item.webp" alt="An item with delivery" width="450" height="800">
+     <img class="shot" data-src="/site/pay.webp" alt="Checkout" width="450" height="800"><img class="shot" data-src="/site/orders.webp" alt="Tracking an order" width="450" height="800"><img class="shot" data-src="/site/chat.webp" alt="Chatting with a seller" width="450" height="800">
+     <span class="cam"></span></div><span class="btn-side"></span></div>
     <div class="orbit" id="orbit"></div>
    </div>
   </div>
@@ -467,7 +478,8 @@ footer{padding:90px 0 calc(40px + env(safe-area-inset-bottom,0));border-top:1px 
   <div class="stage" id="stage" data-r style="--d:.15s">
    <div class="actor buyer" id="aB"><div class="av"><svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-user"/></svg></div><b>You</b><small>the buyer</small></div>
    <div class="vault" id="vault"><div class="fc f1"><svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-lock"/></svg></div><div class="fc f2"></div><div class="fc f3"></div><div class="fc f4"></div><div class="fc f5"></div><div class="fc f6"></div></div>
-   <div class="vlab">Held by Stall</div>
+   <div class="vlab">Stall holds the money only</div>
+   <div class="vtag" id="vtag"></div><div class="road"><span>pickup or delivery</span></div>
    <div class="actor seller" id="aS"><div class="av"><svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-store"/></svg></div><b>The seller</b><small>a student or campus shop</small></div>
    <div class="coin" id="coin">₦</div>
    <div class="pkg" id="pkg"><span class="ok"><svg fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><use href="#i-check"/></svg></span></div>
@@ -501,7 +513,7 @@ footer{padding:90px 0 calc(40px + env(safe-area-inset-bottom,0));border-top:1px 
    <div id="lboard"></div>
    <div class="amb" data-r style="--d:.1s"><h3>Is your school missing?</h3><p>Want Stall at your campus? Tell us, and help bring it to your school. We'll reach out on WhatsApp to talk about how it works.</p>
     <form id="ambF"><input name="name" placeholder="Your name" required maxlength="60"><input name="phone" placeholder="WhatsApp number" inputmode="tel" required maxlength="15"><input name="school" placeholder="Your school" required maxlength="90"><textarea name="note" rows="2" placeholder="Why you? (optional)" maxlength="300"></textarea><button class="btn acc" type="submit">Bring Stall to my campus</button></form>
-    <div id="ambOk" hidden><h3>You're on the list 🎉</h3><p>We'll reach out on WhatsApp soon.</p></div>
+    <div id="ambOk" hidden><h3>Thank you! 🎉</h3><p>The Stall team will message you on WhatsApp, usually within a day.</p><a class="btn acc" id="ambWa" hidden target="_blank" rel="noopener">Or message us now on WhatsApp</a></div>
    </div>
   </div>
  </div>
@@ -563,14 +575,16 @@ const countUp=(el,to,fmt=short)=>{if(RM){el.textContent=fmt(to);return}const t0=
 // ---- hero: 3D phone, typing search, orbiting real listings, tilt with pointer/phone and scroll
 let P=null;
 const EX=[{title:'Textbook: Engineering Maths',price:3500,cat:'books'},{title:'Rice cooker 1.8L',price:18000,cat:'hostel'},{title:'iPhone 11 128GB',price:265000,cat:'tech'},{title:'Jollof rice + chicken',price:2500,cat:'food'},{title:'Lab coat (size M)',price:6000,cat:'fashion'},{title:'Hair braiding',price:8000,cat:'services'},{title:'Standing fan',price:22000,cat:'hostel'},{title:'Scientific calculator',price:9500,cat:'tech'}];
-function drawPhone(items){const L=(items.length>=6?items:EX).slice(0,10),card=x=>{const[k,bg,fg]=cat(x.cat);return`<div class="it"><div class="ph" style="background:${bg};color:${fg}">${icon(k)}</div><b>${esc(x.title)}</b><small>${naira(x.price)}</small><em>${esc(x.school||'Near you')}</em></div>`};
+(function shots(){const S=$$('#shots .shot');let i=0;const load=()=>S.forEach(s=>{if(s.dataset.src){s.src=s.dataset.src;delete s.dataset.src}});
+ addEventListener('load',()=>setTimeout(load,800));if(RM)return;setInterval(()=>{if(document.hidden||!$('#top').classList||$('#top').classList.contains('paused'))return;load();S[i].classList.remove('on');i=(i+1)%S.length;S[i].classList.add('on')},3400)})();
+function drawPhone(items){if(!$('#track'))return;const L=(items.length>=6?items:EX).slice(0,10),card=x=>{const[k,bg,fg]=cat(x.cat);return`<div class="it"><div class="ph" style="background:${bg};color:${fg}">${icon(k)}</div><b>${esc(x.title)}</b><small>${naira(x.price)}</small><em>${esc(x.school||'Near you')}</em></div>`};
  $('#track').innerHTML=(L.map(card).join('')).repeat(2)}
 function drawOrbit(items){const o=$('#orbit');if(innerWidth<700){const L=items.slice(0,2);o.innerHTML=L.length<2?'':L.map((x,i)=>`<div class="oc fl f${i}"><span class="k ${x.k==='sold'?'s':''}">${x.k==='sold'?'Just sold':'Just listed'}</span><b>${esc(x.title)}</b><span class="p">${naira(x.price)}</span> <em>· ${esc(x.school||'')}</em></div>`).join('');return}
  const L=items.slice(0,8);if(L.length<3){o.innerHTML='';return}const r=innerWidth<900?200:270;
  o.innerHTML=L.map((x,i)=>`<div class="oc" style="transform:rotateY(${i*360/L.length}deg) translateZ(${r}px) translateY(${(i%3-1)*120}px)"><span class="k ${x.k==='sold'?'s':''}">${x.k==='sold'?'Just sold':'Just listed'}</span><b>${esc(x.title)}</b><span class="p">${naira(x.price)}</span> <em>· ${esc(x.school||x.state||'')}</em></div>`).join('')}
-(function typer(){const words=['iPhone 11 under 250k','rice cooker','engineering maths textbook','hostel fan','jollof near me','lab coat size M'];let w=0,i=0,del=false;const el=$('#typer');
+(function typer(){if(!$('#typer'))return;const words=['iPhone 11 under 250k','rice cooker','engineering maths textbook','hostel fan','jollof near me','lab coat size M'];let w=0,i=0,del=false;const el=$('#typer');
  const step=()=>{const s=words[w];el.textContent=s.slice(0,i);if(!del&&i<s.length)i++;else if(!del){del=true;return setTimeout(step,1400)}else if(i>0)i--;else{del=false;w=(w+1)%words.length}setTimeout(step,del?35:80)};if(!RM)step();else el.textContent=words[0]})();
-(function tilt(){if(RM)return;const rig=$('#rig');let tx=0,ty=0,sp=0;const apply=()=>{rig.style.transform=`rotateY(${-22+tx+sp*40}deg) rotateX(${8+ty-sp*8}deg) translateZ(${sp*-120}px)`};
+(function tilt(){const rig=$('#rig'),small=innerWidth<700;if(RM||small){rig.style.transform=small?'rotateY(-6deg) rotateX(3deg)':'';return}let tx=0,ty=0,sp=0;const apply=()=>{rig.style.transform=`rotateY(${-18+tx+sp*16}deg) rotateX(${6+ty-sp*4}deg) translateZ(${sp*-60}px)`};
  addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;tx=(e.clientX/innerWidth-.5)*18;ty=-(e.clientY/innerHeight-.5)*12;apply()},{passive:true});
  addEventListener('deviceorientation',e=>{if(e.gamma==null)return;tx=Math.max(-14,Math.min(14,e.gamma/3));ty=Math.max(-10,Math.min(10,(e.beta-45)/4));apply()},{passive:true});
  addEventListener('scroll',()=>{sp=Math.min(1,scrollY/innerHeight);apply()},{passive:true});apply()})();
@@ -658,18 +672,19 @@ function tiltCards(){if(RM||matchMedia('(hover:none)').matches)return;$$('.card:
 // ---- the vault story
 const TM={hand:30,answer:4,send:24,pay:24};const dur=(n,m)=>m?(n>=60&&n%60===0?(n===60?'1 hour':n/60+' hours'):n+' minutes'):(n===1?'1 hour':n+' hours');
 const V={i:0,bad:false,busy:false};
-const STEPS=()=>V.bad?[['You pay','Your money goes into the Stall vault, not to the seller. The seller sees it\'s paid and gets your order ready.'],['You meet and check','The phone screen is cracked. Not what the photos showed.'],['Don\'t give the code. Report it.','Tap "Report a problem" and add a photo. The money stays locked while the seller answers, then it\'s decided fairly.'],['Your money comes back','When the item isn\'t as described, you get a full refund to your card or account.']]
- :[['You pay','Your money goes into the Stall vault, not to the seller. The seller sees it\'s paid and gets your order ready.'],['You meet and check','At pickup or delivery, look at the item properly. Is it what the photos showed?'],['Happy? Give your release code','The code is your "yes". The seller enters it, and the vault opens.'],['The seller gets paid','Straight to their bank. Done, and nobody had to trust a stranger with money.']];
+const STEPS=()=>V.bad?[['You pay','Your money goes to Stall, not to the seller. Stall only ever holds the money, never the item.'],['The item comes, but it\'s broken','The seller hands it to you directly. The screen is cracked: not what the photos showed.'],['Don\'t give the code. Report it.','Tap "Report a problem" and add a photo. Your money stays with Stall while the seller answers, then it\'s decided fairly.'],['Your money comes back','When the item isn\'t as described, Stall refunds you in full to your card or account.']]
+ :[['You pay','Your money goes to Stall, not to the seller. Stall only ever holds the money, never the item. The seller sees it\'s paid.'],['The seller brings you the item','At pickup or delivery the item goes straight from the seller to you. Check it properly: is it what the photos showed?'],['Happy? Give your release code','The code is your "yes". The seller enters it, and the vault opens.'],['The seller gets paid','Stall sends the money to the seller\'s bank. Done, and nobody had to trust a stranger with money.']];
+const TAGS=()=>V.bad?['<b>₦</b> Your money → Stall','<b>Item</b>: seller → you, directly','Problem reported: money stays with Stall','<b>₦</b> Money → back to you']:['<b>₦</b> Your money → Stall','<b>Item</b>: seller → you, directly','<b>Code</b>: you → seller','<b>₦</b> Money: Stall → seller'];
 function pos(el){const s=$('#stage').getBoundingClientRect(),b=el.getBoundingClientRect();return[b.left-s.left+b.width/2,b.top-s.top+b.height/2]}
-function fly(el,from,to,opt={}){const[x1,y1]=from,[x2,y2]=to,mx=(x1+x2)/2,my=Math.min(y1,y2)-(opt.arc==null?90:opt.arc),c=el.id==='chip'?' translate(-50%,-50%)':'',sp=el.id==='chip'?0:1;
+function fly(el,from,to,opt={}){const[x1,y1]=from,[x2,y2]=to,mx=(x1+x2)/2,my=Math.min(y1,y2)-(opt.arc==null?90:opt.arc),c=el.id==='chip'?' translate(-50%,-50%)':'',sp=el.id==='coin'?1:0;
  return el.animate([{transform:`translate(${x1}px,${y1}px)${c} rotateY(0) scale(${opt.s0||1})`,opacity:opt.o0==null?1:opt.o0},{transform:`translate(${mx}px,${my}px)${c} rotateY(${540*sp}deg) scale(1.15)`,opacity:1,offset:.5},{transform:`translate(${x2}px,${y2}px)${c} rotateY(${1080*sp}deg) scale(${opt.s1||1})`,opacity:opt.o1==null?1:opt.o1}],{duration:RM?1:opt.d||1100,easing:'cubic-bezier(.45,.05,.35,1)',fill:'forwards'}).finished}
-function drawCap(){const S=STEPS(),s=S[Math.min(V.i,S.length)-1]||['Watch an order, step by step','Tap Next to start.'];
+function drawCap(){const S=STEPS(),s=S[Math.min(V.i,S.length)-1]||['Watch an order, step by step','Tap Start. The money and the item take different paths.'];$('#vtag').innerHTML=V.i?TAGS()[V.i-1]:'';
  $('#cap').innerHTML=`<span class="n">${V.i||'▶'}</span><p>${esc(s[0])}<small>${esc(s[1])}</small></p>`;$('#vdots').innerHTML=S.map((_,k)=>`<i class="${k<V.i?'on':''}"></i>`).join('');
  $('#vNext').textContent=V.i>=S.length?'Watch again':V.i?'Next':'Start';$('#vBad').textContent=V.bad?'Show a normal order':'What if it\'s broken?'}
 async function vStep(){if(V.busy)return;const S=STEPS();if(V.i>=S.length){vReset();return}V.busy=true;V.i++;drawCap();
  const B=pos($('#aB .av')),VA=pos($('#vault')),SE=pos($('#aS .av')),coin=$('#coin'),pkg=$('#pkg'),chip=$('#chip');
  try{if(V.i===1){await fly(coin,B,VA,{s1:.6,o1:0});$('#vault').classList.add('glow')}
- else if(V.i===2){pkg.classList.toggle('bad',V.bad);pkg.querySelector('use').setAttribute('href',V.bad?'#i-x':'#i-check');await fly(pkg,SE,[B[0]+70,B[1]],{arc:60,d:1000});pkg.querySelector('.ok').style.transform='scale(1)'}
+ else if(V.i===2){pkg.classList.toggle('bad',V.bad);pkg.querySelector('use').setAttribute('href',V.bad?'#i-x':'#i-check');const ry=$('#stage').clientHeight-(innerWidth<700?52:58);await fly(pkg,[SE[0],ry],[B[0],ry],{arc:0,d:1500});pkg.querySelector('.ok').style.transform='scale(1)'}
  else if(V.i===3){if(V.bad){$('#vault').classList.add('glow');chip.textContent='Problem reported';await chip.animate([{transform:`translate(${B[0]}px,${B[1]-70}px) translate(-50%,-50%) scale(.6)`,opacity:0},{transform:`translate(${VA[0]}px,${VA[1]-90}px) translate(-50%,-50%) scale(1)`,opacity:1}],{duration:RM?1:900,fill:'forwards',easing:'cubic-bezier(.2,.75,.2,1)'}).finished}
   else{chip.textContent='STALL-7Q4K';const w=$('#stage').clientWidth,cw=chip.offsetWidth/2+8;await fly(chip,[Math.max(cw,B[0]),B[1]-60],[Math.min(w-cw,SE[0]),SE[1]-60],{arc:70,d:1000,s0:.7})}}
  else if(V.i===4){$('#vault').classList.remove('glow');if(V.bad){chip.animate([{opacity:1},{opacity:0}],{duration:300,fill:'forwards'});await fly(coin,VA,B,{s0:.6,o0:0})}
@@ -712,10 +727,11 @@ function runLoop(r){const lane=$('#lane'),wrap=$('#loop');lane.innerHTML=lifeCar
 
 // ---- campus ambassadors
 $('#ambF').addEventListener('submit',async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button');b.disabled=true;
- const r=await post('/api/site/ambassador',{name:f.name.value,phone:f.phone.value,school:f.school.value,note:f.note.value});b.disabled=false;if(r.error)return toast(r.error);f.hidden=true;$('#ambOk').hidden=false});
+ const r=await post('/api/site/ambassador',{name:f.name.value,phone:f.phone.value,school:f.school.value,note:f.note.value});b.disabled=false;if(r.error)return toast(r.error);f.hidden=true;$('#ambOk').hidden=false;
+ const sp=String(SUPPORT||'').replace(/\D/g,'').replace(/^0/,'234');if(sp){const a=$('#ambWa');a.href='https://wa.me/'+sp+'?text='+encodeURIComponent(`Hi Stall, I'm ${f.name.value} from ${f.school.value}. I'd love to bring Stall to my campus.`);a.hidden=false}});
 
 // ---- config: order timers and contact details from Admin -> Settings
-getJ('/api/config').then(c=>{Object.assign(TM,c.timers||{});$$('[data-t]').forEach(e=>{const k=e.dataset.t;e.textContent=dur(TM[k],k==='hand')});
+let SUPPORT='';getJ('/api/config').then(c=>{SUPPORT=c.phone||'';Object.assign(TM,c.timers||{});$$('[data-t]').forEach(e=>{const k=e.dataset.t;e.textContent=dur(TM[k],k==='hand')});
  const w=String(c.phone||'').replace(/\D/g,'').replace(/^0/,'234');$('#contact').innerHTML=[w?`<a href="https://wa.me/${w}">WhatsApp ${esc(c.phone)}</a>`:'',c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:''].filter(Boolean).join(' · ')}).catch(()=>{});
 
 // ---- get the app: a guided install that adapts to the phone and browser
