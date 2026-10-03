@@ -629,12 +629,22 @@ async function route({request,env,params,waitUntil}){
         paid:await one("SELECT IFNULL(SUM(amount-IFNULL(fee,0)),0) c FROM orders WHERE status='released'"),stores:await one('SELECT COUNT(*) c FROM stores WHERE isopen=1')};
       const listed=(await all('SELECT l.title,l.price,l.cat,l.created,IFNULL(l.state,sc.state) state,sc.short ssh,sc.name snm '+LL+' ORDER BY l.created DESC LIMIT 18')).map(r=>({...it(r),k:'listed'}));
       const sold=(await all("SELECT o.title,o.amount price,o.updated created,IFNULL(u.state,sc.state) state,sc.short ssh,sc.name snm FROM orders o JOIN users u ON u.id=o.seller LEFT JOIN schools sc ON sc.id=u.school_id WHERE o.status='released' ORDER BY o.updated DESC LIMIT 8")).map(r=>({...it(r),k:'sold'}));
-      const feed=[...listed,...sold].sort((a,b)=>b.at-a.at).slice(0,24);
-      const states={};for(const r of await all('SELECT IFNULL(l.state,sc.state) st,COUNT(*) c '+LL+' AND l.sold=0 GROUP BY st'))if(r.st)states[r.st]=(states[r.st]||0)+r.c;
-      for(const r of await all('SELECT IFNULL(s.state,sc.state) st,COUNT(*) c '+II+' GROUP BY st'))if(r.st)states[r.st]=(states[r.st]||0)+r.c;
+      // New people joining: school or state only, never who.
+      const joined=(await all("SELECT u.created,IFNULL(u.state,sc.state) state,sc.short ssh,sc.name snm,u.role FROM users u LEFT JOIN schools sc ON sc.id=u.school_id WHERE IFNULL(u.status,'active')='active' AND IFNULL(u.is_admin,0)=0 ORDER BY u.created DESC LIMIT 8")).map(r=>({title:r.role==='vendor'?'A campus shop joined':'A new student joined',price:0,cat:'',school:sch(r),state:r.state||'',at:r.created,k:'joined'}));
+      const feed=[...listed,...sold,...joined].sort((a,b)=>b.at-a.at).slice(0,28);
+      // Each state: items for sale (i) and people on Stall (p). A state lights up as soon as anyone from it joins.
+      const states={},add=(st,k,c)=>{if(!st)return;(states[st]=states[st]||{i:0,p:0})[k]+=c};
+      for(const r of await all('SELECT IFNULL(l.state,sc.state) st,COUNT(*) c '+LL+' AND l.sold=0 GROUP BY st'))add(r.st,'i',r.c);
+      for(const r of await all('SELECT IFNULL(s.state,sc.state) st,COUNT(*) c '+II+' GROUP BY st'))add(r.st,'i',r.c);
+      for(const r of await all("SELECT IFNULL(u.state,sc.state) st,COUNT(*) c FROM users u LEFT JOIN schools sc ON sc.id=u.school_id WHERE IFNULL(u.status,'active')='active' GROUP BY st"))add(r.st,'p',r.c);
+      const day=Date.now()-864e5;
+      const community={joinedDay:await one('SELECT COUNT(*) c FROM users WHERE created>?',day),joinedWeek:await one('SELECT COUNT(*) c FROM users WHERE created>?',wk),
+        verified:await one('SELECT COUNT(*) c FROM users WHERE IFNULL(vlevel,0)>=1 OR verified=1'),duesWeek:0,
+        stores:(await all("SELECT s.name,s.created,sc.short ssh,sc.name snm FROM stores s JOIN users u ON u.id=s.uid LEFT JOIN schools sc ON sc.id=s.school_id WHERE s.isopen=1 AND "+LIVE+" ORDER BY s.created DESC LIMIT 5")).map(r=>({name:clean(r.name,40),school:sch(r),at:r.created}))};
+      community.duesWeek=await one('SELECT COUNT(*) c FROM collect_pays WHERE created>?',wk).catch(()=>0);
       const top=(await all("SELECT sc.id,sc.name,sc.short,sc.state,(SELECT COUNT(*) FROM listings l WHERE l.school_id=sc.id AND l.review='live' AND l.sold=0) items,(SELECT COUNT(*) FROM listings l WHERE l.school_id=sc.id AND l.created>?) week,(SELECT COUNT(*) FROM users x WHERE x.school_id=sc.id) people FROM schools sc WHERE sc.active=1 ORDER BY week DESC,items DESC,people DESC LIMIT 10",wk)).filter(r=>r.items||r.people);
       const reviews=(await all("SELECT r.stars,r.body,r.buyer_name,r.created,sc.short ssh,sc.name snm FROM reviews r JOIN users u ON u.id=r.buyer LEFT JOIN schools sc ON sc.id=u.school_id WHERE r.stars>=4 AND LENGTH(IFNULL(r.body,''))>=20 ORDER BY r.created DESC LIMIT 6")).map(r=>({stars:r.stars,text:clean(r.body,220),who:String(r.buyer_name||'Student').split(' ')[0],school:sch(r),at:r.created}));
-      return{stats,feed,states,top,reviews,t:Date.now()}});
+      return{stats,feed,states,top,reviews,community,t:Date.now()}});
     if(path==='site/school'&&request.method==='GET'){const id=+url.searchParams.get('id')||0;
       return edge('site/school/'+id+'/'+(await ver(env)),60,async()=>{const s=await env.DB.prepare('SELECT id,name,short,state FROM schools WHERE id=? AND active=1').bind(id).first();if(!s)return{error:'Not found'};
         const items=await one('SELECT COUNT(*) c '+LL+' AND l.sold=0 AND l.school_id=?',id)+await one('SELECT COUNT(*) c '+II+' AND s.school_id=?',id);
@@ -651,7 +661,7 @@ async function route({request,env,params,waitUntil}){
       const name=clean(b.name,60),phone=String(b.phone||'').replace(/[^\d+]/g,'').slice(0,15),school=clean(b.school,90),note=clean(b.note,300);
       if(name.length<2||phone.length<10||school.length<3)return J({error:'Add your name, phone number and school.'},400);
       await env.DB.prepare('INSERT INTO ambassadors(name,phone,school,note,created) VALUES(?,?,?,?,?)').bind(name,phone,school,note||null,Date.now()).run();
-      waitUntil(tg(env,'New campus ambassador: '+name+' ('+phone+')\n'+school+(note?'\n'+note:'')+'\nAdmin → Settings → Website.'));return J({ok:true})}
+      waitUntil(tg(env,'Wants Stall at their campus: '+name+' ('+phone+')\n'+school+(note?'\n'+note:'')+'\nAdmin → Settings → Website.'));return J({ok:true})}
     if(path==='site/ev'&&request.method==='POST'){const b=await request.json().catch(()=>({})),k=String(b.k||'');
       if(!['visit','campus','search','install_tap','installed','open_chrome','ios_steps','qr'].includes(k))return J({ok:false},400);
       if(await allow(env,'ev:'+ip+':'+k,20,864e5))await env.DB.prepare('INSERT INTO site_stats(day,k,n) VALUES(?,?,1) ON CONFLICT(day,k) DO UPDATE SET n=n+1').bind(new Date(Date.now()+36e5).toISOString().slice(0,10),k).run();

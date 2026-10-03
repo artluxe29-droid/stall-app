@@ -205,14 +205,33 @@ h1,h2,h3,p{margin:0}a{color:inherit}button,input,select,textarea{font:inherit;co
 .rule{padding:22px;border-radius:var(--r);background:var(--card);border:1px solid var(--line)}.rule b{display:block;font-size:17px;margin:10px 0 6px}.rule p{color:var(--muted);font-size:15px}
 .rule .ri{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:rgba(34,197,139,.12);color:var(--green)}
 @media(max-width:800px){.stage{height:300px}.actor{width:90px}.actor.buyer{left:3%}.actor.seller{right:3%}.actor .av{width:64px;height:64px;border-radius:20px}.vault{transform:scale(.8)}.rules3{grid-template-columns:1fr}}
-/* day */
-.day .rail{display:flex;gap:22px;overflow-x:auto;scroll-snap-type:x mandatory;padding:60px max(20px,calc(50vw - 170px)) 70px;perspective:1100px;scrollbar-width:none;margin-top:10px}
-.day .rail::-webkit-scrollbar{display:none}
-.sc{flex:none;width:340px;scroll-snap-align:center;border-radius:28px;padding:26px;min-height:400px;transform-style:preserve-3d;transition:transform .25s linear,opacity .25s;position:relative;overflow:hidden;border:1px solid var(--line);background:linear-gradient(170deg,var(--c1),var(--c2))}
-.sc .tm{font-size:54px;font-weight:800;letter-spacing:-.05em;line-height:1}.sc .tm small{font-size:18px;color:rgba(255,255,255,.6);margin-left:6px}
-.sc h3{font-size:24px;font-weight:800;letter-spacing:-.03em;margin:16px 0 8px}.sc p{color:rgba(255,255,255,.75)}
-.sc .art{position:absolute;right:-20px;bottom:-20px;width:190px;height:190px;border-radius:50%;background:rgba(255,255,255,.08);display:grid;place-items:center;transform:translateZ(40px)}.sc .art svg{width:84px;height:84px;color:rgba(255,255,255,.9)}
-.sc .tag{display:inline-block;margin-top:14px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border-radius:8px;background:rgba(0,0,0,.25)}
+/* life on Stall: an endless 3D carousel of coloured glass cards */
+.loop{position:relative;height:500px;margin-top:30px;perspective:1300px;overflow:hidden;touch-action:pan-y;cursor:grab;user-select:none;
+ -webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.loop:active{cursor:grabbing}
+.blob{position:absolute;width:420px;height:420px;border-radius:50%;filter:blur(70px);opacity:.55;animation:blob 16s ease-in-out infinite alternate}
+.blob.b1{background:#FF8A00;left:5%;top:10%}.blob.b2{background:#22C58B;left:40%;top:30%;animation-duration:19s;animation-delay:-5s}.blob.b3{background:#7C3AED;left:70%;top:0%;animation-duration:22s;animation-delay:-9s}.blob.b4{background:#2563EB;left:25%;top:45%;animation-duration:25s;opacity:.4}.blob.b5{background:#DB2777;left:85%;top:45%;animation-duration:18s;opacity:.4}
+@keyframes blob{to{transform:translate3d(120px,-60px,0) scale(1.25)}}
+.lane{position:absolute;inset:0;transform-style:preserve-3d}
+.gc{position:absolute;left:50%;top:50%;border-radius:28px;padding:24px;color:#fff;overflow:hidden;will-change:transform,opacity;
+ background:linear-gradient(150deg,rgba(255,255,255,.17),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.22);
+ -webkit-backdrop-filter:blur(18px) saturate(170%);backdrop-filter:blur(18px) saturate(170%);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 30px 60px -22px rgba(0,0,0,.65)}
+.gc::before{content:'';position:absolute;inset:-30%;background:radial-gradient(45% 40% at 20% 15%,var(--tint),transparent 70%);opacity:.55;pointer-events:none}
+.gc>*{position:relative}
+.gc.scene{width:320px;height:380px;margin:-190px 0 0 -160px}
+.gc.act{width:270px;height:200px;margin:-100px 0 0 -135px}
+.gc .tm{font-size:50px;font-weight:800;letter-spacing:-.05em;line-height:1}.gc .tm small{font-size:17px;color:rgba(255,255,255,.65);margin-left:6px}
+.gc h3{font-size:23px;font-weight:800;letter-spacing:-.03em;margin:14px 0 8px;line-height:1.15}.gc p{color:rgba(255,255,255,.82);font-size:15px}
+.gc .tag{display:inline-block;margin-top:12px;font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:5px 10px;border-radius:8px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18)}
+.gc .art{position:absolute;right:-24px;bottom:-24px;width:170px;height:170px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);display:grid;place-items:center}.gc .art svg{width:70px;height:70px;color:#fff}
+.gc .kk{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.85)}
+.gc .kk i{width:7px;height:7px;border-radius:50%;background:var(--dotc,#22C58B);box-shadow:0 0 10px var(--dotc,#22C58B)}
+.gc.act b{display:block;font-size:20px;font-weight:800;letter-spacing:-.02em;margin-top:14px;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.gc.act .big{font-size:40px;font-weight:800;letter-spacing:-.04em;margin-top:10px;line-height:1}
+.gc.act small{display:block;margin-top:8px;color:rgba(255,255,255,.72);font-size:14px}.gc.act .pr{position:absolute;right:20px;bottom:18px;font-weight:800;font-size:18px;color:#FFE1A8}
+.gc.act .ico{position:absolute;right:18px;top:18px;width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.14);display:grid;place-items:center}.gc.act .ico svg{width:20px;height:20px}
+.noglass .gc{-webkit-backdrop-filter:none;backdrop-filter:none;background:linear-gradient(150deg,rgba(40,52,84,.92),rgba(20,28,50,.92))}
+@media(max-width:700px){.loop{height:440px}.gc.scene{width:270px;height:350px;margin:-175px 0 0 -135px}.gc.act{width:240px;margin-left:-120px}}
 /* reviews + league */
 .revs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:34px}
 .rv{padding:22px;border-radius:var(--r);background:var(--card);border:1px solid var(--line)}.rv .st{color:var(--acc);letter-spacing:2px}.rv p{margin:10px 0 14px;font-size:16px}.rv small{color:var(--muted)}
@@ -343,7 +362,7 @@ footer{padding:90px 0 calc(40px + env(safe-area-inset-bottom,0));border-top:1px 
  <div class="w">
   <span class="eyebrow" data-r><span class="live"></span> Live across Nigeria</span>
   <h2 data-r style="--d:.05s">Campus life, <span class="grad">happening now.</span></h2>
-  <p class="lead" data-r style="--d:.1s">Every glowing column is a state where students are buying and selling on Stall. Drag the map to turn it.</p>
+  <p class="lead" data-r style="--d:.1s">A state lights up the moment someone there joins Stall, and its column grows with every person and every item for sale. It updates by itself. Drag the map to turn it.</p>
   <div class="grid">
    <div class="mapwrap" id="mapwrap" data-r style="--d:.15s"><div class="map3d" id="map3d"></div><div class="maphint">Drag to rotate</div></div>
    <div><div class="feed" id="feed" aria-live="polite"></div></div>
@@ -406,14 +425,8 @@ footer{padding:90px 0 calc(40px + env(safe-area-inset-bottom,0));border-top:1px 
 </section>
 
 <section class="sec day" id="day">
- <div class="w"><span class="eyebrow" data-r>A day on campus</span><h2 data-r style="--d:.05s">From first lecture <span class="grad">to lights out.</span></h2><p class="lead" data-r style="--d:.1s">Swipe through a day with Stall.</p></div>
- <div class="rail" id="rail">
-  <article class="sc" style="--c1:#24305A;--c2:#121A33"><div class="tm">7:45<small>am</small></div><h3>Class dues, sorted</h3><p>The class rep shares one link. Everyone pays in the app, and the list of who's paid updates itself. No more chasing people.</p><span class="tag">Collections</span><div class="art"><svg fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-list"/></svg></div></article>
-  <article class="sc" style="--c1:#5A3A12;--c2:#24170A"><div class="tm">10:30<small>am</small></div><h3>Last semester's textbook, gone</h3><p>Snap a photo, set a price, done. A 100-level student buys it before they even get to the bookshop.</p><span class="tag">Sell in a minute</span><div class="art"><svg fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-book"/></svg></div></article>
-  <article class="sc" style="--c1:#0E4A38;--c2:#082119"><div class="tm">1:15<small>pm</small></div><h3>Lunch from the hostel kitchen</h3><p>Campus shops open stores on Stall. Order, pay, pick up between lectures.</p><span class="tag">Campus stores</span><div class="art"><svg fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-food"/></svg></div></article>
-  <article class="sc" style="--c1:#3B2466;--c2:#170F29"><div class="tm">4:00<small>pm</small></div><h3>Verified, trusted, chosen</h3><p>Show your student ID once and get the ✓ Verified badge. Buyers pick verified sellers first.</p><span class="tag">Verified students</span><div class="art"><svg fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-badge"/></svg></div></article>
-  <article class="sc" style="--c1:#1E3A5F;--c2:#0B1626"><div class="tm">9:30<small>pm</small></div><h3>Late-night deal, no stress</h3><p>Chat in the app, agree on pickup or delivery, and hand over with the release code. Money moves only when you say so.</p><span class="tag">Chat and delivery</span><div class="art"><svg fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-chat"/></svg></div></article>
- </div>
+ <div class="w"><span class="eyebrow" data-r><span class="live"></span> Life on Stall</span><h2 data-r style="--d:.05s">From first lecture <span class="grad">to lights out.</span></h2><p class="lead" data-r style="--d:.1s">It never stops moving: real things happening on Stall, and a day in the life of a student who uses it. Drag to look around.</p></div>
+ <div class="loop" id="loop" aria-label="Activity on Stall"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span><span class="blob b5"></span><div class="lane" id="lane"></div></div>
 </section>
 
 <section class="sec" id="voices" hidden>
@@ -427,8 +440,8 @@ footer{padding:90px 0 calc(40px + env(safe-area-inset-bottom,0));border-top:1px 
   <p class="lead" data-r style="--d:.1s">The most active schools this week. Put your campus on the board.</p>
   <div class="two">
    <div id="lboard"></div>
-   <div class="amb" data-r style="--d:.1s"><h3>Is your school missing?</h3><p>Become a Stall campus ambassador. Bring Stall to your school, help your people buy and sell safely, and get perks as your campus grows.</p>
-    <form id="ambF"><input name="name" placeholder="Your name" required maxlength="60"><input name="phone" placeholder="WhatsApp number" inputmode="tel" required maxlength="15"><input name="school" placeholder="Your school" required maxlength="90"><textarea name="note" rows="2" placeholder="Why you? (optional)" maxlength="300"></textarea><button class="btn acc" type="submit">I want to bring Stall to my campus</button></form>
+   <div class="amb" data-r style="--d:.1s"><h3>Is your school missing?</h3><p>Want Stall at your campus? Tell us, and help bring it to your school. We'll reach out on WhatsApp to talk about how it works.</p>
+    <form id="ambF"><input name="name" placeholder="Your name" required maxlength="60"><input name="phone" placeholder="WhatsApp number" inputmode="tel" required maxlength="15"><input name="school" placeholder="Your school" required maxlength="90"><textarea name="note" rows="2" placeholder="Why you? (optional)" maxlength="300"></textarea><button class="btn acc" type="submit">Bring Stall to my campus</button></form>
     <div id="ambOk" hidden><h3>You're on the list 🎉</h3><p>We'll reach out on WhatsApp soon.</p></div>
    </div>
   </div>
@@ -506,18 +519,23 @@ function drawOrbit(items){const L=items.slice(0,8);const o=$('#orbit');if(L.leng
 const NG=[[2.7,6.4],[2.7,7.0],[2.75,8.0],[2.8,9.0],[3.1,9.6],[3.6,10.3],[3.6,11.0],[3.7,11.7],[4.1,13.5],[5.0,13.8],[6.0,13.7],[6.9,13.2],[7.8,13.3],[8.6,13.0],[9.6,12.8],[10.6,13.3],[11.4,13.4],[12.3,13.1],[13.2,13.6],[13.6,13.7],[14.1,13.1],[14.6,12.2],[14.2,11.3],[13.8,10.9],[13.3,10.1],[13.0,9.4],[12.8,8.7],[12.2,8.0],[11.8,7.1],[11.4,6.6],[10.6,6.9],[10.2,6.9],[9.7,6.3],[9.2,5.7],[8.8,4.9],[8.5,4.5],[8.0,4.5],[7.1,4.4],[6.1,4.3],[5.4,4.9],[5.0,5.5],[4.6,6.2],[4.0,6.4],[3.4,6.4]];
 const ST={Abia:[7.49,5.53],Adamawa:[12.5,9.2],'Akwa Ibom':[7.93,5.03],Anambra:[7.07,6.21],Bauchi:[9.84,10.31],Bayelsa:[6.26,4.92],Benue:[8.54,7.73],Borno:[13.16,11.83],'Cross River':[8.32,5.6],Delta:[6.0,5.6],Ebonyi:[8.11,6.32],Edo:[5.9,6.7],Ekiti:[5.22,7.72],Enugu:[7.5,6.45],FCT:[7.3,8.9],Gombe:[11.17,10.29],Imo:[7.03,5.48],Jigawa:[9.6,12.2],Kaduna:[7.6,10.4],Kano:[8.52,11.9],Katsina:[7.6,12.5],Kebbi:[4.3,11.7],Kogi:[6.7,7.7],Kwara:[4.6,8.7],Lagos:[3.6,6.55],Nasarawa:[8.3,8.5],Niger:[5.9,9.7],Ogun:[3.35,7.1],Ondo:[5.1,7.0],Osun:[4.5,7.6],Oyo:[3.7,8.1],Plateau:[9.3,9.2],Rivers:[6.9,4.85],Sokoto:[5.3,12.9],Taraba:[10.8,8.0],Yobe:[11.6,12.3],Zamfara:[6.3,12.1]};
 const px=([lon,lat])=>[(lon-2.4)/12.5*620,(14.1-lat)/10*500];
+// A state gets a column as soon as anyone there is on Stall; it grows with people (1 each) and items for sale (3 each).
+const score=v=>typeof v==='number'?v*3:(v.i||0)*3+(v.p||0);
 function drawMap(states){const m=$('#map3d'),pts=NG.map(px).map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' ');
- const max=Math.max(1,...Object.values(states)),ent=Object.entries(states).filter(([k,v])=>ST[k]&&v>0);
+ const max=Math.max(1,...Object.values(states).map(score)),ent=Object.entries(states).map(([k,v])=>[k,score(v),v]).filter(([k,v])=>ST[k]&&v>0).sort((a,b)=>b[1]-a[1]);
  let g='';for(let i=0;i<=620;i+=40)g+=`<line class="gridl" x1="${i}" y1="-40" x2="${i}" y2="540"/>`;for(let j=-40;j<=540;j+=40)g+=`<line class="gridl" x1="-40" y1="${j}" x2="660" y2="${j}"/>`;
  m.innerHTML=`<svg viewBox="0 0 620 500" aria-hidden="true"><defs><linearGradient id="landg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1B2746"/><stop offset="1" stop-color="#0F1830"/></linearGradient></defs>${g}<polygon class="land" points="${pts}"/></svg>`
   +Object.entries(ST).map(([k,c])=>{const[x,y]=px(c);return`<div class="dot" style="left:${x}px;top:${y}px"></div>`}).join('')
-  +ent.map(([k,v],i)=>{const[x,y]=px(ST[k]),h=Math.round(30+150*Math.sqrt(v/max));return`<div class="pil" data-st="${esc(k)}" style="left:${x}px;top:${y}px;--h:${h}px;--dl:${(i%5)*.4}s"><span class="ring"></span><span class="f f1"></span><span class="f f2"></span><span class="top"></span>${v===max||i<2?`<span class="lab">${esc(k)}</span>`:''}</div>`}).join('');
+  +ent.map(([k,v,raw],i)=>{const[x,y]=px(ST[k]),h=Math.round(24+156*Math.sqrt(v/max));return`<div class="pil" data-st="${esc(k)}" title="${esc(k)}: ${raw.p||0} people, ${raw.i||0} for sale" style="left:${x}px;top:${y}px;--h:${h}px;--dl:${(i%5)*.4}s"><span class="ring"></span><span class="f f1"></span><span class="f f2"></span><span class="top"></span>${i<3?`<span class="lab">${esc(k)}</span>`:''}</div>`}).join('');
  // drag to rotate, slow drift otherwise
  let rz=-14,drag=null,last=performance.now();const set=()=>m.style.setProperty('--rz',rz+'deg');
  const w=$('#mapwrap');w.addEventListener('pointerdown',e=>{drag={x:e.clientX,rz};w.setPointerCapture(e.pointerId)});w.addEventListener('pointermove',e=>{if(drag){rz=drag.rz+(e.clientX-drag.x)*.35;set()}});w.addEventListener('pointerup',()=>drag=null);w.addEventListener('pointercancel',()=>drag=null);
  if(!RM)(function loop(t){if(!drag&&!document.hidden){rz+=(t-last)*.0025;set()}last=t;requestAnimationFrame(loop)})(performance.now())}
-function feedCard(x){const[k,bg,fg]=cat(x.cat);return`<div class="fi"><span class="bub" style="background:${bg};color:${fg}">${icon(k)}</span><span class="t"><b>${esc(x.title)}</b><small>${x.k==='sold'?'Sold':'Listed'} at ${esc(x.school||x.state||'a campus')} · ${ago(x.at)}</small></span><span class="pr">${naira(x.price)}</span></div>`}
-function runFeed(feed){const el=$('#feed');if(feed.length<3){el.innerHTML='<div class="empty"><b style="color:var(--ink);display:block;font-size:18px;margin-bottom:6px">Stall is just getting started.</b>Be one of the first sellers at your campus, and your items will show up here.</div>';return}
+function feedCard(x){if(x.k==='joined')return`<div class="fi"><span class="bub" style="background:#DFF3FF;color:#0284C7">${icon('user')}</span><span class="t"><b>${esc(x.title)}</b><small>${esc(x.school||x.state||'Nigeria')} · ${ago(x.at)}</small></span><span class="pr">👋</span></div>`;
+ const[k,bg,fg]=cat(x.cat);return`<div class="fi"><span class="bub" style="background:${bg};color:${fg}">${icon(k)}</span><span class="t"><b>${esc(x.title)}</b><small>${x.k==='sold'?'Sold':'Listed'} at ${esc(x.school||x.state||'a campus')} · ${ago(x.at)}</small></span><span class="pr">${naira(x.price)}</span></div>`}
+// Take turns between listings, sales and people joining, so the feed doesn't show five of the same thing.
+const mix=a=>{const g={};a.forEach(x=>(g[x.k]=g[x.k]||[]).push(x));const ks=Object.keys(g),out=[];while(out.length<a.length)for(const k of ks)if(g[k].length)out.push(g[k].shift());return out};
+function runFeed(feed){feed=mix(feed);const el=$('#feed');if(feed.length<3){el.innerHTML='<div class="empty"><b style="color:var(--ink);display:block;font-size:18px;margin-bottom:6px">Stall is just getting started.</b>Be one of the first sellers at your campus, and your items will show up here.</div>';return}
  let i=0;const show=()=>{const x=feed[i%feed.length];i++;el.insertAdjacentHTML('afterbegin',feedCard(x));while(el.children.length>5)el.lastElementChild.remove();
   const p=$$('.pil').find(q=>q.dataset.st===x.state);if(p){p.classList.add('flash');setTimeout(()=>p.classList.remove('flash'),1600)}};
  for(let k=0;k<4;k++)show();if(!RM)setInterval(()=>{if(!document.hidden)show()},2600)}
@@ -526,11 +544,11 @@ function drawStats(s){const c=[[s.items,'things for sale right now',20],[s.stude
  new IntersectionObserver((es,o)=>es.forEach(e=>{if(e.isIntersecting){$$('#stats b').forEach(b=>countUp(b,+b.dataset.n,b.dataset.f==='1'?n=>'₦'+short(n):short));o.disconnect()}}),{threshold:.4}).observe(el)}
 function drawMarq(feed){const L=(feed.length>=4?feed:EX.map(x=>({...x,school:''}))).slice(0,12);$('#marq').innerHTML=(L.map(x=>`<span><b>${esc(x.title)}</b> ${naira(x.price)}${x.school?' · '+esc(x.school):''}</span>`).join('')).repeat(2)}
 function drawLeague(top){const el=$('#lboard');if(!top.length){el.innerHTML='<div class="empty">The league starts when the first campuses get going. Will yours be number one?</div>';return}
- el.innerHTML=top.map((x,i)=>`<div class="lrow" data-r style="--d:${i*.05}s"><span class="rk">${i+1}</span><span><b>${esc(x.short||x.name)}</b><small>${esc(x.name)} · ${esc(x.state)}</small></span><span class="v">${x.week?x.week+' new this week':x.items+' for sale'}</span><i class="bar" data-w="${Math.round(100*(x.week||x.items)/Math.max(1,top[0].week||top[0].items))}"></i></div>`).join('');watch();
+ el.innerHTML=top.map((x,i)=>`<div class="lrow" data-r style="--d:${i*.05}s"><span class="rk">${i+1}</span><span><b>${esc(x.short||x.name)}</b><small>${esc(x.name)} · ${esc(x.state)}</small></span><span class="v">${x.week?x.week+' new this week':x.items?x.items+' for sale':x.people+' '+(x.people===1?'person':'people')}</span><i class="bar" data-w="${Math.round(100*(x.week||x.items||x.people)/Math.max(1,top[0].week||top[0].items||top[0].people))}"></i></div>`).join('');watch();
  new IntersectionObserver((es,o)=>es.forEach(e=>{if(e.isIntersecting){$$('#lboard .bar').forEach(b=>b.style.width=b.dataset.w+'%');o.disconnect()}}),{threshold:.3}).observe(el)}
 function drawReviews(rv){if(rv.length<3)return;$('#voices').hidden=false;$('#revs').innerHTML=rv.slice(0,6).map((x,i)=>`<div class="rv" data-r style="--d:${i*.06}s"><span class="st">${'★'.repeat(x.stars)}</span><p>“${esc(x.text)}”</p><small>${esc(x.who)}${x.school?' · '+esc(x.school):''}</small></div>`).join('');watch()}
-getJ('/api/site/pulse').then(r=>{P=r;const f=r.feed||[];drawPhone(f);drawOrbit(f);drawMap(r.states||{});runFeed(f);drawStats(r.stats||{});drawMarq(f);drawLeague(r.top||[]);drawReviews(r.reviews||[])})
- .catch(()=>{drawPhone([]);drawMap({});runFeed([]);drawStats({});drawMarq([]);drawLeague([])});
+getJ('/api/site/pulse').then(r=>{P=r;const all=r.feed||[],f=all.filter(x=>x.k!=='joined');drawPhone(f);drawOrbit(f);drawMap(r.states||{});runFeed(all);drawStats(r.stats||{});drawMarq(f);drawLeague(r.top||[]);drawReviews(r.reviews||[]);runLoop(r)})
+ .catch(()=>{drawPhone([]);drawMap({});runFeed([]);drawStats({});drawMarq([]);drawLeague([]);runLoop(null)});
 
 // ---- pick your campus
 let SCH=[];const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
@@ -549,7 +567,7 @@ async function pickSchool(id,quiet){const s=SCH.find(x=>x.id===id);if(!s)return;
  const r=await getJ('/api/site/school?id='+id).catch(()=>null);if(!r||r.error){el.innerHTML='<p class="lead">Could not load that school. Try again.</p>';return}
  el.innerHTML=`<div class="chead"><h3>Stall at <i>${esc(s.short||s.name)}</i></h3><div class="cnums"><div><b data-n="${r.items}">0</b><span>for sale now</span></div><div><b data-n="${r.people}">0</b><span>people</span></div><div><b data-n="${r.stores}">0</b><span>campus stores</span></div></div></div>`
   +(r.recent.length?`<div class="cards">${r.recent.slice(0,8).map(itemCard).join('')}</div><div class="cta"><a class="btn acc" href="/app">Shop ${esc(s.short||'your campus')} in the app</a><a class="btn ghost" href="#get">Get the app</a></div>`
-   :`<div class="empty" style="margin-top:24px"><b style="color:var(--ink);display:block;font-size:20px;margin-bottom:6px">Be the first seller at ${esc(s.short||s.name)}.</b>Nobody is selling here yet, so whatever you list gets seen first. It takes a minute.</div><div class="cta"><a class="btn acc" href="/app?go=sell">Sell something</a><a class="btn ghost" href="#league">Become the campus ambassador</a></div>`);
+   :`<div class="empty" style="margin-top:24px"><b style="color:var(--ink);display:block;font-size:20px;margin-bottom:6px">Be the first seller at ${esc(s.short||s.name)}.</b>Nobody is selling here yet, so whatever you list gets seen first. It takes a minute.</div><div class="cta"><a class="btn acc" href="/app?go=sell">Sell something</a><a class="btn ghost" href="#league">Bring your friends on board</a></div>`);
  $$('#cres [data-n]').forEach(b=>countUp(b,+b.dataset.n));tiltCards()}
 
 // ---- try it: voice or text search over real listings, and "what's it worth?"
@@ -601,9 +619,36 @@ function vReset(){V.i=0;['#coin','#pkg','#chip'].forEach(s=>{$(s).getAnimations(
 $('#vNext').addEventListener('click',vStep);$('#vBad').addEventListener('click',()=>{V.bad=!V.bad;vReset()});drawCap();
 new IntersectionObserver((es,o)=>es.forEach(e=>{if(e.isIntersecting&&!RM){o.disconnect();let n=0;const auto=()=>{if(V.i>=4||n++>4)return;vStep().then(()=>setTimeout(auto,1500))};setTimeout(auto,600)}}),{threshold:.6}).observe($('#stage'));
 
-// ---- a day on campus: coverflow
-(function(){const r=$('#rail');if(!r)return;const upd=()=>{const c=r.scrollLeft+r.clientWidth/2;$$('#rail .sc').forEach(s=>{const m=s.offsetLeft+s.offsetWidth/2,d=(m-c)/r.clientWidth;s.style.transform=RM?'':`rotateY(${Math.max(-40,Math.min(40,-d*55))}deg) scale(${1-Math.min(.12,Math.abs(d)*.15)}) translateZ(${-Math.abs(d)*80}px)`;s.style.opacity=1-Math.min(.5,Math.abs(d)*.5)})};
- r.addEventListener('scroll',()=>requestAnimationFrame(upd),{passive:true});addEventListener('resize',upd);setTimeout(()=>{r.scrollLeft=(r.scrollWidth-r.clientWidth)/2-170;upd()},50)})();
+// ---- life on Stall: an endless 3D carousel of glass cards (day-in-the-life scenes mixed with real activity)
+const SCENES=[['7:45','am','Class dues, sorted','The class rep shares one link. Everyone pays in the app, and the list of who\'s paid updates itself.','Collections','list','#3B82F6'],
+ ['10:30','am','Last semester\'s textbook, gone','Snap a photo, set a price, done. A 100-level student buys it before they even get to the bookshop.','Sell in a minute','book','#FF8A00'],
+ ['1:15','pm','Lunch from the hostel kitchen','Campus shops open stores on Stall. Order, pay, pick up between lectures.','Campus stores','food','#22C58B'],
+ ['4:00','pm','Verified, trusted, chosen','Show your student ID once and get the ✓ Verified badge. Buyers pick verified sellers first.','Verified students','badge','#A855F7'],
+ ['9:30','pm','Late-night deal, no stress','Chat in the app, agree on pickup or delivery, and hand over with the release code. Money moves only when you say so.','Chat and delivery','chat','#EC4899']];
+function lifeCards(r){const sc=SCENES.map(([t,ap,h3,p,tag,ic,c])=>`<article class="gc scene" style="--tint:${c}"><div class="tm">${t}<small>${ap}</small></div><h3>${esc(h3)}</h3><p>${esc(p)}</p><span class="tag">${esc(tag)}</span><div class="art">${icon(ic)}</div></article>`);
+ const C=['#FF8A00','#22C58B','#3B82F6','#A855F7','#EC4899','#14B8A6'],act=[];let ci=0;const tint=()=>C[ci++%C.length];
+ for(const x of (r&&r.feed||[]).slice(0,12)){const[k]=cat(x.cat);
+  if(x.k==='joined')act.push(`<article class="gc act" style="--tint:${tint()};--dotc:#38BDF8"><span class="kk"><i></i>Just joined</span><span class="ico">${icon('user')}</span><b>${esc(x.title)}</b><small>${esc(x.school||x.state||'')} · ${ago(x.at)}</small></article>`);
+  else act.push(`<article class="gc act" style="--tint:${tint()};--dotc:${x.k==='sold'?'#FFB84D':'#22C58B'}"><span class="kk"><i></i>${x.k==='sold'?'Just sold':'Just listed'}</span><span class="ico">${icon(k)}</span><b>${esc(x.title)}</b><small>${esc(x.school||x.state||'')} · ${ago(x.at)}</small><span class="pr">${naira(x.price)}</span></article>`)}
+ const cm=(r&&r.community)||{},big=(n,l,ic,c,kk)=>act.push(`<article class="gc act" style="--tint:${c}"><span class="kk"><i></i>${kk}</span><span class="ico">${icon(ic)}</span><div class="big">${short(n)}</div><small>${l}</small></article>`);
+ if(cm.joinedDay>=3)big(cm.joinedDay,'students joined Stall today','user','#38BDF8','Community');else if(cm.joinedWeek>=5)big(cm.joinedWeek,'students joined Stall this week','user','#38BDF8','Community');
+ if(cm.duesWeek>=5)big(cm.duesWeek,'class-dues payments made this week','list','#3B82F6','Class reps');
+ if(cm.verified>=10)big(cm.verified,'verified students and counting','badge','#A855F7','Trust');
+ for(const s of (cm.stores||[]).slice(0,3))act.push(`<article class="gc act" style="--tint:#14B8A6;--dotc:#2DD4BF"><span class="kk"><i></i>New campus store</span><span class="ico">${icon('store')}</span><b>${esc(s.name)}</b><small>opened${s.school?' at '+esc(s.school):''} · ${ago(s.at)}</small></article>`);
+ for(const v of (r&&r.reviews||[]).slice(0,3))act.push(`<article class="gc act" style="--tint:#FFB020"><span class="kk" style="color:#FFD27A">${'★'.repeat(v.stars)}</span><b style="font-size:17px;font-weight:700">“${esc(v.text)}”</b><small>${esc(v.who)}${v.school?' · '+esc(v.school):''}</small></article>`);
+ // weave: a scene, then two or three real moments, and so on
+ const out=[];let a=0;for(let s=0;s<sc.length;s++){out.push(sc[s]);for(let k=0;k<3&&a<act.length;k++)out.push(act[a++])}while(a<act.length)out.push(act[a++]);return out}
+function runLoop(r){const lane=$('#lane'),wrap=$('#loop');lane.innerHTML=lifeCards(r).join('');const cards=$$('#lane .gc');if(!cards.length)return;
+ if(LITE||(navigator.hardwareConcurrency||8)<=4)wrap.classList.add('noglass');
+ const gap=innerWidth<700?250:300,W=cards.length*gap;let off=0,v=RM?0:42,hold=false,drag=null,last=performance.now(),vis=false;
+ const place=()=>{const half=W/2;cards.forEach((c,i)=>{let x=((i*gap-off)%W+W)%W;if(x>half)x-=W;const d=x/(innerWidth*.5),ad=Math.min(1.4,Math.abs(d));
+  c.style.transform=`translateX(${x}px) translateZ(${-ad*260}px) rotateY(${Math.max(-55,Math.min(55,-d*38))}deg)`;c.style.opacity=Math.max(0,1-Math.max(0,ad-.9)*1.6);c.style.zIndex=1000-Math.round(ad*100)})};
+ const tick=t=>{const dt=Math.min(64,t-last);last=t;if(vis&&!hold&&!drag&&!document.hidden){off+=v*dt/1000;place()}requestAnimationFrame(tick)};
+ wrap.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse')hold=true});wrap.addEventListener('pointerleave',()=>hold=false);
+ wrap.addEventListener('pointerdown',e=>{drag={x:e.clientX,o:off};wrap.setPointerCapture(e.pointerId)});
+ wrap.addEventListener('pointermove',e=>{if(drag){off=drag.o-(e.clientX-drag.x)*1.2;place()}});
+ const up=()=>{drag=null};wrap.addEventListener('pointerup',up);wrap.addEventListener('pointercancel',up);
+ new IntersectionObserver(es=>es.forEach(e=>vis=e.isIntersecting)).observe(wrap);place();requestAnimationFrame(tick)}
 
 // ---- campus ambassadors
 $('#ambF').addEventListener('submit',async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button');b.disabled=true;
