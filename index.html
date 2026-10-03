@@ -181,6 +181,7 @@ dialog.adm[open]{display:flex;flex-direction:column}
 .rimg.big{width:min(420px,100%);height:auto;cursor:zoom-out;order:9;flex-basis:100%}
 .arow:has(.rimg.big){flex-wrap:wrap}
 .rjf{margin-top:10px;display:grid;gap:8px;max-width:420px}
+.aibox{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--bg2);border-left:3px solid var(--acc);max-width:560px}.aibox p{margin:6px 0 0;font-size:14px}.aibox .ttl{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .agree{display:flex;gap:10px;align-items:flex-start;background:var(--bg2);border-radius:12px;padding:10px 12px;margin:10px 0;font-size:14px;line-height:1.45;cursor:pointer}.agree input{margin:2px 0 0;width:18px;height:18px;flex:none;accent-color:var(--acc)}
 .rules{margin:8px 0;padding-left:18px;font-size:14px;line-height:1.5}.rules li{margin:4px 0}
 .ev{background:var(--bg2);border-radius:12px;padding:10px 12px;margin:8px 0}.ev img{display:block;max-width:100%;border-radius:10px;margin-top:8px}.ev.s{border-left:3px solid var(--acc)}.ev.b{border-left:3px solid var(--green,#16a34a)}
@@ -420,6 +421,8 @@ html.naija .eyebrow{background:rgba(255,255,255,.16);color:#fff}html.naija .prom
 html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{background:rgba(0,0,0,.14);border-color:rgba(255,255,255,.35)}
 .naija-line{margin-top:10px!important;font-size:15px!important;color:#fff!important;display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}.naija-line .flag{width:24px;height:16px}
 .confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60}
+/* .flag is also the red warning text in admin rows: keep the flag icon's size rules off it. */
+small.flag,b.flag,span.flag{width:auto;height:auto;border-radius:0;box-shadow:none;vertical-align:baseline}
 @media (prefers-reduced-motion:reduce){.flag.wave,html.naija .promo::before{animation:none}}
 /* ===== Onboarding ===== */
 #gate.obg{padding:0;background:#070B16;overflow:hidden}
@@ -927,6 +930,12 @@ async function openEvidence(oid){const d=$('#accDlg');d.innerHTML='<div class="p
   d.innerHTML=`<div class="pad"><h2>Both sides</h2><p class="meta">Everything the buyer and seller sent about this order. Stall reads both before deciding.</p>
    ${(r.items||[]).map(x=>`<div class="ev ${x.side==='seller'?'s':'b'}"><b>${x.side==='seller'?'Seller':'Buyer'}</b> <span class="meta">· ${esc(x.who||'')} · ${ago(x.t)}</span>${x.text?`<p style="margin-top:4px">${esc(x.text)}</p>`:''}${x.photo?`<img src="${x.photo}" alt="Photo from the ${x.side}">`:''}</div>`).join('')||'<p class="meta">Nothing yet.</p>'}
    <div class="acts"><button class="pill alt" data-close>Close</button></div></div>`}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-aiask],[data-aiuse]');if(!b)return;
+  if(b.dataset.aiask){b.disabled=true;b.textContent='Asking…';const r=await apiPost('admin/orders/ai',{id:+b.dataset.aiask});b.disabled=false;if(r.error){b.textContent='Ask again';return toast(r.error)}toast('Suggestion updated');adminLoad();return}
+  const id=+b.dataset.aiuse,pick=b.dataset.pick,sk=$('#stk'+id);
+  if(!confirm(pick==='refund'?'Refund the buyer in full and close this report?':'Pay the seller and close this report?'))return;
+  const r=await apiPost('admin/orders/decide',pick==='refund'?{id,approve:false,reason:'Stall looked at both sides and decided to refund you',strike:sk?sk.checked:false}:{id,approve:true,strike:sk?sk.checked:false});
+  if(r.error)return toast(r.error);toast(pick==='refund'?'Buyer refunded':'Seller is being paid');adminSum();adminLoad()});
 // Admin -> Settings -> Danger zone: shows what would be deleted, then needs CLEAR typed in.
 document.addEventListener('click',async e=>{if(!e.target.closest('#clearGo'))return;const r=await fetchJ('/api/admin/clear-test').catch(()=>({}));if(r.error)return toast(r.error);
   const w=r.what||{},list=Object.entries(w).map(([k,v])=>v.toLocaleString()+' '+k).join(', ');$('#clearWhat').textContent='This deletes '+list+'.';
@@ -1793,6 +1802,13 @@ async function adminLoad(){const k=AD.tab,S0=ast(k),n=++AD.n,el=()=>n===AD.n&&$(
   const a=S0.page*r.ps+1,z=S0.page*r.ps+r.items.length;
   el().innerHTML=(r.items.length?r.items.map(R).join(''):`<p class="meta" style="padding:30px 0;text-align:center">${E}</p>`)
    +(r.total>r.items.length||S0.page?`<div class="pager"><button class="pill sm alt" data-pg="-1" ${S0.page?'':'disabled'}>Previous</button><span>${a.toLocaleString()}–${z.toLocaleString()} of ${r.total.toLocaleString()}</span><button class="pill sm alt" data-pg="1" ${z<r.total?'':'disabled'}>Next</button></div>`:r.items.length?`<p class="meta" style="margin-top:12px">${r.total.toLocaleString()} total</p>`:'')}
+// AI suggestion on a contested report: advice only, the admin taps to apply it.
+function aiBox(x){const a=x.ai;if(!x.aiOn&&!a)return '';
+  if(!a)return `<div class="aibox"><b>AI suggestion</b><p class="meta">Not ready yet. It usually appears within a minute of the second side answering.</p><div class="aacts"><button class="pill sm alt" data-aiask="${x.id}">Ask the AI now</button></div></div>`;
+  const L={refund:'Refund the buyer',release:'Pay the seller',unsure:'Not sure'}[a.decision],k=a.decision==='unsure'?'warn':a.confidence>=75?'ok':'warn';
+  return `<div class="aibox"><div class="ttl"><b>AI suggestion: ${L}</b>${a.decision!=='unsure'?bdg(a.confidence+'% sure',k):''}${x.aiStale?bdg('New evidence since','warn'):''}</div>
+   <p>${esc(a.reason)}</p>${a.missing?`<p class="meta">Would settle it: ${esc(a.missing)}</p>`:''}<p class="meta">Read both sides before you tap. The AI can be wrong, and it never decides on its own.${a.photos?' It looked at '+a.photos+' photo'+(a.photos>1?'s':'')+'.':''}</p>
+   <div class="aacts">${a.decision!=='unsure'?`<button class="pill sm" data-aiuse="${x.id}" data-pick="${a.decision}">Use suggestion: ${L.toLowerCase()}</button>`:''}<button class="pill sm alt" data-aiask="${x.id}">Ask again</button></div></div>`}
 function aOrder(x){const[l,kk]=OST[x.status]||[x.status,''],rev=x.status==='under_review',mis=x.rAmount!=null&&x.rAmount!==x.amount;
   return `<div class="arow">${x.hasReceipt?`<img class="rimg" data-zoom src="/api/admin/receipt/${x.id}" alt="Receipt for order ${x.id}" loading="lazy">`:''}<div class="t">
    <div class="ttl"><b>#${x.id} · ${esc(x.title)}</b>${bdg(l,kk)}</div>
@@ -1800,7 +1816,8 @@ function aOrder(x){const[l,kk]=OST[x.status]||[x.status,''],rev=x.status==='unde
    <small>Buyer: ${esc(x.buyerName)} ${wa(x.buyerPhone)}</small>${x.method?`<small>${x.method==='delivery'?'Delivery to <b>'+esc(x.addr||'')+'</b>'+(x.dphone?' · '+esc(x.dphone):''):'Pickup'}${x.stage?' · step: '+esc({paid:'paid',packed:'packed',on_way:'on the way',ready:'ready',done:'done'}[x.stage]||x.stage):''}</small>`:''}<small>Seller: ${esc(x.sellerName)} ${wa(x.sellerPhone)} · pays to ${esc(x.bank||'')} ${esc(x.acct||'')} (${esc(x.acctName||'')})</small>
    ${x.note?`<small class="flag">${esc(x.note)}</small>`:''}
    ${x.status==='disputed'?`<small>Reported by the <b>${esc(x.dispBy||'buyer')}</b>${x.dispReply?' · <b class="flag">both sides disagree: needs your decision</b>':x.dispDue?' · <b>nothing to do yet</b>: the other side can accept or answer until '+new Date(x.dispDue).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'})+', otherwise it\'s decided for the '+esc(x.dispBy||'buyer')+' automatically':''}${x.handedAt?' · seller marked it handed over':''} · <button class="link" data-oev="${x.id}">See both sides (${x.evidence||0})</button></small>
-     <label class="agree" style="margin:6px 0 0;max-width:420px"><input type="checkbox" id="stk${x.id}" checked><span>Give a strike to the side that loses. Untick if nobody was at fault (e.g. damaged by a courier).</span></label>`:''}
+     <label class="agree" style="margin:6px 0 0;max-width:420px"><input type="checkbox" id="stk${x.id}" checked><span>Give a strike to the side that loses. Untick if nobody was at fault (e.g. damaged by a courier).</span></label>
+     ${x.dispReply?aiBox(x):''}`:''}
    ${x.decidedBy?`<small>${x.decision==='approved'?'Approved':'Rejected'} by <b>${esc(x.decidedBy)}</b> · ${new Date(x.decidedAt).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'})}</small>`:''}
    <small>${rev?'Flagged':'Updated'} ${aAgo(x.updated||x.created)}${x.status==='verified'?' · release code not used yet':''}${x.status==='released'?' · release code used':''}</small>
    ${rev?`<form id="rj${x.id}" data-rjf="${x.id}" class="rjf" hidden><select name="why"><option>Item was not delivered</option><option>Item was not as described</option><option>Item sold out</option><option>Buyer paid twice</option><option>Seller could not fulfil the order</option><option value="">Other reason</option></select><input name="more" maxlength="120" placeholder="Extra note for the buyer (optional)"><div class="aacts"><button class="pill sm red" type="submit">Refund and cancel</button><button class="pill sm alt" type="button" data-rj="${x.id}">Cancel</button></div></form>`:''}
