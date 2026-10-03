@@ -1834,15 +1834,20 @@ const NAV={s:[],r:0,v:'shop',cur:{},lc:null};
       if(!NAV.r&&d.open&&c&&(c.fn!==n||JSON.stringify(c.args)!==JSON.stringify(a)))push({k:'scr',id,prev:c});
       NAV.cur[id]=nw;return f.apply(this,a)}}
   const fv=window.view;window.view=function(v,...a){const pv=NAV.v,r=fv.call(this,v,...a);NAV.v=v;if(!NAV.r&&pv!==v)push({k:'view',prev:pv});return r};
-  const live=e=>e.k==='dlg'?e.el.open:e.k==='scr'?document.getElementById(e.id).open:NAV.v!==e.prev;
+  const rel=(e,d)=>d&&(e.k==='dlg'?e.el===d:e.k==='scr'&&e.id===d.id);
+  const live=e=>rel(e,NAV.cx)||(e.k==='dlg'?e.el.open:e.k==='scr'?document.getElementById(e.id).open:NAV.v!==e.prev);
   const call=s=>{try{window[s.fn](...s.args)}catch(_){}};
   const undo=e=>{NAV.r=1;try{
-    if(e.k==='dlg')e.el.close();else if(e.k==='scr')call(e.prev);else window.view(e.prev);
+    if(e.k==='dlg'){if(e.el.open)e.el.close()}else if(e.k==='scr'){const d=document.getElementById(e.id);if(!d.open)d.showModal();call(e.prev)}else window.view(e.prev);
     const u=e.under;if(u){if(!u.el.open)u.el.showModal();if(u.scr)call(u.scr)}}finally{NAV.r=0}};
   if(history.state&&history.state.nav)history.replaceState(null,'');
   addEventListener('popstate',ev=>{const nd=(ev.state&&ev.state.nav)||0;let acted=0;
     while(NAV.s.length>nd){const e=NAV.s.pop();if(live(e)){undo(e);acted=1}}
-    NAV.lc=null;if(!acted)history.back()});
+    NAV.lc=null;if(acted)NAV.cx=null;else history.back()});
+  // Android's back gesture (and Esc) closes an open dialog directly instead of going back in history. Turn that into a real "back".
+  document.addEventListener('cancel',ev=>{const d=ev.target;if(!(d instanceof HTMLDialogElement))return;
+    const t=[...NAV.s].reverse().find(live);if(!t||!rel(t,d))return;
+    if(ev.cancelable)ev.preventDefault();NAV.cx=d;history.back()},true);
 })();
 (async()=>{const ref=new URLSearchParams(location.search).get('reference');if(!ref)return;history.replaceState(null,'','/');
   // The server remembers every payment, so this works even if Paystack sends you back to a different tab or browser.
