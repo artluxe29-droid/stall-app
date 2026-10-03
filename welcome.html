@@ -58,7 +58,7 @@ img{display:block;max-width:100%}
 .btn.sm{min-height:40px;padding:0 16px;font-size:14px;border-radius:10px}
 .btn .ic{width:18px;height:18px}
 /* reveal */
-.rv{opacity:0;transform:translateY(16px);transition:opacity .7s var(--ease),transform .7s var(--ease);transition-delay:var(--d,0s)}
+.rv{opacity:0;transform:perspective(900px) translateY(22px) rotateX(7deg);transform-origin:50% 100%;transition:opacity .7s var(--ease),transform .7s var(--ease);transition-delay:var(--d,0s)}
 .rv.in{opacity:1;transform:none}
 /* section frame */
 section{position:relative}
@@ -84,7 +84,27 @@ section{position:relative}
 /* ---------- hero ---------- */
 .hero{padding:calc(72px + var(--s7)) 0 var(--s7);overflow:hidden}
 .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(48% 55% at 78% 42%,rgba(255,159,28,.13),transparent 70%),radial-gradient(40% 50% at 10% 0%,rgba(59,130,246,.10),transparent 70%);pointer-events:none}
-.hero::after{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:56px 56px;-webkit-mask-image:radial-gradient(60% 60% at 70% 40%,#000,transparent 75%);mask-image:radial-gradient(60% 60% at 70% 40%,#000,transparent 75%);opacity:.35;pointer-events:none}
+/* hero atmosphere: drifting light, a perspective floor, a halo behind the phone */
+.aur{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.aur i{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5;animation:drift 22s ease-in-out infinite alternate}
+.aur i:nth-child(1){width:520px;height:520px;right:2%;top:4%;background:rgba(255,159,28,.28)}
+.aur i:nth-child(2){width:420px;height:420px;left:-6%;top:-12%;background:rgba(59,130,246,.18);animation-duration:27s}
+.aur i:nth-child(3){width:360px;height:360px;right:28%;bottom:-18%;background:rgba(236,72,153,.10);animation-duration:31s;animation-delay:-8s}
+@keyframes drift{to{transform:translate3d(-60px,40px,0) scale(1.15)}}
+.floor{position:absolute;left:-30%;right:-30%;bottom:-6%;height:46%;transform:perspective(600px) rotateX(70deg);transform-origin:50% 100%;pointer-events:none;
+ background-image:linear-gradient(rgba(255,159,28,.22) 1px,transparent 1px),linear-gradient(90deg,rgba(255,159,28,.14) 1px,transparent 1px);background-size:60px 60px;
+ -webkit-mask-image:linear-gradient(to top,#000 0%,transparent 80%);mask-image:linear-gradient(to top,#000 0%,transparent 80%);opacity:.5;animation:floor 4s linear infinite}
+@keyframes floor{to{background-position:0 60px,0 0}}
+.rig{position:relative;transform-style:preserve-3d;transition:transform .5s var(--ease)}
+.halo{position:absolute;left:50%;top:50%;width:440px;height:440px;margin:-220px;border-radius:50%;background:conic-gradient(from 0deg,rgba(255,159,28,0),rgba(255,159,28,.45),rgba(59,130,246,.25),rgba(255,159,28,0) 70%);filter:blur(40px);opacity:.7;animation:spin 18s linear infinite;transform:translateZ(-120px)}
+@keyframes spin{to{transform:translateZ(-120px) rotate(360deg)}}
+.pshadow{position:absolute;left:50%;bottom:-36px;width:240px;height:36px;margin-left:-120px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.65),transparent);filter:blur(6px)}
+.chip-card{transform:translateZ(var(--z,80px));animation:none}
+.chip-card .in{display:flex;gap:12px;align-items:center;animation:bob 6s ease-in-out infinite;animation-delay:var(--fd,0s)}
+.chip-card.c2{left:auto;right:-30%;top:6%;min-width:0;max-width:none}
+.chip-card.c2 .lk{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;background:var(--ok-soft);color:var(--ok);flex:none}
+.chip-card.c2 .meter{height:4px;border-radius:2px;background:rgba(255,255,255,.08);margin-top:6px;overflow:hidden;width:120px}.chip-card.c2 .meter i{display:block;height:100%;width:40%;background:var(--ok);animation:meter 4s var(--ease) infinite}
+@keyframes meter{0%{width:10%}60%,100%{width:100%}}
 .hero .w{position:relative;z-index:1;display:grid;grid-template-columns:1.1fr .9fr;gap:var(--s6);align-items:center}
 .pill{display:inline-flex;align-items:center;gap:10px;padding:6px 14px 6px 8px;border-radius:99px;border:1px solid var(--line-2);background:rgba(255,255,255,.03);font-size:14px;font-weight:600;color:var(--ink-2)}
 .pill .ldot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(52,211,153,.6);animation:ping 2s infinite;margin-left:6px}
@@ -104,12 +124,13 @@ section{position:relative}
 .device .screen::after{content:'';position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,255,255,.16),transparent 30%);pointer-events:none}
 .device .cam{position:absolute;top:10px;left:50%;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:#0B1020;z-index:2}
 .device .side{position:absolute;right:-3px;top:120px;width:3px;height:56px;border-radius:0 3px 3px 0;background:#29324D}
-.chip-card{position:absolute;display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:14px;background:rgba(18,26,47,.9);border:1px solid var(--line-2);box-shadow:var(--shadow);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);min-width:200px;max-width:240px;animation:bob 6s ease-in-out infinite}
+.chip-card{position:absolute;padding:12px 14px;border-radius:14px;background:rgba(18,26,47,.94);border:1px solid var(--line-2);box-shadow:var(--shadow);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);min-width:200px;max-width:240px}
+#chips{position:absolute;inset:0;transform-style:preserve-3d;pointer-events:none}
 .chip-card .bub{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;flex:none}.chip-card .bub svg{width:20px;height:20px}
 .chip-card b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.chip-card small{font-size:12.5px;color:var(--muted)}
 .chip-card .pr{color:var(--acc);font-weight:700}
-.chip-card.c0{left:-6%;top:22%}.chip-card.c1{right:-8%;bottom:20%;animation-delay:-3s}
-@keyframes bob{50%{transform:translateY(-8px)}}
+.chip-card.c0{left:-24%;top:30%}.chip-card.c1{right:-22%;bottom:16%}
+@keyframes bob{50%{transform:translateY(-10px)}}
 .dots-nav{display:flex;gap:6px;justify-content:center;margin-top:var(--s3)}
 .dots-nav button{width:8px;height:8px;padding:0;border:0;border-radius:4px;background:var(--line-2);cursor:pointer;transition:width .3s var(--ease),background .3s}
 .dots-nav button.on{width:24px;background:var(--acc)}
@@ -147,7 +168,7 @@ section{position:relative}
 .diagram .lane.alert.on{stroke:var(--bad);stroke-dasharray:4 8;animation:flow 1s linear infinite}
 @keyframes flow{to{stroke-dashoffset:-20}}
 .diagram .lbl{font-size:18px;font-weight:700;fill:var(--dim);font-family:inherit;text-anchor:middle;letter-spacing:.06em;text-transform:uppercase}
-.diagram .tok{transition:opacity .3s}
+.diagram .tok{transition:opacity .3s}.diagram .tok g{display:none}.diagram .tok g.on{display:inline}
 .legend{display:flex;flex-wrap:wrap;gap:var(--s3);margin-top:var(--s3);font-size:14px;color:var(--muted)}
 .legend span{display:inline-flex;align-items:center;gap:8px}.legend i{width:18px;height:3px;border-radius:2px}
 .steps{display:grid;gap:10px}
@@ -220,6 +241,23 @@ section{position:relative}
 .mock .bub{display:inline-block;padding:8px 12px;border-radius:14px;max-width:80%;line-height:1.4}
 .mock .me{background:var(--acc);color:var(--acc-ink);border-bottom-right-radius:4px;margin-left:auto}.mock .them{background:var(--surface-2);border-bottom-left-radius:4px}
 .mock .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;background:var(--ok-soft);color:var(--ok);font-weight:700;font-size:13px}
+/* feature vignettes animate when they come into view */
+.tile.in .mock .prog i{animation:fill 1.8s var(--ease) .3s both}@keyframes fill{from{width:0}}
+.mock .bub{opacity:0}.tile.in .mock .bub,.tile.in .mock .typing{animation:chat 7s var(--ease) infinite}
+.tile.in .mock .bub.them{animation-delay:.2s}.tile.in .mock .typing{animation-name:typing;animation-delay:.2s}.tile.in .mock .bub.me{animation-name:chat2;animation-delay:.2s}
+@keyframes chat{0%{opacity:0;transform:translateY(8px)}8%,85%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes typing{0%,14%{opacity:0;height:0;padding:0 12px}18%,32%{opacity:1;height:30px;padding:8px 12px}36%,100%{opacity:0;height:0;padding:0 12px}}
+@keyframes chat2{0%,34%{opacity:0;transform:translateY(8px)}40%,85%{opacity:1;transform:none}100%{opacity:0}}
+.mock .typing{display:inline-flex;gap:4px;align-items:center;width:max-content;margin-left:auto;border-radius:14px;background:var(--acc);opacity:0;height:0;overflow:hidden}
+.mock .typing i{width:6px;height:6px;border-radius:50%;background:var(--acc-ink);opacity:.6;animation:tdot 1s infinite}.mock .typing i:nth-child(2){animation-delay:.15s}.mock .typing i:nth-child(3){animation-delay:.3s}
+@keyframes tdot{50%{transform:translateY(-3px);opacity:1}}
+.mock .badge{position:relative;overflow:hidden}.mock .badge::after{content:'';position:absolute;top:0;bottom:0;width:40%;left:-60%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-20deg);animation:shine 3.2s ease-in-out infinite}
+@keyframes shine{0%,60%{left:-60%}100%{left:130%}}
+.mock .live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:6px;animation:ping 2s infinite}
+.mock .bars{display:flex;gap:3px;align-items:center;height:22px;margin-right:auto;margin-left:12px}.mock .bars i{width:3px;border-radius:2px;background:var(--acc);height:30%;animation:bar 1s ease-in-out infinite}
+.mock .bars i:nth-child(2){animation-delay:.1s}.mock .bars i:nth-child(3){animation-delay:.2s}.mock .bars i:nth-child(4){animation-delay:.3s}.mock .bars i:nth-child(5){animation-delay:.4s}
+@keyframes bar{50%{height:100%}}
+.mock .mic{position:relative}.mock .mic::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:2px solid var(--acc);animation:mp 1.4s infinite}
 .mock .mic{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--acc);color:var(--acc-ink);flex:none}
 /* ---------- explore ---------- */
 .tabs{display:inline-flex;gap:4px;padding:4px;border-radius:12px;background:var(--surface);border:1px solid var(--line);margin-bottom:var(--s4)}
@@ -323,6 +361,15 @@ section{position:relative}
 .final .box{position:relative;overflow:hidden;padding:var(--s6) var(--s5);border-radius:var(--r-xl);background:linear-gradient(135deg,#1A2440,#121A2F);border:1px solid var(--line-2);display:flex;flex-wrap:wrap;gap:var(--s4);align-items:center;justify-content:space-between}
 .final .box::after{content:'';position:absolute;right:-10%;top:-60%;width:60%;height:200%;background:radial-gradient(closest-side,rgba(255,159,28,.18),transparent);pointer-events:none}
 .final .h2{max-width:16ch}
+.final .box{min-height:300px}.final .box>*{position:relative;z-index:1}
+.peek{position:absolute!important;z-index:0!important;right:7%;bottom:-170px;width:210px;padding:8px;border-radius:34px;background:linear-gradient(145deg,#1F2942,#0B1120);box-shadow:0 30px 60px -20px rgba(0,0,0,.9);transform:rotate(-12deg);transition:transform .8s var(--ease)}
+.final .box.in .peek{transform:rotate(-8deg) translateY(-20px)}
+.peek img{border-radius:27px;aspect-ratio:9/16;object-fit:cover;width:100%}
+@media(min-width:861px){.final .box{flex-direction:column;align-items:flex-start;justify-content:center}.final .box h2,.final .box .cta{max-width:62%}}
+.final .box::before{content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:linear-gradient(120deg,rgba(255,159,28,.6),transparent 40%,transparent 60%,rgba(59,130,246,.5));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.mark{font-size:clamp(96px,20vw,280px);font-weight:800;letter-spacing:-.06em;line-height:.8;margin-top:var(--s5);background:linear-gradient(180deg,rgba(241,245,249,.10),rgba(241,245,249,0) 85%);-webkit-background-clip:text;background-clip:text;color:transparent;user-select:none;white-space:nowrap}
+.mark i{font-style:normal;-webkit-text-fill-color:rgba(255,159,28,.35)}
+.faq-tabs{margin-bottom:var(--s3)}
 footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));border-top:1px solid var(--line)}
 .fgrid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:var(--s4)}
 .fgrid h4{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:var(--s2)}
@@ -352,7 +399,10 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
  .cta .btn{flex:1 1 100%}
  .proof{gap:var(--s3);margin-top:var(--s4)}
  .device{width:244px;transform:none}
- .chip-card{display:none}
+ .chip-card{min-width:0;max-width:172px;padding:9px 11px;transform:translateZ(40px)}.chip-card .in{gap:9px}.chip-card .bub,.chip-card .lk{width:32px!important;height:32px!important}.chip-card b{font-size:12.5px}.chip-card small{font-size:11px}
+ .chip-card.c0{left:-14px;top:12%}.chip-card.c1{display:none}.chip-card.c2{right:-8px;top:auto;bottom:14%;max-width:190px}.chip-card.c2 b{white-space:normal}.chip-card.c2 .meter{width:90px}
+ .halo{width:300px;height:300px;margin:-150px}.floor{height:30%}
+ .peek{display:none}
  .strip .w{flex-direction:column;align-items:flex-start;gap:var(--s2)}.strip .marquee{width:100%}
  .pair{grid-template-columns:1fr;gap:12px;padding:var(--s3) 20px}.pair .arw{transform:rotate(90deg)}
  .diagram{padding:var(--s2) 4px var(--s3);border-radius:var(--r-lg)}.diagram .legend{padding:0 14px;gap:12px 18px}
@@ -370,7 +420,7 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
  .revs{grid-template-columns:1fr}
  .lrow{padding:14px 16px}.lrow small .nm{display:none}
  .formcard{padding:var(--s3) 20px}
- .final .box{padding:var(--s5) var(--s3)}.final .box .btn{flex:1 1 100%}
+ .final .box{padding:var(--s5) var(--s3);min-height:0}.final .box .btn{flex:1 1 100%}
  .fgrid{grid-template-columns:1fr 1fr;gap:var(--s3)}.fgrid>div:first-child{grid-column:1/-1}
 }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}}
@@ -419,6 +469,7 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
 
 <main>
 <section class="hero" id="top">
+ <div class="aur" aria-hidden="true"><i></i><i></i><i></i></div><div class="floor" aria-hidden="true"></div>
  <div class="w">
   <div>
    <span class="pill rv"><span class="ldot"></span><span id="pillTxt">The student marketplace for Nigeria</span></span>
@@ -433,12 +484,13 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
   </div>
   <div class="rv" style="--d:.1s">
    <div class="stage-phone">
+    <div class="rig" id="rig"><div class="halo" aria-hidden="true"></div>
     <div class="device" id="heroPhone"><div class="screen" id="shots" aria-live="off">
      <img class="shot on" src="/site/home.webp" alt="Stall app: home screen" width="450" height="800" fetchpriority="high">
      <img class="shot" data-src="/site/browse.webp" alt="Stall app: browsing items" width="450" height="800"><img class="shot" data-src="/site/item.webp" alt="Stall app: an item with delivery" width="450" height="800">
      <img class="shot" data-src="/site/pay.webp" alt="Stall app: checkout" width="450" height="800"><img class="shot" data-src="/site/orders.webp" alt="Stall app: tracking an order" width="450" height="800"><img class="shot" data-src="/site/chat.webp" alt="Stall app: chatting with a seller" width="450" height="800">
      <span class="cam"></span></div><span class="side"></span></div>
-    <div id="chips"></div>
+    <div id="chips"></div><span class="pshadow" aria-hidden="true"></span></div>
    </div>
    <div class="dots-nav" id="shotDots" role="tablist" aria-label="App screens"></div>
   </div>
@@ -478,7 +530,13 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
      <g class="node" id="nB" transform="translate(150 180)"><circle r="56"/><svg x="-20" y="-34" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="icon"><use href="#i-user"/></svg><text y="30">You</text></g>
      <g class="node vault" id="nV" transform="translate(400 150)"><circle r="64"/><svg x="-20" y="-40" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="icon"><use href="#i-lock"/></svg><text y="24">Stall</text><text class="sub" y="100">Holds the money only</text></g>
      <g class="node" id="nS" transform="translate(650 180)"><circle r="56"/><svg x="-20" y="-34" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="icon"><use href="#i-store"/></svg><text y="30">Seller</text></g>
-     <g class="tok" id="tok" opacity="0"><circle r="22" id="tokC"/><text id="tokT" y="8" text-anchor="middle" font-size="22" font-weight="800"></text></g>
+     <defs><radialGradient id="coinG" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#FFF1C2"/><stop offset=".5" stop-color="#FFC233"/><stop offset="1" stop-color="#D88A00"/></radialGradient></defs>
+     <g class="tok" id="tok" opacity="0">
+      <g data-k="coin"><circle r="24" fill="url(#coinG)" stroke="#B87400" stroke-width="2"/><text y="9" text-anchor="middle" font-size="26" font-weight="800" fill="#6B4200">₦</text></g>
+      <g data-k="box"><rect x="-22" y="-20" width="44" height="40" rx="7" fill="#C08A52" stroke="#8A5A2B" stroke-width="2"/><rect x="-4" y="-20" width="8" height="40" fill="#E9C79A"/><text y="44" text-anchor="middle" font-size="16" font-weight="800" fill="#E9C79A">Item</text></g>
+      <g data-k="key"><rect x="-40" y="-16" width="80" height="32" rx="9" fill="#ECFDF5" stroke="#34D399" stroke-width="2"/><text y="6" text-anchor="middle" font-size="16" font-weight="800" fill="#065F46" letter-spacing="1">7Q4K</text></g>
+      <g data-k="alert"><circle r="22" fill="#F87171"/><text y="9" text-anchor="middle" font-size="26" font-weight="800" fill="#1A0606">!</text></g>
+     </g>
     </svg>
     <div class="legend"><span><i style="background:var(--acc)"></i>Money</span><span><i style="background:#93C5FD"></i>Item</span><span><i style="background:var(--ok)"></i>Release code</span><span><i style="background:var(--bad)"></i>Problem report</span></div>
    </div>
@@ -512,12 +570,12 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
   <div class="sec-head"><span class="kicker rv">Features</span><h2 class="h2 rv" style="--d:.05s">Everything campus trade needs, in one app.</h2></div>
   <div class="bento">
    <article class="tile w3 rv"><span class="ti"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-list"/></svg></span><span class="tag">For class reps</span><h3>Collect class dues without chasing anyone</h3><p>Share one link. Everyone pays in the app, and the list of who has paid updates itself. The money goes straight to your bank.</p>
-    <div class="mock"><div class="row"><b>CSC 300L handout fee</b><span class="small">₦1,500 each</span></div><div class="prog"><i></i></div><div class="row" style="margin-top:8px"><span class="small">38 of 52 paid</span><span class="small" style="color:var(--ok)">Updated just now</span></div></div></article>
+    <div class="mock"><div class="row"><b>CSC 300L handout fee</b><span class="small">₦1,500 each</span></div><div class="prog"><i></i></div><div class="row" style="margin-top:8px"><span class="small"><b data-cnt="38" style="color:var(--ink)">38</b> of 52 paid</span><span class="small" style="color:var(--ok)">Updated just now</span></div></div></article>
    <article class="tile w3 rv" style="--d:.06s"><span class="ti"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-store"/></svg></span><span class="tag">For campus businesses</span><h3>Open a store, take orders between lectures</h3><p>Food, hair, printing, phone repairs: list your menu once, take paid orders and offer delivery across campus.</p>
-    <div class="mock"><div class="row"><span style="display:flex;gap:10px;align-items:center"><span style="width:32px;height:32px;border-radius:8px;background:#FEF3C7;color:#D97706;display:grid;place-items:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><use href="#i-food"/></svg></span><b>Jollof rice + chicken</b></span><b>₦2,500</b></div><div class="row"><span class="small">Delivery to hostels · 20 min</span><span class="small" style="color:var(--ok)">Open now</span></div></div></article>
+    <div class="mock"><div class="row"><span style="display:flex;gap:10px;align-items:center"><span style="width:32px;height:32px;border-radius:8px;background:#FEF3C7;color:#D97706;display:grid;place-items:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><use href="#i-food"/></svg></span><b>Jollof rice + chicken</b></span><b>₦2,500</b></div><div class="row"><span class="small">Delivery to hostels · 20 min</span><span class="small" style="color:var(--ok)"><span class="live-dot"></span>Open now</span></div></div></article>
    <article class="tile w2 rv"><span class="ti"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-badge"/></svg></span><h3>Verified students</h3><p>Show your student ID once. Buyers choose verified sellers first.</p><div class="mock"><span class="badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><use href="#i-check"/></svg>Verified student</span></div></article>
-   <article class="tile w2 rv" style="--d:.06s"><span class="ti"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chat"/></svg></span><h3>Chat and delivery</h3><p>Agree on pickup or delivery in the app, so there's a record if anything goes wrong.</p><div class="mock" style="display:grid;gap:8px"><span class="bub them">Is it still available?</span><span class="bub me">Yes! Meet at the faculty gate by 2?</span></div></article>
-   <article class="tile w2 rv" style="--d:.12s"><span class="ti"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-mic"/></svg></span><h3>Just say what you want</h3><p>Voice search in plain English, and fair price suggestions when you sell.</p><div class="mock"><div class="row"><span>"fairly used iPhone under 100k"</span><span class="mic"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><use href="#i-mic"/></svg></span></div></div></article>
+   <article class="tile w2 rv" style="--d:.06s"><span class="ti"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chat"/></svg></span><h3>Chat and delivery</h3><p>Agree on pickup or delivery in the app, so there's a record if anything goes wrong.</p><div class="mock" style="display:grid;gap:8px;min-height:118px;align-content:start"><span class="bub them">Is it still available?</span><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span><span class="bub me">Yes! Meet at the faculty gate by 2?</span></div></article>
+   <article class="tile w2 rv" style="--d:.12s"><span class="ti"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-mic"/></svg></span><h3>Just say what you want</h3><p>Voice search in plain English, and fair price suggestions when you sell.</p><div class="mock"><div class="row"><span>"fairly used iPhone under 100k"</span><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span class="mic"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><use href="#i-mic"/></svg></span></div></div></article>
   </div>
  </div>
 </section>
@@ -559,15 +617,9 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
 </section>
 
 <section class="sec alt" id="faq">
- <div class="w"><div class="sec-head"><span class="kicker rv">Questions</span><h2 class="h2 rv" style="--d:.05s">Frequently asked.</h2></div>
-  <div class="faq rv">
-   <details><summary>Is Stall free?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Joining, browsing and buying are free. Listing single items is free too. When something sells, Stall keeps a small fee from the seller's payment (<span data-fee>a small percentage</span>). Optional extras, like featuring a listing or opening a store, are priced in the app before you pay.</p></details>
-   <details><summary>How does Stall keep my money safe?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>You pay through Stall's checkout (card, transfer or USSD, via Paystack). The money waits with Stall. The seller is paid only when you give them your release code or tap "I've got it". If the item never comes or isn't as described, you're refunded in full.</p></details>
-   <details><summary>What if the seller doesn't deliver?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>If the seller doesn't move your order on within <span data-t="send">24 hours</span>, you're refunded automatically. You can also cancel for free until the seller packs your order.</p></details>
-   <details><summary>Who can sell on Stall?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Students at Nigerian universities, polytechnics and colleges of education, and approved campus vendors. Students can get the Verified badge by showing a school document once.</p></details>
-   <details><summary>When do sellers get paid?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>As soon as the buyer's release code is entered, the money is sent to your bank. If the buyer doesn't respond, you're paid automatically <span data-t="pay">24 hours</span> after you mark the order on the way or ready.</p></details>
-   <details><summary>Do I need to download anything?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Stall installs straight from this page in a few seconds and takes almost no space. It also works in your browser.</p></details>
-  </div>
+ <div class="w"><div class="sec-head"><span class="kicker rv">Questions</span><h2 class="h2 rv" style="--d:.05s">Answers for buyers and sellers.</h2></div>
+  <div class="tabs faq-tabs rv" role="tablist" aria-label="Questions for"><button role="tab" aria-selected="true" data-fq="fqB">Buying</button><button role="tab" aria-selected="false" data-fq="fqS">Selling</button><button role="tab" aria-selected="false" data-fq="fqE">Everyone</button></div>
+  <div class="faq rv"><div id="fqB" role="tabpanel"><details><summary>Do buyers pay any extra fee?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>No. You pay the item price, plus the delivery fee if you choose delivery. That's it.</p></details><details><summary>How does Stall keep my money safe?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>You pay through Stall's checkout (card, transfer or USSD, via Paystack). The money waits with Stall, not the seller. The seller is paid only when you give them your release code or tap "I've got it".</p></details><details><summary>What if the seller doesn't deliver?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>If the seller doesn't move your order on within <span data-t="send">24 hours</span>, you're refunded automatically. No forms, no chasing.</p></details><details><summary>What if the item isn't what the photos showed?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Don't give your code. Tap "Report a problem" and add a photo. Your money stays with Stall while the seller answers, and if the item isn't as described, you're refunded in full.</p></details><details><summary>Can I cancel an order?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Yes, for free, until the seller marks it packed. After that, if something is wrong, report a problem instead.</p></details></div><div id="fqS" role="tabpanel" hidden><details><summary>What does it cost to sell?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Listing single items is free. When something sells, Stall keeps <span data-fee>a small percentage</span> of the item price. Delivery fees go to you in full. Opening a campus store is a one-time fee, shown in the app before you pay.</p></details><details><summary>When and how do I get paid?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Straight to your bank account, as soon as the buyer's release code is entered or they tap "I've got it". If the buyer goes quiet, you're paid automatically <span data-t="pay">24 hours</span> after you mark the order on the way or ready.</p></details><details><summary>Is the money really there before I hand over?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Yes. You only see an order once the buyer has paid. The money is already with Stall, so you never hand over an item hoping to be paid later.</p></details><details><summary>What if the buyer has the item but won't give me the code?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Tap "I handed it over" and add a photo if you can. The buyer then has <span data-t="hand">30 minutes</span> to confirm or report a problem. If they do neither, you're paid automatically.</p></details><details><summary>What if the buyer doesn't show up?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Once the order is ready, tap "Buyer didn't show up". The buyer is refunded and gets a strike. You don't.</p></details><details><summary>What if a buyer makes a false complaint?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>You get <span data-t="answer">4 hours</span> to give your side with photos, or to settle it. Stall decides fairly from both sides, and false reports count as strikes against the buyer. Sellers rate buyers too.</p></details></div><div id="fqE" role="tabpanel" hidden><details><summary>Who can use Stall?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Students at Nigerian universities, polytechnics and colleges of education, and approved campus vendors. Students can get the ✓ Verified badge by showing a school document once.</p></details><details><summary>Is my school on Stall?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Stall covers schools across Nigeria. If yours is missing, tell us in the Campus league section and we'll bring it on.</p></details><details><summary>Do I need to download anything?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Stall installs straight from this page in a few seconds and takes almost no space. It also works in your browser.</p></details><details><summary>What are strikes?<span class="pm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><use href="#i-plus"/></svg></span></summary><p>Strikes keep things fair for everyone: late cancels, no-shows, and problem reports you lose or don't answer. 3 in 30 days is a warning, and 5 pause the account for 14 days. The same rules apply to buyers and sellers.</p></details></div></div>
  </div>
 </section>
 
@@ -581,7 +633,7 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
  </div>
 </section>
 
-<section class="final"><div class="w"><div class="box rv"><h2 class="h2">Your campus marketplace is one tap away.</h2><div class="cta" style="margin:0"><a class="btn acc" href="#get">Get the app</a><a class="btn ghost" href="/app">Open in browser</a></div></div></div></section>
+<section class="final"><div class="w"><div class="box rv"><div class="peek" aria-hidden="true"><img data-src="/site/orders.webp" alt="" width="450" height="800" id="peekImg"></div><h2 class="h2">Your campus marketplace is one tap away.</h2><div class="cta" style="margin:0"><a class="btn acc" href="#get">Get the app</a><a class="btn ghost" href="/app">Open in browser</a></div></div></div></section>
 </main>
 
 <footer><div class="w">
@@ -591,6 +643,7 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
   <div><h4>Trust</h4><a href="/rules">Buyer protection &amp; rules</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/delete-account">Delete account</a></div>
   <div><h4>Contact</h4><span id="contact"><a href="#league">Bring Stall to your campus</a></span></div>
  </div>
+ <div class="mark" aria-hidden="true">Stall<i>.</i></div>
  <div class="legal"><span>© <span id="yr"></span> Stall. Made for Nigerian students.</span><span>Payments by Paystack</span></div>
 </div></footer>
 <div class="toast" id="toast" hidden role="status"></div>
@@ -630,9 +683,15 @@ const onView=(el,fn,th=.3)=>new IntersectionObserver((es,o)=>es.forEach(e=>{if(e
  [...D.children].forEach((b,k)=>b.addEventListener('click',()=>{go(k);clearInterval(timer)}));
  addEventListener('load',()=>setTimeout(load,800));
  if(!RM)timer=setInterval(()=>{if(!document.hidden&&scrollY<innerHeight)go((i+1)%S.length)},3600);
- if(!RM&&!SMALL){const dv=$('#heroPhone');addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;const x=(e.clientX/innerWidth-.5)*8,y=(e.clientY/innerHeight-.5)*6;dv.style.transform=`rotateY(${-10+x}deg) rotateX(${4-y}deg)`},{passive:true})}})();
-function drawChips(items){const L=items.filter(x=>x.k!=='joined').slice(0,2);if(L.length<2)return;
- $('#chips').innerHTML=L.map((x,i)=>{const[k,bg,fg]=cat(x.cat);return`<div class="chip-card c${i}" aria-hidden="true"><span class="bub" style="background:${bg};color:${fg}">${icon(k)}</span><span style="min-width:0"><small>${x.k==='sold'?'Just sold':'Just listed'} · ${esc(x.school||'')}</small><b>${esc(x.title)}</b><span class="pr">${naira(x.price)}</span></span></div>`}).join('')}
+ })();
+function drawChips(items){const L=items.filter(x=>x.k!=='joined').slice(0,2);
+ const lk=`<div class="chip-card c2" style="--z:150px" aria-hidden="true"><div class="in" style="--fd:-2s"><span class="lk">${icon('lock')}</span><span><small>Held safely by Stall</small><b>Paid. Waiting for handover</b><span class="meter"><i></i></span></span></div></div>`;
+ $('#chips').innerHTML=lk+(L.length<2?'':L.map((x,i)=>{const[k,bg,fg]=cat(x.cat);return`<div class="chip-card c${i}" style="--z:${i?110:70}px" aria-hidden="true"><div class="in" style="--fd:${-i*3}s"><span class="bub" style="background:${bg};color:${fg}">${icon(k)}</span><span style="min-width:0"><small>${x.k==='sold'?'Just sold':'Just listed'} · ${esc(x.school||'')}</small><b>${esc(x.title)}</b><span class="pr">${naira(x.price)}</span></span></div></div>`}).join(''))}
+// the whole stage turns gently with the mouse (or the phone's tilt), and as you scroll past
+(function(){if(RM)return;const rig=$('#rig');let tx=0,ty=0,sp=0;const set=()=>rig.style.transform=`rotateY(${tx-sp*10}deg) rotateX(${ty+sp*4}deg)`;
+ addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;tx=(e.clientX/innerWidth-.5)*14;ty=-(e.clientY/innerHeight-.5)*10;set()},{passive:true});
+ addEventListener('deviceorientation',e=>{if(e.gamma==null)return;tx=Math.max(-10,Math.min(10,e.gamma/4));ty=Math.max(-8,Math.min(8,(e.beta-50)/6));set()},{passive:true});
+ addEventListener('scroll',()=>{sp=Math.min(1,scrollY/innerHeight);set()},{passive:true})})();
 
 // ---- how it works: two roads, one diagram
 const TM={hand:30,answer:4,send:24,pay:24};const dur=(n,m)=>m?(n>=60&&n%60===0?(n===60?'1 hour':n/60+' hours'):n+' minutes'):(n===1?'1 hour':n+' hours');
@@ -649,8 +708,7 @@ function drawSteps(){const S=STEPS();$('#steps').innerHTML=S.map((s,k)=>`<button
 function showStep(k,fromUser){const S=STEPS();H.i=k;$$('#steps .step').forEach((b,j)=>b.setAttribute('aria-selected',j===k));
  $$('#diagram .lane').forEach(p=>p.classList.remove('on'));$$('#diagram .node').forEach(n=>n.classList.remove('on'));
  const s=S[k],path=$('#'+s.p);path.classList.add('on');s.n.forEach(id=>$('#'+id).classList.add('on'));
- const tok=$('#tok'),L=path.getTotalLength();$('#tokC').setAttribute('fill',s.c);$('#tokT').textContent=s.tk;$('#tokT').setAttribute('fill','#0A0F1E');
- if(s.box){$('#tokC').setAttribute('r',20)}else $('#tokC').setAttribute('r',22);
+ const tok=$('#tok'),L=path.getTotalLength(),kind=s.box?'box':s.key?'key':s.tk==='!'?'alert':'coin';$$('#tok g[data-k]').forEach(g=>g.classList.toggle('on',g.dataset.k===kind));
  cancelAnimationFrame(H.raf);const t0=performance.now(),D=RM?1:1400;tok.setAttribute('opacity',1);
  const f=t=>{const p=Math.min(1,(t-t0)/D),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2,pt=path.getPointAtLength(L*e);tok.setAttribute('transform',`translate(${pt.x} ${pt.y})`);if(p<1)H.raf=requestAnimationFrame(f)};H.raf=requestAnimationFrame(f);
  const bar=$$('#steps .step')[k].querySelector('.bar i');if(bar&&H.auto&&!RM){bar.style.transition='none';bar.style.width='0';requestAnimationFrame(()=>{bar.style.transition='width 4s linear';bar.style.width='100%'})}
@@ -747,6 +805,11 @@ $('#wform').addEventListener('submit',async e=>{e.preventDefault();const t=$('#w
  o.innerHTML=`<div class="range"><span class="pt" style="left:0"></span><span class="lb" style="left:0">${naira(r.low)}<small>Quick sale</small></span><span class="pt" style="left:0"></span><span class="lb" style="left:0">${naira(r.mid)}<small>Typical</small></span><span class="pt" style="left:0"></span><span class="lb" style="left:0">${naira(r.high)}<small>Top price</small></span></div><p class="said">Based on ${r.n} similar listings on Stall${r.sold?', '+r.sold+' already sold':''}.</p><div class="cta" style="margin-top:var(--s2)"><a class="btn acc" href="/app?go=sell">Sell it on Stall</a></div>`;
  requestAnimationFrame(()=>requestAnimationFrame(()=>{const v=[r.low,r.mid,r.high];$$('#wout .pt').forEach((p,i)=>p.style.left=pos(v[i])+'%');$$('#wout .lb').forEach((p,i)=>p.style.left=pos(v[i])+'%')}))});
 
+// ---- FAQ tabs
+$$('[data-fq]').forEach(b=>b.addEventListener('click',()=>{$$('[data-fq]').forEach(x=>x.setAttribute('aria-selected',x===b));['fqB','fqS','fqE'].forEach(id=>$('#'+id).hidden=id!==b.dataset.fq)}));
+// ---- features: count up the class-dues example when it shows; lazy-load the closing phone
+$$('[data-cnt]').forEach(el=>onView(el,()=>countUp(el,+el.dataset.cnt,n=>String(n)),.6));
+onView($('.final'),()=>{const i=$('#peekImg');if(i&&i.dataset.src){i.src=i.dataset.src}},.01);
 // ---- campus sign-up
 let SUPPORT='';
 $('#ambF').addEventListener('submit',async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button');b.disabled=true;
