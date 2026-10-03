@@ -69,6 +69,19 @@ After 14 days with 12+ testers opted in, Play Console unlocks **Apply for produc
 
 ---
 
+## If testers see "Unsafe app blocked" (Google Play Protect)
+
+This message means someone installed the app **from a file you sent them** (an `.apk`), not from Google Play, and that file was built to target an older Android version. Since 2024, Play Protect blocks sideloaded apps that target old Android versions (below Android 13 / API 33 today, and the bar rises every year). It is not a virus warning about Stall.
+
+How to fix it:
+
+1. **Rebuild in PWABuilder** (section 2) with its current Android settings. They target the latest Android version automatically. Use the **same package ID and the same `signing.keystore`**, and a **higher version code** (e.g. `2`).
+2. **Stop sending APK files.** Upload the new `.aab` to your **Closed testing** track and share the Play opt-in link with testers. Apps installed from Google Play are never blocked like this, and testers get updates automatically.
+3. Testers who already have the old version should uninstall it first, then install from the Play link.
+4. Until the Play test link is ready, testers can use the website instead: open the site in Chrome, then tap **⋮ → Install app** (or **Add to Home screen**). This doesn't trigger Play Protect.
+
+Each year in August, Google raises the minimum Android version that apps must target. When Play Console warns you about it, rebuild in PWABuilder (same key, higher version code) and upload.
+
 ## Store listing text (ready to paste)
 
 **App name (30 max):** `Stall – student marketplace`

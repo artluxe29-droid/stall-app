@@ -1818,6 +1818,32 @@ S.cart=S.cart.filter(id=>get(id));render();badge();$('#badge').classList.remove(
 refreshMe();setInterval(pollPub,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollPub()});
 $('#hchips').innerHTML=`<button class="hc" data-hc="all"><span style="background:var(--card);color:var(--acc)">${ico('all')}</span>All</button>`+CATS.map(c=>`<button class="hc" data-hc="${c.id}"><span style="background:${c.c};color:${c.k}">${ico(c.i)}</span>${c.name}</button>`).join('');
 document.addEventListener('click',e=>{const b=e.target.closest('[data-hc]');if(b){cat=b.dataset.hc;render();loadPub();$('#browse').scrollIntoView()}});
+// Back button: every dialog, screen swap and tab change gets a history entry, so Android/browser back returns to the previous screen instead of leaving.
+const NAV={s:[],r:0,v:'shop',cur:{},lc:null};
+(()=>{const P=HTMLDialogElement.prototype,so=P.showModal,sc=P.close;
+  const push=e=>{const l=NAV.lc;NAV.lc=null;if(l&&Date.now()-l.t<800&&l.el!==e.el)e.under=l;NAV.s.push(e);history.pushState({nav:NAV.s.length},'')};
+  NAV.push=push;
+  P.showModal=function(){const was=this.open,l=NAV.lc;so.call(this);if(was||NAV.r)return;
+    const c=NAV.cur[this.id],same=l&&l.scr&&c&&l.scr.fn===c.fn&&JSON.stringify(l.scr.args)===JSON.stringify(c.args);
+    if(l&&l.el===this&&l.scr&&!same&&Date.now()-l.t<800){NAV.lc=null;push({k:'scr',id:this.id,prev:l.scr})}else push({k:'dlg',el:this})};
+  P.close=function(...a){const was=this.open;sc.apply(this,a);if(was&&!NAV.r)NAV.lc={el:this,scr:NAV.cur[this.id]||null,t:Date.now()}};
+  const SCR={accDlg:'openLook openDelivery openAccount openStudentVerify openEmailSettings openForgot openCollections openCollectNew openCollect openInvite openBulk openPushSettings openGuide',
+    chatDlg:'openInbox openChat',detail:'openDetail',checkout:'openCheckout orderScreen',adminDlg:'openAdmin',verDlg:'openVerify',revDlg:'openReviews',schDlg:'openSchoolPick'};
+  for(const id in SCR)for(const n of SCR[id].split(' ')){const f=window[n];if(typeof f!=='function')continue;
+    window[n]=function(...a){const d=document.getElementById(id),c=NAV.cur[id],nw={fn:n,args:a};
+      if(!NAV.r&&d.open&&c&&(c.fn!==n||JSON.stringify(c.args)!==JSON.stringify(a)))push({k:'scr',id,prev:c});
+      NAV.cur[id]=nw;return f.apply(this,a)}}
+  const fv=window.view;window.view=function(v,...a){const pv=NAV.v,r=fv.call(this,v,...a);NAV.v=v;if(!NAV.r&&pv!==v)push({k:'view',prev:pv});return r};
+  const live=e=>e.k==='dlg'?e.el.open:e.k==='scr'?document.getElementById(e.id).open:NAV.v!==e.prev;
+  const call=s=>{try{window[s.fn](...s.args)}catch(_){}};
+  const undo=e=>{NAV.r=1;try{
+    if(e.k==='dlg')e.el.close();else if(e.k==='scr')call(e.prev);else window.view(e.prev);
+    const u=e.under;if(u){if(!u.el.open)u.el.showModal();if(u.scr)call(u.scr)}}finally{NAV.r=0}};
+  if(history.state&&history.state.nav)history.replaceState(null,'');
+  addEventListener('popstate',ev=>{const nd=(ev.state&&ev.state.nav)||0;let acted=0;
+    while(NAV.s.length>nd){const e=NAV.s.pop();if(live(e)){undo(e);acted=1}}
+    NAV.lc=null;if(!acted)history.back()});
+})();
 (async()=>{const ref=new URLSearchParams(location.search).get('reference');if(!ref)return;history.replaceState(null,'','/');
   // The server remembers every payment, so this works even if Paystack sends you back to a different tab or browser.
   S.refs=S.refs||[];if(S.refs.includes(ref))return;toast('Confirming your payment…');
