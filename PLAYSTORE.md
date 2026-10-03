@@ -22,7 +22,7 @@ The app is already prepared:
 
 ## 2. Build the app with PWABuilder (free, in your browser)
 
-1. Open <https://www.pwabuilder.com>, enter `https://stall-app.pages.dev` (or your own domain) and click **Start**.
+1. Open <https://www.pwabuilder.com>, enter `https://stall-app.pages.dev/app` (or your own domain + `/app`) and click **Start**. The app lives at `/app`; `/` is the website. In the Android options, check that **Start URL** is `/app`.
 2. Click **Package for stores**, then **Android → Generate package**.
 3. Fill in:
    - **Package ID:** `app.stall.twa` (or `ng.stall.app`). This can never be changed later.

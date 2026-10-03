@@ -53,7 +53,7 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   // One reminder to the buyer a quarter of the way before the seller is paid automatically (6 hours before, with 24 hours).
   for(const o of await all(Q+"handed_at IS NULL AND reminded IS NULL AND dstage IN ('on_way','ready') AND IFNULL(staged_at,paid_at)<? LIMIT 10",now-TM.pay*.75)){
     await env.DB.prepare('UPDATE orders SET reminded=? WHERE id=?').bind(now,o.id).run();
-    await notify(env,o.buyer,'Seller gets paid in '+dur(TM.pay/4)+': '+o.title,'Do you have your order?',['The seller of <b>'+esc(o.title)+'</b> will be paid automatically in about '+dur(TM.pay/4)+'.','If you have it, tap <b>I\'ve got it</b>. If it hasn\'t come or something is wrong, tap <b>Report a problem</b> before then.'],'Open your orders',SITE(env)+'/?go=orders').catch(()=>{})}
+    await notify(env,o.buyer,'Seller gets paid in '+dur(TM.pay/4)+': '+o.title,'Do you have your order?',['The seller of <b>'+esc(o.title)+'</b> will be paid automatically in about '+dur(TM.pay/4)+'.','If you have it, tap <b>I\'ve got it</b>. If it hasn\'t come or something is wrong, tap <b>Report a problem</b> before then.'],'Open your orders',SITE(env)+'/app?go=orders').catch(()=>{})}
   // A problem report the other side didn't answer within TM.answer is decided for the side that reported it.
   for(const o of await all("SELECT * FROM orders WHERE status='disputed' AND disp_due<? AND disp_reply IS NULL LIMIT 5",now)){
     if(o.disp_by==='seller'){if(await release(env,o,'dispute').catch(()=>false))await strike(env,o.buyer,'no_response',o.id).catch(()=>{})}
@@ -63,11 +63,12 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   await env.DB.batch(ids.map(id=>env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,id)));
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='22';
+const SCHEMA_V='23';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
-  for(const q of ['ALTER TABLE orders ADD COLUMN ai_hint TEXT','ALTER TABLE orders ADD COLUMN ai_at INTEGER','ALTER TABLE orders ADD COLUMN handed_at INTEGER','ALTER TABLE orders ADD COLUMN staged_at INTEGER','ALTER TABLE orders ADD COLUMN reminded INTEGER','ALTER TABLE orders ADD COLUMN consent INTEGER','ALTER TABLE orders ADD COLUMN brate INTEGER',
+  for(const q of ['CREATE TABLE IF NOT EXISTS ambassadors(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,phone TEXT,school TEXT,note TEXT,created INTEGER NOT NULL)',
+    'CREATE TABLE IF NOT EXISTS site_stats(day TEXT NOT NULL,k TEXT NOT NULL,n INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(day,k))','ALTER TABLE orders ADD COLUMN ai_hint TEXT','ALTER TABLE orders ADD COLUMN ai_at INTEGER','ALTER TABLE orders ADD COLUMN handed_at INTEGER','ALTER TABLE orders ADD COLUMN staged_at INTEGER','ALTER TABLE orders ADD COLUMN reminded INTEGER','ALTER TABLE orders ADD COLUMN consent INTEGER','ALTER TABLE orders ADD COLUMN brate INTEGER',
     'ALTER TABLE orders ADD COLUMN disp_by TEXT','ALTER TABLE orders ADD COLUMN disp_at INTEGER','ALTER TABLE orders ADD COLUMN disp_due INTEGER','ALTER TABLE orders ADD COLUMN disp_reply INTEGER',
     'ALTER TABLE users ADD COLUMN seller_ok INTEGER','ALTER TABLE users ADD COLUMN brating_sum INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN brating_n INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN restricted_until INTEGER','ALTER TABLE users ADD COLUMN warned_at INTEGER',
     'ALTER TABLE reviews ADD COLUMN reply TEXT','ALTER TABLE reviews ADD COLUMN reply_at INTEGER',
@@ -169,7 +170,7 @@ const STRIKE_WHY={no_delivery:'an order you didn\'t send in time',seller_cancel:
 async function strike(env,uid,kind,oid){const now=Date.now();
   await env.DB.prepare('INSERT INTO strikes(uid,kind,oid,created) VALUES(?,?,?,?)').bind(uid,kind,oid||null,now).run();
   const n=(await env.DB.prepare('SELECT COUNT(*) c FROM strikes WHERE uid=? AND void=0 AND created>?').bind(uid,now-STRIKE_DAYS*864e5).first()).c,u=await env.DB.prepare('SELECT name,restricted_until,warned_at FROM users WHERE id=?').bind(uid).first();if(!u)return;
-  const go=['See your orders',SITE(env)+'/?go=orders'];
+  const go=['See your orders',SITE(env)+'/app?go=orders'];
   if(n>=STRIKE_BLOCK&&!(u.restricted_until>now)){const until=now+BLOCK_DAYS*864e5;await env.DB.prepare('UPDATE users SET restricted_until=? WHERE id=?').bind(until,uid).run();
     await notify(env,uid,'Your Stall account is paused','Your account is paused for '+BLOCK_DAYS+' days',['You have '+n+' strikes in the last '+STRIKE_DAYS+' days. The latest was for '+STRIKE_WHY[kind]+'.','Until '+dday(until)+' you can\'t buy or list new items. Orders already paid carry on as normal. If you think this is wrong, contact Stall support.'],...go);
     await tg(env,u.name+' (user '+uid+') is paused for '+BLOCK_DAYS+' days after '+n+' strikes.')}
@@ -203,8 +204,8 @@ async function refCode(env,u){if(u.ref_code)return u.ref_code;const A='ABCDEFGHJ
 async function refPay(env,uid){const amt=await refReward(env);if(!amt)return;const x=await env.DB.prepare('SELECT id,name,referred_by FROM users WHERE id=?').bind(uid).first();if(!x||!x.referred_by)return;
   if(!(await env.DB.prepare('UPDATE users SET ref_paid=1 WHERE id=? AND ref_paid=0').bind(uid).run()).meta.changes)return;
   const a1=await giveCredit(env,x.referred_by,amt,'invite: user #'+uid),a2=await giveCredit(env,uid,amt,'invited by user #'+x.referred_by),first=String(x.name||'Your friend').split(' ')[0],N=v=>'₦'+v.toLocaleString('en-NG');
-  if(a1)await notify(env,x.referred_by,'You earned '+N(a1)+' Stall credit','You earned '+N(a1)+' credit',[esc(first)+' just completed their first order on Stall.','Use your credit to pay part of featuring your items or store.'],'Invite more friends',SITE(env)+'/?go=invite');
-  if(a2)await notify(env,uid,'You earned '+N(a2)+' Stall credit','Welcome bonus: '+N(a2)+' credit',['Thanks for your first order. Use your credit to pay part of featuring your items or store.'],'Open Stall',SITE(env)+'/')}
+  if(a1)await notify(env,x.referred_by,'You earned '+N(a1)+' Stall credit','You earned '+N(a1)+' credit',[esc(first)+' just completed their first order on Stall.','Use your credit to pay part of featuring your items or store.'],'Invite more friends',SITE(env)+'/app?go=invite');
+  if(a2)await notify(env,uid,'You earned '+N(a2)+' Stall credit','Welcome bonus: '+N(a2)+' credit',['Thanks for your first order. Use your credit to pay part of featuring your items or store.'],'Open Stall',SITE(env)+'/app')}
 async function recipFor(env,code,acct,name){const k=code+':'+acct,had=await env.DB.prepare('SELECT code FROM ps_recips WHERE k=?').bind(k).first();if(had)return{code:had.code};
   const r=await ps(env,'/transferrecipient',{method:'POST',body:JSON.stringify({type:'nuban',name:String(name||'Stall seller').slice(0,100),account_number:acct,bank_code:code,currency:'NGN'})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
   if(!r.status||!r.data||!r.data.recipient_code){await setK(env,'payout_last',JSON.stringify({t:Date.now(),ok:false,err:String(r.message||'No recipient returned').slice(0,200)}));return{error:r.message||'Paystack could not set up this seller.'}}
@@ -285,13 +286,13 @@ const mask=m=>{m=String(m||'');return m.length>4?'•••'+m.slice(-4):m};
 // Releases a held order to the seller. Only a paid (or disputed) order can be released, and only once.
 async function release(env,o,how){const now=Date.now();
   const ch=(await env.DB.prepare("UPDATE orders SET status='released',code_used=?,dstage='done',track=?,updated=? WHERE id=? AND status IN ('verified','disputed')").bind(how==='code'?1:0,track(o,'done',now),now,o.id).run()).meta.changes;
-  if(ch){if((o.sub!=null?o.sub:o.amount)>=REF_MIN){await refPay(env,o.buyer).catch(()=>{});await refPay(env,o.seller).catch(()=>{})}await payOut(env,o.id);await notify(env,o.seller,'Order complete: '+o.title,'Order complete',['<b>'+esc(o.title)+'</b> has been handed over. We\'re sending <b>₦'+Number(o.amount-(o.fee||0)).toLocaleString('en-NG')+'</b> to your bank now.'],'See your orders',SITE(env)+'/?go=orders')}return!!ch}
+  if(ch){if((o.sub!=null?o.sub:o.amount)>=REF_MIN){await refPay(env,o.buyer).catch(()=>{});await refPay(env,o.seller).catch(()=>{})}await payOut(env,o.id);await notify(env,o.seller,'Order complete: '+o.title,'Order complete',['<b>'+esc(o.title)+'</b> has been handed over. We\'re sending <b>₦'+Number(o.amount-(o.fee||0)).toLocaleString('en-NG')+'</b> to your bank now.'],'See your orders',SITE(env)+'/app?go=orders')}return!!ch}
 // Gives the buyer their money back and puts the stock back. Orders not paid through Paystack are just cancelled.
 async function refund(env,o,why){if(!['verified','disputed','under_review'].includes(o.status))return{error:'This order can no longer be refunded.'};
   if(o.paid_via==='paystack'&&o.r_ref){const r=await ps(env,'/refund',{method:'POST',body:JSON.stringify({transaction:o.r_ref})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
     if(!r.status)return{error:'Paystack could not start the refund: '+(r.message||'unknown error')}}
   const ch=(await env.DB.prepare("UPDATE orders SET status='refunded',note=?,dstage=NULL,updated=? WHERE id=? AND status IN ('verified','disputed','under_review')").bind(why,Date.now(),o.id).run()).meta.changes;
-  if(ch){await restock(env,[o.id]);await notify(env,o.buyer,'Refund on its way: '+o.title,'You\'re being refunded',['Your order for <b>'+esc(o.title)+'</b> was cancelled. '+esc(why),'Your <b>₦'+Number(o.amount).toLocaleString('en-NG')+'</b> is going back to the card or account you paid with. It can take a few working days to show.'],'See your orders',SITE(env)+'/?go=orders')}await bumpVer(env);return{ok:true}}
+  if(ch){await restock(env,[o.id]);await notify(env,o.buyer,'Refund on its way: '+o.title,'You\'re being refunded',['Your order for <b>'+esc(o.title)+'</b> was cancelled. '+esc(why),'Your <b>₦'+Number(o.amount).toLocaleString('en-NG')+'</b> is going back to the card or account you paid with. It can take a few working days to show.'],'See your orders',SITE(env)+'/app?go=orders')}await bumpVer(env);return{ok:true}}
 // ---- Email (Resend). Secrets: RESEND_API_KEY, and EMAIL_FROM like "Stall <hello@yourdomain.ng>" once your domain is verified in Resend.
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const mailHtml=(title,lines,btn,url)=>`<div style="font-family:Arial,Helvetica,sans-serif;background:#F5F6FA;padding:24px"><div style="max-width:480px;margin:auto;background:#fff;border-radius:16px;padding:28px">
@@ -445,7 +446,7 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
       await env.DB.prepare('UPDATE orders SET status=?,code=?,note=?,paid_via=?,fee=?,r_amount=?,r_ref=?,amount=?,method=?,addr=?,dphone=?,dstage=?,track=?,updated=?,paid_at=IFNULL(paid_at,?) WHERE id=?')
         .bind(st,code,note,'paystack',fee,p.amount,ref,p.amount,d.method||'pickup',d.addr||null,d.dphone||null,st==='verified'&&o.status!=='verified'?'paid':o.dstage,st==='verified'&&o.status!=='verified'?track(o,'paid',now):o.track,now,now,o.id).run();
       if(note)await tg(env,'Order needs a look\n'+o.title+' - ₦'+p.amount+'\n'+note+'\nOrder #'+o.id);
-      if(st==='verified'&&o.status!=='verified')await notify(env,o.seller,'New paid order: '+o.title,'You have a new order',[esc(o.buyer_name)+' paid <b>₦'+Number(p.amount).toLocaleString('en-NG')+'</b> for <b>'+esc(o.title)+'</b>'+(d.method==='delivery'?', to be delivered to '+esc(d.addr||''):', for pickup')+'.','Stall is holding the money. You\'re paid as soon as the buyer gives you their release code.'],'Open your orders',SITE(env)+'/?go=orders');
+      if(st==='verified'&&o.status!=='verified')await notify(env,o.seller,'New paid order: '+o.title,'You have a new order',[esc(o.buyer_name)+' paid <b>₦'+Number(p.amount).toLocaleString('en-NG')+'</b> for <b>'+esc(o.title)+'</b>'+(d.method==='delivery'?', to be delivered to '+esc(d.addr||''):', for pickup')+'.','Stall is holding the money. You\'re paid as soon as the buyer gives you their release code.'],'Open your orders',SITE(env)+'/app?go=orders');
       res={oid:o.id,fee,status:st};act='paid order #'+o.id+' through Paystack (Stall fee ₦'+fee+')';label=o.title}
     else if(p.kind==='collect'){const c=await env.DB.prepare('SELECT * FROM collections WHERE id=?').bind(d.cid).first();if(!c)throw new Error('collection missing');
       const ins=await env.DB.prepare('INSERT OR IGNORE INTO collect_pays(cid,uid,name,matric,amount,fee,ref,created) VALUES(?,?,?,?,?,?,?,?)').bind(c.id,u.id,u.name,u.matric||u.phone,d.amount,d.fee||0,ref,now).run();
@@ -616,7 +617,48 @@ async function route({request,env,params,waitUntil}){
       return new Response('\ufeff'+L.map(r=>r.map(csvCell).join(',')).join('\r\n'),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="stall-collection-'+c.code+'.csv"','cache-control':'no-store'}})}
     return J({error:'Not found'},404)}
   // Suggested price for a new listing: what similar items on Stall (last 6 months) are listed or sold for.
-  if(path==='price-hint'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
+  // ---- Public website (welcome.html). Item, price and school only: never names, phone numbers or photos of people.
+  if(path.startsWith('site/')){await ensure(env);const ip=request.headers.get('cf-connecting-ip')||'local';
+    const LL="FROM listings l JOIN users u ON u.id=l.uid LEFT JOIN schools sc ON sc.id=l.school_id WHERE l.review='live' AND "+LIVE;
+    const II="FROM store_items i JOIN stores s ON s.id=i.sid JOIN users u ON u.id=s.uid LEFT JOIN schools sc ON sc.id=s.school_id WHERE i.review='live' AND i.avail=1 AND s.isopen=1 AND "+LIVE;
+    const one=async(q,...v)=>((await env.DB.prepare(q).bind(...v).first())||{}).c||0,all=async(q,...v)=>(await env.DB.prepare(q).bind(...v).all()).results;
+    const sch=r=>r.ssh||r.snm||'',it=r=>({title:clean(r.title,60),price:r.price,cat:r.cat||'',school:sch(r),state:r.state||'',at:r.created});
+    if(path==='site/pulse'&&request.method==='GET')return edge('site/pulse/'+(await ver(env)),60,async()=>{const wk=Date.now()-7*864e5;
+      const stats={items:await one('SELECT COUNT(*) c '+LL+' AND l.sold=0')+await one('SELECT COUNT(*) c '+II),students:await one("SELECT COUNT(*) c FROM users WHERE role='student'"),
+        schools:await one('SELECT COUNT(DISTINCT school_id) c FROM users WHERE school_id IS NOT NULL'),sold:await one("SELECT COUNT(*) c FROM orders WHERE status='released'"),
+        paid:await one("SELECT IFNULL(SUM(amount-IFNULL(fee,0)),0) c FROM orders WHERE status='released'"),stores:await one('SELECT COUNT(*) c FROM stores WHERE isopen=1')};
+      const listed=(await all('SELECT l.title,l.price,l.cat,l.created,IFNULL(l.state,sc.state) state,sc.short ssh,sc.name snm '+LL+' ORDER BY l.created DESC LIMIT 18')).map(r=>({...it(r),k:'listed'}));
+      const sold=(await all("SELECT o.title,o.amount price,o.updated created,IFNULL(u.state,sc.state) state,sc.short ssh,sc.name snm FROM orders o JOIN users u ON u.id=o.seller LEFT JOIN schools sc ON sc.id=u.school_id WHERE o.status='released' ORDER BY o.updated DESC LIMIT 8")).map(r=>({...it(r),k:'sold'}));
+      const feed=[...listed,...sold].sort((a,b)=>b.at-a.at).slice(0,24);
+      const states={};for(const r of await all('SELECT IFNULL(l.state,sc.state) st,COUNT(*) c '+LL+' AND l.sold=0 GROUP BY st'))if(r.st)states[r.st]=(states[r.st]||0)+r.c;
+      for(const r of await all('SELECT IFNULL(s.state,sc.state) st,COUNT(*) c '+II+' GROUP BY st'))if(r.st)states[r.st]=(states[r.st]||0)+r.c;
+      const top=(await all("SELECT sc.id,sc.name,sc.short,sc.state,(SELECT COUNT(*) FROM listings l WHERE l.school_id=sc.id AND l.review='live' AND l.sold=0) items,(SELECT COUNT(*) FROM listings l WHERE l.school_id=sc.id AND l.created>?) week,(SELECT COUNT(*) FROM users x WHERE x.school_id=sc.id) people FROM schools sc WHERE sc.active=1 ORDER BY week DESC,items DESC,people DESC LIMIT 10",wk)).filter(r=>r.items||r.people);
+      const reviews=(await all("SELECT r.stars,r.body,r.buyer_name,r.created,sc.short ssh,sc.name snm FROM reviews r JOIN users u ON u.id=r.buyer LEFT JOIN schools sc ON sc.id=u.school_id WHERE r.stars>=4 AND LENGTH(IFNULL(r.body,''))>=20 ORDER BY r.created DESC LIMIT 6")).map(r=>({stars:r.stars,text:clean(r.body,220),who:String(r.buyer_name||'Student').split(' ')[0],school:sch(r),at:r.created}));
+      return{stats,feed,states,top,reviews,t:Date.now()}});
+    if(path==='site/school'&&request.method==='GET'){const id=+url.searchParams.get('id')||0;
+      return edge('site/school/'+id+'/'+(await ver(env)),60,async()=>{const s=await env.DB.prepare('SELECT id,name,short,state FROM schools WHERE id=? AND active=1').bind(id).first();if(!s)return{error:'Not found'};
+        const items=await one('SELECT COUNT(*) c '+LL+' AND l.sold=0 AND l.school_id=?',id)+await one('SELECT COUNT(*) c '+II+' AND s.school_id=?',id);
+        const recent=(await all('SELECT l.title,l.price,l.cat,l.created,sc.short ssh,sc.name snm,IFNULL(l.state,sc.state) state '+LL+' AND l.sold=0 AND l.school_id=? ORDER BY l.created DESC LIMIT 12',id)).map(it);
+        return{school:s,items,people:await one('SELECT COUNT(*) c FROM users WHERE school_id=?',id),stores:await one('SELECT COUNT(*) c FROM stores WHERE school_id=? AND isopen=1',id),
+          sold:await one("SELECT COUNT(*) c FROM orders o JOIN users u ON u.id=o.seller WHERE o.status='released' AND u.school_id=?",id),recent}})}
+    if(path==='site/search'&&request.method==='GET'){const ws=priceWords(url.searchParams.get('q')).slice(0,5),mx=Math.round(+url.searchParams.get('max')||0);
+      if(!ws.length)return J({items:[]});if(!await allow(env,'sq:'+ip,120,36e5))return slow();
+      return edge('site/search/'+(await ver(env))+'/'+encodeURIComponent(ws.join(' ')+'|'+mx),60,async()=>{const lk=ws.map(w=>'%'+w+'%'),or=ws.map(()=>'LOWER(l.title) LIKE ?').join(' OR ');
+        const rs=await all('SELECT l.id,l.title,l.price,l.cat,l.created,sc.short ssh,sc.name snm,IFNULL(l.state,sc.state) state '+LL+' AND l.sold=0 AND ('+or+')'+(mx>0?' AND l.price<=?':'')+' ORDER BY l.created DESC LIMIT 60',...lk,...(mx>0?[mx]:[]));
+        const score=r=>{const t=' '+String(r.title).toLowerCase().replace(/[^a-z0-9 ]/g,' ')+' ';return ws.filter(w=>t.includes(w)).length};
+        return{items:rs.map(r=>({...it(r),id:'L'+r.id,s:score(r)})).sort((a,b)=>b.s-a.s||b.at-a.at).slice(0,12).map(({s,...x})=>x)}})}
+    if(path==='site/ambassador'&&request.method==='POST'){if(!await allow(env,'amb:'+ip,5,864e5))return slow();const b=await request.json().catch(()=>({}));
+      const name=clean(b.name,60),phone=String(b.phone||'').replace(/[^\d+]/g,'').slice(0,15),school=clean(b.school,90),note=clean(b.note,300);
+      if(name.length<2||phone.length<10||school.length<3)return J({error:'Add your name, phone number and school.'},400);
+      await env.DB.prepare('INSERT INTO ambassadors(name,phone,school,note,created) VALUES(?,?,?,?,?)').bind(name,phone,school,note||null,Date.now()).run();
+      waitUntil(tg(env,'New campus ambassador: '+name+' ('+phone+')\n'+school+(note?'\n'+note:'')+'\nAdmin → Settings → Website.'));return J({ok:true})}
+    if(path==='site/ev'&&request.method==='POST'){const b=await request.json().catch(()=>({})),k=String(b.k||'');
+      if(!['visit','campus','search','install_tap','installed','open_chrome','ios_steps','qr'].includes(k))return J({ok:false},400);
+      if(await allow(env,'ev:'+ip+':'+k,20,864e5))await env.DB.prepare('INSERT INTO site_stats(day,k,n) VALUES(?,?,1) ON CONFLICT(day,k) DO UPDATE SET n=n+1').bind(new Date(Date.now()+36e5).toISOString().slice(0,10),k).run();
+      return J({ok:true})}
+    return J({error:'Not found'},404)}
+  if(path==='price-hint'&&request.method==='GET'){const u=await me(env,request)||{id:0};await ensure(env);
+    if(!u.id&&!await allow(env,'ph:'+(request.headers.get('cf-connecting-ip')||'local'),60,36e5))return slow();
     const ws=priceWords(url.searchParams.get('t')),cond=String(url.searchParams.get('cond')||'');if(!ws.length)return J({n:0});
     const key=ws.slice(0,4),since=Date.now()-180*864e5,lk=key.map(w=>'%'+w+'%'),or=key.map(()=>'LOWER(title) LIKE ?').join(' OR ');
     const L=(await env.DB.prepare("SELECT title,price,cond,sold,uid FROM listings WHERE review='live' AND created>? AND ("+or+") ORDER BY created DESC LIMIT 200").bind(since,...lk).all()).results;
@@ -884,7 +926,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     if(!nx||b.stage!==nx)return J({error:'This order is already at that step.'},400);
     const now=Date.now();await env.DB.prepare('UPDATE orders SET dstage=?,track=?,updated=?,staged_at=?,reminded=NULL WHERE id=?').bind(nx,track(o,nx,now),now,now,o.id).run();
     const msg={packed:['Your order is packed','is packed and will be on its way soon.'],on_way:['Your order is on the way','is on the way to you. Have your release code ready, and only give it once you have the item.'],ready:['Ready for pickup','is ready for pickup'+(o.pickup?' at '+esc(o.pickup):'')+'. Bring your release code.']}[nx];
-    if(msg)waitUntil(notify(env,o.buyer,msg[0]+': '+o.title,msg[0],['<b>'+esc(o.title)+'</b> '+msg[1]],'Track your order',SITE(env)+'/?go=orders'));return J({ok:true,stage:nx})}
+    if(msg)waitUntil(notify(env,o.buyer,msg[0]+': '+o.title,msg[0],['<b>'+esc(o.title)+'</b> '+msg[1]],'Track your order',SITE(env)+'/app?go=orders'));return J({ok:true,stage:nx})}
   if(path==='orders/code'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
     const b=await request.json().catch(()=>({})),id=+b.id,code=String(b.code||'').trim().toUpperCase();
     const o=await env.DB.prepare('SELECT * FROM orders WHERE id=? AND seller=?').bind(id,u.id).first();
@@ -900,7 +942,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
   if(['orders/report','orders/cancel','orders/handed','orders/evidence','orders/object','orders/rate-buyer','orders/settle'].includes(path)&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);await tmr(env);
     const b=await request.json().catch(()=>({})),o=await env.DB.prepare('SELECT * FROM orders WHERE id=? AND (buyer=? OR seller=?)').bind(+b.id,u.id,u.id).first();
     if(!o)return J({error:'Order not found.'},404);
-    const side=o.buyer===u.id?'buyer':'seller',other=side==='buyer'?o.seller:o.buyer,Them=side==='buyer'?'The buyer':'The seller',now=Date.now(),go=['Open your orders',SITE(env)+'/?go=orders'];
+    const side=o.buyer===u.id?'buyer':'seller',other=side==='buyer'?o.seller:o.buyer,Them=side==='buyer'?'The buyer':'The seller',now=Date.now(),go=['Open your orders',SITE(env)+'/app?go=orders'];
     const ph=b.photo&&imgOk(b.photo)?b.photo:null,txt=clean(b.reason||b.text||b.note,300);
     const ev=()=>(txt||ph)?env.DB.prepare('INSERT INTO evidence(oid,uid,side,body,photo,created) VALUES(?,?,?,?,?,?)').bind(o.id,u.id,side,txt||null,ph,now).run():null;
     if(path==='orders/report'){
@@ -1121,7 +1163,11 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       await env.DB.prepare("DELETE FROM admin_log WHERE kind!='other'").run().catch(()=>{});
       await logA(env,a,'other','cleared all test data',Object.entries(what).map(([k,v])=>v+' '+k).join(', '));await bumpVer(env);
       return J({ok:true,what})}
-    if(path==='admin/settings'&&request.method==='POST'){for(const k of ['biz_name','support_phone','support_email'])if(k in b)await setK(env,k,String(b[k]||'').trim().slice(0,120));
+    if(path==='admin/site'&&request.method==='GET'){const since=new Date(Date.now()+36e5-6*864e5).toISOString().slice(0,10);
+      const f={};for(const r of (await env.DB.prepare('SELECT k,SUM(n) n FROM site_stats WHERE day>=? GROUP BY k').bind(since).all()).results)f[r.k]=r.n;
+      return J({on:(await getK(env,'site_on'))==='1',funnel:f,ambassadors:(await env.DB.prepare('SELECT name,phone,school,note,created FROM ambassadors ORDER BY id DESC LIMIT 30').all()).results},200,{'cache-control':'no-store'})}
+    if(path==='admin/settings'&&request.method==='POST'){if('site_on' in b){await setK(env,'site_on',b.site_on?'1':'0');await logA(env,a,'other',b.site_on?'switched the website on':'switched the website off','')}
+      for(const k of ['biz_name','support_phone','support_email'])if(k in b)await setK(env,k,String(b[k]||'').trim().slice(0,120));
       if('ref_reward' in b){const v=Math.round(+b.ref_reward);if(!(v>=0&&v<=5000))return J({error:'Enter a referral reward from ₦0 to ₦5,000.'},400);await setK(env,'ref_reward',v)}
       if('ref_cap' in b){const v=Math.round(+b.ref_cap);if(!(v>=0&&v<=50000))return J({error:'Enter a monthly cap from ₦0 to ₦50,000.'},400);await setK(env,'ref_cap',v)}
       if('fee_rate' in b||'fee_min' in b||'fee_cap' in b){const c=await feeCfg(env),r='fee_rate' in b?Math.round(+b.fee_rate*10)/10:c.rate,mn='fee_min' in b?Math.round(+b.fee_min):c.min,cp='fee_cap' in b?Math.round(+b.fee_cap):c.cap;
@@ -1220,7 +1266,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
         const cref='CR'+rnd(8);await env.DB.prepare('INSERT INTO pending_pay(ref,uid,kind,data,amount,label,created,done) VALUES(?,?,?,?,?,?,?,0)').bind(cref,u.id,kind,JSON.stringify(data),w.amount,w.label||kind,Date.now()).run();
         const f=await fulfil(env,cref,{credit:true});if(f.error){await env.DB.prepare('UPDATE users SET credit=credit+? WHERE id=?').bind(cr,u.id).run();return J(f,400)}return J({...f,credit:true})}
       if(cr){data.credit=cr;w={...w,amount:w.amount-cr,label:(w.label||kind)+' (₦'+cr+' credit used)'}}
-      const r=await ps(env,'/transaction/initialize',{method:'POST',body:JSON.stringify({email:u.email||('user'+u.phone+'@stall.app'),amount:w.amount*100,currency:'NGN',callback_url:url.origin+'/',metadata:{kind,target,days,uid:u.id,level:w.level||null},...(w.split||{})})});
+      const r=await ps(env,'/transaction/initialize',{method:'POST',body:JSON.stringify({email:u.email||('user'+u.phone+'@stall.app'),amount:w.amount*100,currency:'NGN',callback_url:url.origin+'/app',metadata:{kind,target,days,uid:u.id,level:w.level||null},...(w.split||{})})});
       if(!r.status)return J({error:r.message||'Could not start payment.'},502);
       await env.DB.prepare('INSERT INTO pending_pay(ref,uid,kind,data,amount,label,created,done) VALUES(?,?,?,?,?,?,?,0)').bind(r.data.reference,u.id,kind,JSON.stringify(data),w.amount,w.label||kind,Date.now()).run();
       return J({url:r.data.authorization_url,ref:r.data.reference})}
@@ -1262,7 +1308,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
   if(path==='checkout'&&request.method==='POST'){
     const b=await request.json().catch(()=>({}));
     if(b.kind!=='store')return J({error:'Invalid order'},400);
-    const r=await ps(env,'/transaction/initialize',{method:'POST',body:JSON.stringify({email:b.email,amount:500000,currency:'NGN',callback_url:url.origin+'/',metadata:{kind:'store'}})});
+    const r=await ps(env,'/transaction/initialize',{method:'POST',body:JSON.stringify({email:b.email,amount:500000,currency:'NGN',callback_url:url.origin+'/app',metadata:{kind:'store'}})});
     return r.status?J({url:r.data.authorization_url,ref:r.data.reference}):J({error:r.message},502);
   }
   if(path==='banks')return J({banks:Object.entries(BANKS).map(([code,name])=>({code,name}))});
