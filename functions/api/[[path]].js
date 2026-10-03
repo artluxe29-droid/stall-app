@@ -63,11 +63,11 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   await env.DB.batch(ids.map(id=>env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,id)));
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='23';
+const SCHEMA_V='24';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
-  for(const q of ['CREATE TABLE IF NOT EXISTS ambassadors(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,phone TEXT,school TEXT,note TEXT,created INTEGER NOT NULL)',
+  for(const q of ['CREATE TABLE IF NOT EXISTS ambassadors(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,phone TEXT,school TEXT,note TEXT,created INTEGER NOT NULL)','ALTER TABLE ambassadors ADD COLUMN status TEXT',
     'CREATE TABLE IF NOT EXISTS site_stats(day TEXT NOT NULL,k TEXT NOT NULL,n INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(day,k))','ALTER TABLE orders ADD COLUMN ai_hint TEXT','ALTER TABLE orders ADD COLUMN ai_at INTEGER','ALTER TABLE orders ADD COLUMN handed_at INTEGER','ALTER TABLE orders ADD COLUMN staged_at INTEGER','ALTER TABLE orders ADD COLUMN reminded INTEGER','ALTER TABLE orders ADD COLUMN consent INTEGER','ALTER TABLE orders ADD COLUMN brate INTEGER',
     'ALTER TABLE orders ADD COLUMN disp_by TEXT','ALTER TABLE orders ADD COLUMN disp_at INTEGER','ALTER TABLE orders ADD COLUMN disp_due INTEGER','ALTER TABLE orders ADD COLUMN disp_reply INTEGER',
     'ALTER TABLE users ADD COLUMN seller_ok INTEGER','ALTER TABLE users ADD COLUMN brating_sum INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN brating_n INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN restricted_until INTEGER','ALTER TABLE users ADD COLUMN warned_at INTEGER',
@@ -1175,7 +1175,9 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       return J({ok:true,what})}
     if(path==='admin/site'&&request.method==='GET'){const since=new Date(Date.now()+36e5-6*864e5).toISOString().slice(0,10);
       const f={};for(const r of (await env.DB.prepare('SELECT k,SUM(n) n FROM site_stats WHERE day>=? GROUP BY k').bind(since).all()).results)f[r.k]=r.n;
-      return J({on:(await getK(env,'site_on'))==='1',funnel:f,ambassadors:(await env.DB.prepare('SELECT name,phone,school,note,created FROM ambassadors ORDER BY id DESC LIMIT 30').all()).results},200,{'cache-control':'no-store'})}
+      return J({on:(await getK(env,'site_on'))==='1',funnel:f,ambassadors:(await env.DB.prepare("SELECT id,name,phone,school,note,created,IFNULL(status,'new') status FROM ambassadors ORDER BY (IFNULL(status,'new')='done'),id DESC LIMIT 50").all()).results,supportPhone:(await getK(env,'support_phone'))||''},200,{'cache-control':'no-store'})}
+    if(path==='admin/site/lead'&&request.method==='POST'){const st=['new','contacted','done'].includes(b.status)?b.status:'new';
+      await env.DB.prepare('UPDATE ambassadors SET status=? WHERE id=?').bind(st,+b.id).run();return J({ok:true})}
     if(path==='admin/settings'&&request.method==='POST'){if('site_on' in b){await setK(env,'site_on',b.site_on?'1':'0');await logA(env,a,'other',b.site_on?'switched the website on':'switched the website off','')}
       for(const k of ['biz_name','support_phone','support_email'])if(k in b)await setK(env,k,String(b[k]||'').trim().slice(0,120));
       if('ref_reward' in b){const v=Math.round(+b.ref_reward);if(!(v>=0&&v<=5000))return J({error:'Enter a referral reward from ₦0 to ₦5,000.'},400);await setK(env,'ref_reward',v)}
