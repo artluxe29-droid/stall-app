@@ -286,13 +286,13 @@ const mask=m=>{m=String(m||'');return m.length>4?'•••'+m.slice(-4):m};
 // Releases a held order to the seller. Only a paid (or disputed) order can be released, and only once.
 async function release(env,o,how){const now=Date.now();
   const ch=(await env.DB.prepare("UPDATE orders SET status='released',code_used=?,dstage='done',track=?,updated=? WHERE id=? AND status IN ('verified','disputed')").bind(how==='code'?1:0,track(o,'done',now),now,o.id).run()).meta.changes;
-  if(ch){if((o.sub!=null?o.sub:o.amount)>=REF_MIN){await refPay(env,o.buyer).catch(()=>{});await refPay(env,o.seller).catch(()=>{})}await payOut(env,o.id);await notify(env,o.seller,'Order complete: '+o.title,'Order complete',['<b>'+esc(o.title)+'</b> has been handed over. We\'re sending <b>₦'+Number(o.amount-(o.fee||0)).toLocaleString('en-NG')+'</b> to your bank now.'],'See your orders',SITE(env)+'/app?go=orders')}return!!ch}
+  if(ch){if((o.sub!=null?o.sub:o.amount)>=REF_MIN){await refPay(env,o.buyer).catch(()=>{});await refPay(env,o.seller).catch(()=>{})}await payOut(env,o.id);const go=SITE(env)+'/app?go=selling';await notify(env,o.seller,'You’ve been paid '+NGN(o.amount-(o.fee||0))+': '+o.title,'Order complete',['<b>'+esc(o.title)+'</b> has been handed over. We\'re sending <b>₦'+Number(o.amount-(o.fee||0)).toLocaleString('en-NG')+'</b> to your bank now.'],'See your orders',go,await rcMail(env,o.id,'seller','See your orders',go))}return!!ch}
 // Gives the buyer their money back and puts the stock back. Orders not paid through Paystack are just cancelled.
 async function refund(env,o,why){if(!['verified','disputed','under_review'].includes(o.status))return{error:'This order can no longer be refunded.'};
   if(o.paid_via==='paystack'&&o.r_ref){const r=await ps(env,'/refund',{method:'POST',body:JSON.stringify({transaction:o.r_ref})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
     if(!r.status)return{error:'Paystack could not start the refund: '+(r.message||'unknown error')}}
   const ch=(await env.DB.prepare("UPDATE orders SET status='refunded',note=?,dstage=NULL,updated=? WHERE id=? AND status IN ('verified','disputed','under_review')").bind(why,Date.now(),o.id).run()).meta.changes;
-  if(ch){await restock(env,[o.id]);await notify(env,o.buyer,'Refund on its way: '+o.title,'You\'re being refunded',['Your order for <b>'+esc(o.title)+'</b> was cancelled. '+esc(why),'Your <b>₦'+Number(o.amount).toLocaleString('en-NG')+'</b> is going back to the card or account you paid with. It can take a few working days to show.'],'See your orders',SITE(env)+'/app?go=orders')}await bumpVer(env);return{ok:true}}
+  if(ch){await restock(env,[o.id]);await notify(env,o.buyer,'Refund on its way: '+o.title,'You\'re being refunded',['Your order for <b>'+esc(o.title)+'</b> was cancelled. '+esc(why),'Your <b>₦'+Number(o.amount).toLocaleString('en-NG')+'</b> is going back to the card or account you paid with. It can take a few working days to show.'],'See your orders',SITE(env)+'/app?go=orders',await rcMail(env,o.id,'buyer','See your orders',SITE(env)+'/app?go=orders'))}await bumpVer(env);return{ok:true}}
 // ---- Email (Resend). Secrets: RESEND_API_KEY, and EMAIL_FROM like "Stall <hello@yourdomain.ng>" once your domain is verified in Resend.
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // Brand header: the wordmark is a PNG (email apps don't show SVG); "Stall" shows if images are blocked.
@@ -302,14 +302,109 @@ const mailHtml=(title,lines,btn,url)=>`<div style="font-family:Arial,Helvetica,s
   ${lines.map(l=>`<p style="font-size:15px;line-height:1.5;color:#3D4160;margin:0 0 10px">${l}</p>`).join('')}
   ${btn?`<p style="margin:18px 0 6px"><a href="${url}" style="background:#26306E;color:#fff;text-decoration:none;padding:12px 20px;border-radius:12px;font-weight:700;display:inline-block">${esc(btn)}</a></p>`:''}
   <p style="font-size:12px;color:#5B6077;margin-top:22px">You get this because you have an account on Stall. Turn off order emails in Account → Email updates.</p></div></div></div>`;
+// ---- Receipts. The four designs from the brand board, built from tables and PNGs so they look the same in email apps and in the app:
+// Awning stripe (buyer receipt by day, seller payout), Night (buyer receipt after 7pm), Full stops (refund), Weekly statement (sellers, every Monday).
+const RC={awning:{bg:'#F6F1E7',ink:'#26306E',mut:'#5B6077',rule:'#D8D0BD',top:'awning-cream',edge:'edge-cream',mark:'mark-indigo',wm:'wm-indigo',pb:'#26306E',pf:'#C8F03C',tot:'#26306E'},
+  night:{bg:'#141A3D',ink:'#F6F1E7',mut:'#9AA1C9',rule:'#2E3766',top:'awning-night',edge:'edge-night',mark:'mark-cream',wm:'wm-cream',pb:'#C8F03C',pf:'#26306E',tot:'#C8F03C'}};
+const RF="font-family:Figtree,Arial,Helvetica,sans-serif",RH="font-family:'Bricolage Grotesque',Arial,Helvetica,sans-serif";
+const NGN=n=>(n<0?'−':'')+'₦'+Math.abs(Number(n)||0).toLocaleString('en-NG');
+const dtime=t=>new Date(t).toLocaleString('en-NG',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit',timeZone:'Africa/Lagos'});
+const nightAt=t=>{const h=new Date((t||Date.now())+36e5).getUTCHours();return h>=19||h<6};
+const doneAt=o=>(JSON.parse(o.track||'[]').find(x=>x.s==='done')||{}).t||o.updated;
+// Monday 00:00 in Lagos (UTC+1) of the week holding t, and that week's ISO number.
+const weekStart=t=>{const l=new Date((t||Date.now())+36e5);return Date.UTC(l.getUTCFullYear(),l.getUTCMonth(),l.getUTCDate()-(l.getUTCDay()+6)%7)-36e5};
+const isoWeek=ws=>{const th=new Date(ws+36e5+3*864e5);return 1+Math.floor((th-Date.UTC(th.getUTCFullYear(),0,1))/(7*864e5))};
+// What goes on an order's receipt, for the buyer or the seller. null when there's nothing to show yet.
+async function receiptFor(env,o,side){
+  const its=(await env.DB.prepare('SELECT title,price,IFNULL(q,1) q FROM order_items WHERE oid=?').bind(o.id).all()).results,sub=o.sub!=null?o.sub:o.amount,dl=Math.max(0,o.amount-sub);
+  const lines=its.length&&its.reduce((s,i)=>s+(i.price||0)*i.q,0)===sub?its.map(i=>[esc(i.title||o.title)+(i.q>1?' × '+i.q:''),NGN((i.price||0)*i.q)]):[[esc(o.title),NGN(sub)]];
+  if(o.paid_via!=='paystack')return null;
+  if(side==='buyer'&&['verified','released','disputed'].includes(o.status)){const t=o.paid_at||o.updated,th=nightAt(t)?'night':'awning';
+    return{theme:th,subject:'Receipt: '+o.title,eyebrow:th==='night'?'LATE-NIGHT ORDER':'RECEIPT',label:'Paid to '+esc(o.seller_name||'the seller'),amount:o.amount,
+      pill:o.status==='released'?'Complete · the seller is paid':o.status==='disputed'?'On hold · problem reported':'Held safely until you have it',
+      rows:[['Order','#'+o.id,1],...lines,...(dl?[['Delivery',NGN(dl)]]:[])],total:['Total',NGN(o.amount)],
+      info:[o.method==='delivery'?['Delivering to',esc(o.addr||'your address')]:['Pickup',esc(o.pickup||'Agree a spot with the seller')],['Paid',dtime(t)]],
+      tag:th==='night'?'Open late. Still safe.':'Your money is safe until you have it.'}}
+  if(side==='seller'&&o.status==='released'){const fee=o.fee||0,to=esc(o.bank_name||'your bank')+' '+mask(o.acct_no);
+    return{theme:'awning',subject:'You’ve been paid '+NGN(o.amount-fee)+': '+o.title,eyebrow:'PAID OUT',label:'You’ve been paid',amount:o.amount-fee,
+      pill:(o.payout==='paid'?'Sent to ':'On its way to ')+to,rows:[['Order','#'+o.id,1],...lines,...(dl?[['Delivery you did',NGN(dl)]]:[]),fee?['Stall fee',NGN(-fee)]:['Stall fee (launch offer)','₦0']],
+      total:['You get',NGN(o.amount-fee)],info:[['Buyer',esc(o.buyer_name||'')],['Completed',dtime(doneAt(o))]],
+      stars:o.rated?[o.rated,esc(String(o.buyer_name||'The buyer').split(' ')[0])+' rated this sale']:null,tag:'Sell. Get paid. Sleep well.'}}
+  if(side==='buyer'&&o.status==='refunded'){const why=String(o.note||'The order was cancelled').replace(/\s+/g,' ').slice(0,90);
+    return{theme:'dots',subject:'Refund on its way: '+o.title,label:'Refund on its way',amount:o.amount,
+      info:[['Order','#'+o.id,1],['Item',esc(o.title)],['Why',esc(why)],['Back to','The card or account you paid with'],['Usually','1 to 5 working days']]}}
+  return null}
+// A seller's completed orders in the week starting ws.
+async function weekOf(env,uid,ws){const days=[0,0,0,0,0,0,0];let n=0,total=0,fees=0;
+  for(const r of (await env.DB.prepare("SELECT amount,fee,track,updated FROM orders WHERE seller=? AND status='released' AND updated>=?").bind(uid,ws).all()).results){
+    const t=doneAt(r);if(t<ws||t>=ws+7*864e5)continue;n++;total+=r.amount;fees+=r.fee||0;days[Math.floor((t-ws)/864e5)]+=r.amount}
+  const u=await env.DB.prepare('SELECT rating_sum,rating_n FROM users WHERE id=?').bind(uid).first();
+  return{theme:'weekly',week:isoWeek(ws),label:ws===weekStart()?'Your sales this week':'Your sales last week',n,total,fees,days,rating:u?rat(u):{avg:0,n:0},subject:'Your Stall week: '+NGN(total)+' in sales'}}
+const rcImg=(b,n,w,h,st='')=>`<img src="${b}/icons/receipt/${n}.png" width="${w}" height="${h}" alt="" style="display:block;border:0;${st}">`;
+const rcRow=(l,r,c,mut,bold,size=14)=>`<tr><td style="padding:4px 10px 4px 0;font-size:${size}px;color:${mut};text-align:left;vertical-align:top;white-space:nowrap">${l}</td><td style="padding:4px 0;font-size:${size}px;color:${c};font-weight:${bold?700:500};text-align:right;vertical-align:top">${r}</td></tr>`;
+const rcRule=c=>`<tr><td colspan="2" style="padding:7px 0"><div style="border-top:1.5px dashed ${c};height:0;line-height:0;font-size:0">&nbsp;</div></td></tr>`;
+const rcWrap=(inner,b,edge)=>`<table role="presentation" class="rc" width="360" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:360px;margin:0 auto;border-collapse:collapse;${RF}">${inner}<tr><td style="padding:0;line-height:0;font-size:0">${rcImg(b,edge,360,14,'width:100%;height:14px')}</td></tr></table>`;
+// The receipt itself. b is the site origin for images ('' inside the app).
+function rcHtml(m,b){
+  if(m.theme==='dots')return rcWrap(`<tr><td style="background-color:#FFFFFF;background-image:url(${b}/icons/receipt/dots.png);background-size:28px 28px;border-radius:22px 22px 0 0;padding:24px">
+    <div style="background:#FFFFFF;border-radius:14px;padding:8px">${rcImg(b,'wm-indigo-lime',72,30,'margin:0 auto')}</div>
+    <div style="background:#26306E;border-radius:18px;padding:16px;margin-top:12px;text-align:center;color:#F6F1E7">${rcImg(b,'refund',44,44,'margin:0 auto 6px')}<div style="font-size:13px;color:#CDD2F0">${m.label}</div><div style="${RH};font-size:36px;font-weight:800;line-height:1.15">${NGN(m.amount)}</div></div>
+    <div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E5EC;padding:10px 14px;margin-top:12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${m.info.map(r=>rcRow(r[0],r[1],'#26306E','#5B6077',r[2],13)).join('')}</table></div></td></tr>`,b,'edge-white');
+  if(m.theme==='weekly'){const mx=Math.max(...m.days,1),top=m.days.indexOf(Math.max(...m.days));
+    return rcWrap(`<tr><td style="background:#26306E;border-radius:22px 22px 0 0;padding:24px;color:#F6F1E7">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="text-align:left">${rcImg(b,'lockup-cream',85,24)}</td><td style="text-align:right;font-size:11px;font-weight:700;letter-spacing:.14em;color:#9AA1C9">WEEK ${m.week}</td></tr></table>
+    <div style="font-size:13px;color:#CDD2F0;margin-top:16px">${m.label}</div><div style="${RH};font-size:40px;font-weight:800;letter-spacing:-.02em;line-height:1.1">${NGN(m.total)}</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px"><tr>${m.days.map((v,i)=>`<td style="height:112px;vertical-align:bottom;padding:0 3px;text-align:center"><div style="height:${Math.max(4,Math.round(v/mx*92))}px;background:${i===top&&v?'#C8F03C':'#3A46A0'};border-radius:6px 6px 2px 2px;font-size:0;line-height:0">&nbsp;</div><div style="font-size:10px;color:#9AA1C9;padding-top:4px">${'MTWTFSS'[i]}</div></td>`).join('')}</tr></table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rcRule('#3A4470')}${rcRow('Orders delivered',String(m.n),'#F6F1E7','#9AA1C9',1)}${rcRow('Stall fees',NGN(-m.fees),'#F6F1E7','#9AA1C9')}${rcRow('Paid out',NGN(m.total-m.fees),'#C8F03C','#9AA1C9',1,16)}${m.rating.n?rcRow('Rating',m.rating.avg+' ★ from '+m.rating.n+' buyer'+(m.rating.n>1?'s':''),'#F6F1E7','#9AA1C9'):''}</table></td></tr>`,b,'edge-indigo')}
+  const c=RC[m.theme];
+  return rcWrap(`<tr><td style="padding:0;line-height:0;font-size:0">${rcImg(b,c.top,360,74,'width:100%;height:auto')}</td></tr>
+  <tr><td style="background-color:${c.bg};${m.theme==='night'?'background-image:radial-gradient(260px 200px at 50% 0,rgba(200,240,60,.13),rgba(200,240,60,0) 70%);':''}padding:8px 26px 22px;color:${c.ink};text-align:center">
+   ${rcImg(b,c.mark,43,40,'margin:6px auto 12px')}
+   <div style="font-size:11px;font-weight:700;letter-spacing:.16em;color:${m.theme==='night'?'#8C93BF':c.mut}">${m.eyebrow}</div>
+   <div style="font-size:13px;color:${c.mut};margin-top:12px">${m.label}</div>
+   <div style="${RH};font-size:44px;font-weight:800;letter-spacing:-.02em;line-height:1.1;color:${c.ink}">${NGN(m.amount)}</div>
+   <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:12px auto 2px"><tr><td style="background:${c.pb};color:${c.pf};border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700">${m.pill}</td></tr></table>
+   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rcRule(c.rule)}${m.rows.map(r=>rcRow(r[0],r[1],c.ink,c.mut,r[2])).join('')}${rcRule(c.rule)}${rcRow(m.total[0],m.total[1],c.tot,c.ink,1,16)}${m.info.map(r=>rcRow(r[0],r[1],c.ink,c.mut,0,13)).join('')}</table>
+   ${m.stars?`<div style="font-size:12px;color:${c.mut};margin-top:10px"><b style="color:${c.ink};letter-spacing:.08em">${'★'.repeat(m.stars[0])}${'☆'.repeat(5-m.stars[0])}</b> ${m.stars[1]}</div>`:''}
+   <div style="border-top:1.5px dashed ${c.rule};margin-top:14px;padding-top:14px">${rcImg(b,c.wm,63,26,'margin:0 auto')}<div style="font-size:11px;color:${c.mut};margin-top:6px">${m.tag}</div></div></td></tr>`,b,c.edge)}
+// Plain-text version, for sharing from the app.
+const rcText=m=>{const t=s=>String(s).replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"');
+  if(m.theme==='weekly')return`Stall weekly statement (week ${m.week})\n${m.label}: ${NGN(m.total)}\nOrders delivered: ${m.n}\nStall fees: ${NGN(-m.fees)}\nPaid out: ${NGN(m.total-m.fees)}`;
+  return['Stall receipt',t(m.label)+': '+NGN(m.amount),m.pill?t(m.pill):'',...(m.rows||[]).map(r=>t(r[0])+': '+t(r[1])),m.total?t(m.total[0])+': '+t(m.total[1]):'',...m.info.map(r=>t(r[0])+': '+t(r[1]))].filter(Boolean).join('\n')};
+const mailReceipt=(m,btn,url)=>`<div style="background:#ECEAF4;padding:24px 12px;${RF}">${rcHtml(m,mailOrigin(url))}
+  ${btn?`<p style="text-align:center;margin:22px 0 6px"><a href="${url}" style="background:#26306E;color:#fff;text-decoration:none;padding:12px 20px;border-radius:12px;font-weight:700;display:inline-block">${esc(btn)}</a></p>`:''}
+  <p style="max-width:360px;margin:18px auto 0;font-size:12px;line-height:1.5;color:#5B6077;text-align:center">You get this because you have an account on Stall. Turn off order emails in Account → Email updates.</p></div>`;
+// Made-up receipts, one of each design, for the admin's "Send sample receipts" button.
+const sampleReceipts=()=>{const now=Date.now(),ws=weekStart();return[
+  {theme:'awning',subject:'You’ve been paid ₦13,800: Wireless earbuds',eyebrow:'PAID OUT',label:'You’ve been paid',amount:13800,pill:'Sent to GTBank •••0101',rows:[['Order','#1093',1],['Wireless earbuds','₦14,000'],['Delivery you did','₦500'],['Stall fee','−₦700']],total:['You get','₦13,800'],info:[['Buyer','Femi Adeyemi'],['Completed',dtime(now)]],stars:[5,'Femi rated this sale'],tag:'Sell. Get paid. Sleep well.'},
+  {theme:'awning',subject:'Receipt: Ankara two-piece',eyebrow:'RECEIPT',label:'Paid to Tobi’s Closet',amount:9800,pill:'Held safely until you have it',rows:[['Order','#1107',1],['Ankara two-piece, M','₦9,800']],total:['Total','₦9,800'],info:[['Pickup','Faculty of Arts gate'],['Paid',dtime(now)]],tag:'Your money is safe until you have it.'},
+  {theme:'night',subject:'Receipt: Jollof rice + chicken',eyebrow:'LATE-NIGHT ORDER',label:'Paid to Mama T’s Kitchen',amount:6200,pill:'Held safely until you have it',rows:[['Order','#1112',1],['Jollof rice + chicken × 2','₦5,000'],['Fried plantain','₦500'],['Bottled water × 2','₦400'],['Delivery','₦300']],total:['Total','₦6,200'],info:[['Delivering to','Moremi Hall, Room B14'],['Paid',dtime(now)]],tag:'Open late. Still safe.'},
+  {theme:'dots',subject:'Refund on its way: Ankara two-piece',label:'Refund on its way',amount:9800,info:[['Order','#1107',1],['Item','Ankara two-piece, M'],['Why','Not sent within 24 hours'],['Back to','The card or account you paid with'],['Usually','1 to 5 working days']]},
+  {theme:'weekly',week:isoWeek(ws),label:'Your sales last week',n:23,total:86400,fees:4320,days:[9800,16200,12000,21000,27400,0,0],rating:{avg:4.9,n:21},subject:'Your Stall week: ₦86,400 in sales'}]};
+// Emails a receipt for an order, if it has one for that side.
+async function mailOrderReceipt(env,oid,side){try{const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(oid).first();if(!o)return;const m=await receiptFor(env,o,side);if(!m)return;
+  await mailTo(env,side==='buyer'?o.buyer:o.seller,m.subject,mailReceipt(m,'See your orders',SITE(env)+'/app?go='+(side==='buyer'?'orders':'selling')))}catch(e){}}
+// Every Monday, sellers who completed orders the week before get their Weekly statement by email, a few at a time as the app is used.
+let WK_AT=0;
+async function weeklyMails(env){if(!env.RESEND_API_KEY||Date.now()-WK_AT<6e4)return;WK_AT=Date.now();
+  try{const ws=weekStart()-7*864e5,k='weekly:'+ws;await env.DB.prepare('INSERT OR IGNORE INTO settings(k,v) VALUES(?,?)').bind(k,'0').run();
+    const cur=+(await getK(env,k));if(cur<0)return;
+    const rs=(await env.DB.prepare("SELECT DISTINCT seller FROM orders WHERE status='released' AND updated>=? AND seller>? ORDER BY seller LIMIT 20").bind(ws,cur).all()).results;
+    const nx=rs.length?rs[rs.length-1].seller:-1;
+    if(!(await env.DB.prepare('UPDATE settings SET v=? WHERE k=? AND v=?').bind(String(nx),k,String(cur)).run()).meta.changes)return;
+    for(const r of rs){const w=await weekOf(env,r.seller,ws);if(w.n)await mailTo(env,r.seller,w.subject,mailReceipt(w,'Open Stall',SITE(env)+'/app?go=selling'))}}catch(e){}}
 async function sendEmail(env,to,subject,html){if(!env.RESEND_API_KEY||!to)return{skipped:true};
   try{const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'content-type':'application/json'},body:JSON.stringify({from:env.EMAIL_FROM||'Stall <onboarding@resend.dev>',to:[to],subject,html})});
     const j=await r.json().catch(()=>({}));const ok=r.ok&&!!j.id;await setK(env,'email_last',JSON.stringify({t:Date.now(),ok,err:ok?null:String(j.message||j.name||('HTTP '+r.status)).slice(0,200)}));return ok?{ok:true}:{error:j.message||'Email failed'}}
   catch(e){await setK(env,'email_last',JSON.stringify({t:Date.now(),ok:false,err:String(e&&e.message||e).slice(0,200)})).catch(()=>{});return{error:'Email failed'}}}
 // Order emails go only to confirmed email addresses, and only if the person hasn't turned them off.
-async function notify(env,uid,subject,title,lines,btn,url){try{await ping(env,uid,title,String(lines[0]||'').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').slice(0,180),url?new URL(url).pathname+new URL(url).search:'/');
-  const u=await env.DB.prepare('SELECT email,email_verified,email_notify FROM users WHERE id=?').bind(uid).first();
-  if(!u||!u.email_verified||!u.email_notify||!u.email)return;await sendEmail(env,u.email,subject,mailHtml(title,lines,btn,url))}catch(e){}}
+// html replaces the standard email, e.g. with a receipt.
+async function notify(env,uid,subject,title,lines,btn,url,html){try{await ping(env,uid,title,String(lines[0]||'').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').slice(0,180),url?new URL(url).pathname+new URL(url).search:'/');
+  await mailTo(env,uid,subject,html||mailHtml(title,lines,btn,url))}catch(e){}}
+async function mailTo(env,uid,subject,html){const u=await env.DB.prepare('SELECT email,email_verified,email_notify FROM users WHERE id=?').bind(uid).first();
+  if(!u||!u.email_verified||!u.email_notify||!u.email)return;await sendEmail(env,u.email,subject,html)}
+// The receipt email for an order, or undefined (then the standard email is sent).
+async function rcMail(env,oid,side,btn,url){try{const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(oid).first(),m=o&&await receiptFor(env,o,side);return m?mailReceipt(m,btn,url):undefined}catch(e){}}
 // ---- Push notifications (Web Push). Keys are made on first use and kept in settings (or set VAPID_PUBLIC / VAPID_PRIVATE_JWK).
 // The push itself carries no data: the phone wakes up and fetches /api/push/inbox, so nothing private goes through the push service.
 const b64u=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -449,6 +544,7 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
         .bind(st,code,note,'paystack',fee,p.amount,ref,p.amount,d.method||'pickup',d.addr||null,d.dphone||null,st==='verified'&&o.status!=='verified'?'paid':o.dstage,st==='verified'&&o.status!=='verified'?track(o,'paid',now):o.track,now,now,o.id).run();
       if(note)await tg(env,'Order needs a look\n'+o.title+' - ₦'+p.amount+'\n'+note+'\nOrder #'+o.id);
       if(st==='verified'&&o.status!=='verified')await notify(env,o.seller,'New paid order: '+o.title,'You have a new order',[esc(o.buyer_name)+' paid <b>₦'+Number(p.amount).toLocaleString('en-NG')+'</b> for <b>'+esc(o.title)+'</b>'+(d.method==='delivery'?', to be delivered to '+esc(d.addr||''):', for pickup')+'.','Stall is holding the money. You\'re paid as soon as the buyer gives you their release code.'],'Open your orders',SITE(env)+'/app?go=orders');
+      if(st==='verified'&&o.status!=='verified')await mailOrderReceipt(env,o.id,'buyer');
       res={oid:o.id,fee,status:st};act='paid order #'+o.id+' through Paystack (Stall fee ₦'+fee+')';label=o.title}
     else if(p.kind==='collect'){const c=await env.DB.prepare('SELECT * FROM collections WHERE id=?').bind(d.cid).first();if(!c)throw new Error('collection missing');
       const ins=await env.DB.prepare('INSERT OR IGNORE INTO collect_pays(cid,uid,name,matric,amount,fee,ref,created) VALUES(?,?,?,?,?,?,?,?)').bind(c.id,u.id,u.name,u.matric||u.phone,d.amount,d.fee||0,ref,now).run();
@@ -693,7 +789,7 @@ async function route({request,env,params,waitUntil}){
   if(path==='me'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
     const v=await env.DB.prepare('SELECT status,reason FROM verify_requests WHERE uid=?').bind(u.id).first(),ic=await env.DB.prepare('SELECT status,reason FROM id_checks WHERE uid=?').bind(u.id).first();
     return J({user:{...pub(u),schoolInfo:await schoolOf(env,u.school_id),verify:v?v.status:null,verifyReason:v&&v.reason,idCheck:ic?ic.status:null,idReason:ic&&ic.reason,mustVerify:(await getK(env,'require_verified'))==='1',freeLeft:await freeLeft(env,u.id)}})}
-  if(path==='listings'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);await ensure(env);const NOW=Math.floor(Date.now()/6e4)*6e4;waitUntil(dailyCleanup(env));waitUntil(payJobs(env).catch(()=>{}));
+  if(path==='listings'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);await ensure(env);const NOW=Math.floor(Date.now()/6e4)*6e4;waitUntil(dailyCleanup(env));waitUntil(weeklyMails(env));waitUntil(payJobs(env).catch(()=>{}));
     const sp=url.searchParams,ids=(sp.get('ids')||'').split(',').map(x=>+x.slice(1)).filter(x=>x>0).slice(0,60),w=[LIVE],v=[];let lim=Math.min(96,Math.max(1,+sp.get('n')||24)),off=Math.max(0,+sp.get('off')||0),total;
     const cut=Math.floor((NOW-2*864e5)/6e5)*6e5;
     if(sp.get('mine')){w.push('l.uid=?',"(l.review!='live' OR (l.sold=1 AND l.created<=?))");v.push(u.id,cut);lim=50;off=0}
@@ -858,6 +954,12 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     const rs=(await env.DB.prepare('SELECT * FROM orders WHERE buyer=? ORDER BY created DESC LIMIT 100').bind(u.id).all()).results;
     const ns=new Set((await env.DB.prepare("SELECT oid FROM strikes WHERE uid=? AND kind='no_show' AND void=0 AND created>?").bind(u.id,Date.now()-OBJ_MS).all()).results.map(x=>x.oid));
     return J({orders:rs.map(r=>({...oRow(r),noShow:ns.has(r.id)}))})}
+  if(path==='orders/receipt'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
+    const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(+url.searchParams.get('id')||0).first();if(!o||(o.buyer!==u.id&&o.seller!==u.id))return J({error:'Order not found.'},404);
+    const m=await receiptFor(env,o,o.buyer===u.id?'buyer':'seller');if(!m)return J({error:'There\'s no receipt for this order yet.'},404);
+    return J({html:rcHtml(m,''),text:rcText(m),title:m.subject},200,{'cache-control':'no-store'})}
+  if(path==='orders/weekly'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
+    const w=await weekOf(env,u.id,weekStart());return J({n:w.n,total:w.total,html:w.n?rcHtml(w,''):'',text:w.n?rcText(w):''},200,{'cache-control':'no-store'})}
   if(path==='orders/selling'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);
     const rs=(await env.DB.prepare('SELECT * FROM orders WHERE seller=? ORDER BY created DESC LIMIT 100').bind(u.id).all()).results,bids=[...new Set(rs.map(r=>r.buyer))];
     const br={};if(bids.length)for(const x of (await env.DB.prepare('SELECT id,brating_sum,brating_n FROM users WHERE id IN ('+bids.map(()=>'?').join(',')+')').bind(...bids).all()).results)br[x.id]=rat({rating_sum:x.brating_sum,rating_n:x.brating_n});
@@ -1034,7 +1136,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       const total=(await env.DB.prepare('SELECT COUNT(*) c FROM '+from+wh).bind(...v).first()).c;
       const rs=(await env.DB.prepare('SELECT '+cols+' FROM '+from+wh+' ORDER BY '+order+' LIMIT ? OFFSET ?').bind(...v,PS,pg*PS).all()).results;
       return J({items:rs.map(map),total,ps:PS},200,{'cache-control':'no-store'})};
-    if(path==='admin/summary'){await sweep(env);waitUntil(dailyCleanup(env));waitUntil(payJobs(env).catch(()=>{}));const c=s=>env.DB.prepare('SELECT COUNT(*) c FROM '+s),mid=new Date();mid.setUTCHours(-1,0,0,0);
+    if(path==='admin/summary'){await sweep(env);waitUntil(dailyCleanup(env));waitUntil(weeklyMails(env));waitUntil(payJobs(env).catch(()=>{}));const c=s=>env.DB.prepare('SELECT COUNT(*) c FROM '+s),mid=new Date();mid.setUTCHours(-1,0,0,0);
       const r=(await env.DB.batch([c("orders WHERE status='under_review' OR (status='disputed' AND disp_reply IS NOT NULL)"),c("orders WHERE status='verified'"),c("users WHERE role='vendor' AND status='pending'"),c('users WHERE bank_verified=0'),c('stores WHERE bank_verified=0'),c("users WHERE role='student'"),c("users WHERE role='vendor'"),c('stores'),c("orders WHERE status='released'"),c('orders WHERE created>=?').bind(+mid)])).map(x=>x.results[0].c);
       if(!a.is_admin)return J({review:r[0]});
       const ai=JSON.parse(await getK(env,'ai_last')||'null'),mo=new Date();mo.setUTCDate(1);mo.setUTCHours(-1,0,0,0);
@@ -1097,7 +1199,8 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       if(b.approve){await env.DB.prepare('UPDATE users SET vlevel=MAX(vlevel,2) WHERE id=?').bind(c.uid).run();await bumpVer(env)}
       await logA(env,a,'account',b.approve?'approved a student ID':'rejected a student ID',c.name,{detail:why||null});return J({ok:true})}
     if(path==='admin/email-test'&&request.method==='POST'){const to=String(b.to||'').trim();if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(to))return J({error:'Enter an email address.'},400);
-      if(!env.RESEND_API_KEY)return J({error:'RESEND_API_KEY is not set in Cloudflare yet.'},400);const r=await sendEmail(env,to,'Stall test email',mailHtml('It works',['This is a test email from your Stall admin. Order emails and codes will look like this.']));return r.error?J({error:'Resend said: '+r.error},502):J({ok:true})}
+      if(!env.RESEND_API_KEY)return J({error:'RESEND_API_KEY is not set in Cloudflare yet.'},400);const r=await sendEmail(env,to,'Stall test email',mailHtml('It works',['This is a test email from your Stall admin. Order emails and codes will look like this.']));if(r.error)return J({error:'Resend said: '+r.error},502);
+      if(b.receipts)for(const m of sampleReceipts())await sendEmail(env,to,'Sample: '+m.subject,mailReceipt(m,'Open Stall',SITE(env)+'/app'));return J({ok:true})}
     if(path==='admin/sellerpay'&&request.method==='GET'){const f=url.searchParams.get('f')||'failed',w=[],v=[];if(['failed','processing','paid','queued'].includes(f)){w.push('p.status=?');v.push(f)}
       if(/^#?\d+$/.test(q)){w.push('p.oid=?');v.push(+q.replace('#',''))}else if(q){w.push('(o.seller_name LIKE ? OR o.title LIKE ?)');v.push(like,like)}
       return list('payouts p JOIN orders o ON o.id=p.oid','p.*,o.title,o.seller_name,o.seller_phone,o.bank_name,o.acct_no,o.acct_name',w,v,'p.updated DESC',
