@@ -774,7 +774,7 @@ function openDetail(id){
    <p class="meta">${i.featured&&!s?'<span class="tag ft" style="position:static;display:inline-block;margin-right:6px">Featured</span>':''}${esc(i.cond)} · Meet at ${esc(i.spot)} · ${ago(i.t)}</p>${dlvLine(i.deliv)}
    ${stk(i)}${own&&i.review&&i.review!=='live'?`<div class="rvw ${i.review}" style="margin-top:10px">${RV[i.review]}${i.reviewNote&&i.review==='rejected'?': '+esc(i.reviewNote):''}${i.review==='rejected'?' Delete it and post again with a clear photo of the actual item.':' Buyers will see it once it passes.'}</div>`:''}
    <div class="dsep"></div><p style="color:var(--muted)">${esc(i.desc||'No extra details.')}</p>
-   <p style="margin-top:14px;font-weight:600">Sold by ${esc(i.seller)}${i.school?' · '+esc(i.school):''}${i.verified?' '+VB:''} ${SB(i.vlevel)}</p><p class="meta"><button class="link" data-share="${id}" style="margin-right:10px">${ico('share')} Share</button>${i.rating&&i.rating.n?stars(i.rating)+' ':'No ratings yet '}<button class="link" data-reviews="${i.sid}" data-rname="${esc(i.seller)}">${i.rating&&i.rating.n?'See reviews':''}</button></p>
+   <p style="margin-top:14px;font-weight:600">Sold by ${esc(i.seller)}${i.school?' · '+esc(i.school):''}${i.verified?' '+VB:''} ${SB(i.vlevel)}</p><p class="meta"><button class="link" data-share="${id}" style="margin-right:10px">${ico('share')} Share</button>${own?'':`<button class="link" data-report="listing" data-target="${id}" style="margin-right:10px">${ico('flag')} Report</button>`}${i.rating&&i.rating.n?stars(i.rating)+' ':'No ratings yet '}<button class="link" data-reviews="${i.sid}" data-rname="${esc(i.seller)}">${i.rating&&i.rating.n?'See reviews':''}</button></p>
    ${own&&!s?boostBox(id,'listing',i.featured,i.featuredUntil):''}
    ${own?`<div class="acts"><button class="pill alt" data-stock="${id}">Update stock${i.qtyLeft!=null?' ('+i.qtyLeft+' left)':''}</button><button class="pill alt" data-sold="${id}">${s==='sold'?'Mark available':'Mark as sold'}</button><button class="pill red" data-del="${id}">Delete</button></div>`:''}</div>
    ${own?'':`<div class="dbar"><button class="chat" data-chat="${id}" aria-label="Message the seller"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg></button><button class="pill alt" data-add="${id}" ${s?'disabled':''}>Add to bag</button><button class="pill" data-buy="${id}" ${s?'disabled':''}>${s?(s==='sold'?'Sold':'Reserved'):'Buy now'}</button></div>`}`;
@@ -901,7 +901,7 @@ const tmT=k=>durT(TMS()[k],k==='hand');
 const tmFill=s=>s.replace(/\{(hand|answer|send|pay)\}/g,(_,k)=>tmT(k));
 const when=t=>new Date(t).toLocaleString('en-NG',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
 const dayOf=t=>new Date(t).toLocaleDateString('en-NG',{weekday:'short',day:'numeric',month:'short'});
-function orderCard(o,seller){const badge={pending:'Awaiting payment',under_review:'Under review',verified:o.handedAt?'Handed over':'Paid ✓',released:'Completed',rejected:'Rejected',disputed:'Problem reported',refunded:'Refunded'}[o.status]||'Expired';
+function orderCard(o,seller){const badge={refunding:'Refunding…',pending:'Awaiting payment',under_review:'Under review',verified:o.handedAt?'Handed over':'Paid ✓',released:'Completed',rejected:'Rejected',disputed:'Problem reported',refunded:'Refunded'}[o.status]||'Expired';
   const ver=o.status==='verified',ps=o.paidVia==='paystack',moved=['on_way','ready'].includes(o.stage),mineRep=o.dispBy===(seller?'seller':'buyer'),them=seller?'buyer':'seller';
   return `<div class="order"><div class="top"><b>${esc(o.title)} · ${esc(seller?o.buyerName:o.sellerName)}</b><span class="status ${o.status==='released'?'done':''}">${badge}</span></div>
    <div class="meta">${naira(o.amount)} · ${ago(o.deadline-19*60*1000)}${o.paidVia==='paystack'&&(seller?o.status==='released':['verified','released','disputed','refunded'].includes(o.status))?` · <button class="link" data-receipt="${o.id}">${seller?'Payout receipt':o.status==='refunded'?'Refund receipt':'Receipt'}</button>`:''}${seller&&o.buyerRating&&o.buyerRating.n?` · buyer <span class="rt">★ ${o.buyerRating.avg}</span> (${o.buyerRating.n})`:''}</div>
@@ -1157,6 +1157,10 @@ document.addEventListener('click',e=>{
   if(b=c('[data-chat]')){const d0=c('dialog');if(d0&&d0.id!=='chatDlg')d0.close();apiPost('chat/open',{ref:b.dataset.chat}).then(r=>{if(r.error)return toast(r.error);openChat(r.id)});return}
   if(b=c('[data-thread]')){openChat(+b.dataset.thread);return}
   if(c('[data-inbox]')){openInbox();return}
+  if(b=c('[data-cblock]')){const on=!b.dataset.on;if(on&&!confirm('Block this person? Neither of you can send messages in Stall chats until you unblock them. Paid orders carry on as normal.'))return;
+    apiPost('chat/block',{tid:+b.dataset.cblock,on}).then(r=>{if(r.error)return toast(r.error);b.dataset.on=on?'1':'';b.textContent=on?'Unblock':'Block';toast(on?'Blocked. You can also report them.':'Unblocked')});return}
+  if(b=c('[data-report]')){const why=prompt('Report this '+b.dataset.report+' to Stall. What\'s wrong? (e.g. fake, scam, banned item, offensive)');if(why===null)return;
+    apiPost('report',{kind:b.dataset.report,target:b.dataset.target,reason:why}).then(r=>toast(r.error||'Thanks. The Stall team will look at it.'));return}
   if(b=c('[data-creport]')){const why=prompt('Report this chat to Stall. What happened? (e.g. asked me to pay outside Stall, rude, scam)');if(why===null)return;apiPost('chat/report',{tid:+b.dataset.creport,reason:why}).then(r=>{if(r.error)return toast(r.error);toast('Reported. Thank you, we will look into it')});return}
   if(b=c('[data-reviews]')){openReviews(b.dataset.reviews,b.dataset.rname||'Seller');return}
   if(b=c('[data-revreply]')){const t=prompt('Your public reply to this review (once, up to 300 characters). Keep it polite and factual.');if(!t)return;apiPost('reviews/reply',{id:+b.dataset.revreply,text:t}).then(r=>{if(r.error)return toast(r.error);toast('Reply posted');openReviews(b.dataset.uid,b.dataset.rname)});return}
@@ -1447,7 +1451,8 @@ $('#form').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),
 const allStores=()=>STORES;
 const sItems=()=>allStores().flatMap(s=>s.items.map(it=>({...it,cat:s.cat,spot:s.spot,seller:s.name,phone:s.phone||'',multi:true,se:s.emoji,cond:'',t:0})));
 const uid=()=>S.user?(S.user.id||S.user.matric):'';
-const myStore=()=>STORES.find(s=>s.owner===uid());
+// Which store is mine: matched on the account id (the store list no longer carries the owner's matric number).
+const myStore=()=>S.user?STORES.find(s=>s.uid===S.user.uid):undefined;
 let cur='';
 function refresh(){render();if(!$('#store').hidden)storePage(cur);if($('#cart').open)openCart()}
 function renderStores(){
@@ -1458,12 +1463,12 @@ function renderStores(){
 }
 function storePage(id){
   cur=id;const s=allStores().find(x=>x.id===id);if(!s)return view('stores');
-  const own=!!s.owner&&s.owner===uid(),qty=k=>S.cart.filter(x=>x===k).length;
+  const own=!!S.user&&s.uid===S.user.uid,qty=k=>S.cart.filter(x=>x===k).length;
   const swa=String(s.phone||'').replace(/\D/g,'').replace(/^0/,'234'),avl=s.items.filter(x=>x.avail).length;
   $('#store').innerHTML=`<div class="shero"><button class="link back" id="backStores" aria-label="All stores">←</button>
    <div class="sav${s.logo?' haslogo':''}" style="background:${ci(s.cat).c};color:${ci(s.cat).k}">${sLogo(s)}</div><h2>${esc(s.name)}</h2>${s.verified?'<div>'+VB+'</div>':s.vlevel?'<div>'+SB(s.vlevel)+'</div>':''}${s.rating&&s.rating.n?`<p><button class="link" data-reviews="${s.uid}" data-rname="${esc(s.name)}">${stars(s.rating)} · reviews</button></p>`:''}<p class="sst"><i class="${s.open?'on':''}"></i>${s.open?'Open now':'Closed'}${s.vendor?' · Campus vendor':''}</p>
    <div class="sstats"><div><b>${avl}</b><span>Available</span></div><div><b>${s.items.length}</b><span>Items</span></div><div><b>${esc(s.school||ci(s.cat).name)}</b><span>${s.school?esc(s.state):'Category'}</span></div></div>
-   <div class="sbtn">${!own?`<button class="pill acc" data-chat="${s.id}">Message the store</button>`:''}<button class="pill alt" data-share="${s.id}">${ico('share')} Share store</button></div></div>
+   <div class="sbtn">${!own?`<button class="pill acc" data-chat="${s.id}">Message the store</button>`:''}<button class="pill alt" data-share="${s.id}">${ico('share')} Share store</button>${!own?`<button class="link" data-report="store" data-target="${s.id}">${ico('flag')} Report</button>`:''}</div></div>
    <div class="wrap" style="padding-top:18px;max-width:760px">${s.desc?`<p style="color:var(--muted)">${esc(s.desc)}</p>`:""}<p class="meta ico-line">${ico('pin')} ${esc(s.spot)}</p>${dlvLine(s.deliv)}
    ${own&&!s.logo?`<div class="lnudge"><span class="aic">${ico('image')}</span><div><b>Add your logo</b><p class="meta">Many stores use the same icon. A logo helps buyers spot you quickly and remember you.</p></div><button class="pill sm" data-look="1">Add logo</button></div>`:''}
    ${own?`<div class="acts"><button class="pill sm" id="addItem">Add item</button><button class="pill sm alt" data-look="1">${s.logo?'Change logo':'Logo & icon'}</button><button class="pill sm alt" data-bulk="store">Add several</button><button class="pill sm alt" data-dlvset="store">Delivery${s.deliv&&s.deliv.on?' · '+naira(s.deliv.fee):': off'}</button><button class="pill sm alt" data-toggle="1">${s.open?'Close store':'Open store'}</button><button class="pill sm red" data-delstore="1">Delete store</button></div>${boostBox(s.id,'store',s.featured,s.featuredUntil)}${reachBox(s)}`:''}
@@ -1595,7 +1600,7 @@ function vendorGate(g){
     <div class="two"><label>Shop location on campus<input name="where" maxlength="40" placeholder="e.g. Cafeteria, Stall 4"><span class="err" data-e="where"></span></label><label>What you sell<select name="cat">${CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></label></div>
     <label>Invite code (optional)<input name="code" autocapitalize="characters" maxlength="20" placeholder="Only if the Stall team gave you one"><span class="err" data-e="code"></span></label>
     <label>Create a password<input name="pw" type="password" autocomplete="new-password" placeholder="At least 8 characters"><span class="err" data-e="pw"></span></label>
-    <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span>I run this shop on or near my school's campus, these details are correct, and I agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label><span class="err" data-e="ok"></span>
+    <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span>I'm 16 or older, I run this shop on or near my school's campus, these details are correct, and I agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label><span class="err" data-e="ok"></span>
     <div class="acts"><button class="pill" type="submit">Create account</button></div></form><p style="margin-top:14px"><button class="link" type="button" id="toIn">Already have an account? Sign in</button></p></div>`;
   $('#reg').onsubmit=e=>{e.preventDefault();const f=e.target,v=n=>f.elements[n].value.trim(),er={},ph=v('phone').replace(/\D/g,'');
     const sb0=schoolBody(f);if(sb0.error)er.school=sb0.error;
@@ -1726,14 +1731,14 @@ async function openInbox(){clearInterval(CHT);const d=$('#chatDlg');d.innerHTML=
   $('#tlist').innerHTML=L.length?L.map(t=>`<button class="tline" data-thread="${t.id}"><div class="mini" style="background:var(--bg2);border-radius:14px;color:var(--ink)">${ico('chat')}</div><div class="t"><b>${esc(t.with)}</b><span class="meta">${esc(t.title||'')}</span><span>${esc(t.last||'')}</span></div><span class="meta">${ago(t.lastAt)}</span>${t.unread?'<i></i>':''}</button>`).join('')
    :'<div class="empty"><h3>No messages yet</h3><p>Message a seller from any listing or store, or from an order.</p></div>'}
 async function openChat(tid){clearInterval(CHT);const d=$('#chatDlg');let last=0;
-  d.innerHTML=`<div class="pad"><div class="chead"><button class="link back" data-inbox aria-label="All messages">←</button><div style="flex:1;min-width:0"><b id="cWith">…</b><span class="meta" id="cTitle"></span></div><button class="link" data-creport="${tid}" style="font-size:13px">Report</button><button class="pill sm alt" data-close>Close</button></div>
+  d.innerHTML=`<div class="pad"><div class="chead"><button class="link back" data-inbox aria-label="All messages">←</button><div style="flex:1;min-width:0"><b id="cWith">…</b><span class="meta" id="cTitle"></span></div><button class="link" data-creport="${tid}" style="font-size:13px">Report</button><button class="link" data-cblock="${tid}" id="cBlock" style="font-size:13px">Block</button><button class="pill sm alt" data-close>Close</button></div>
    <div class="cwarn" id="cWarn">Keep payments in Stall. Never pay a seller directly or share bank details here. Payments outside Stall aren't protected.</div><div class="cmsgs" id="cMsgs"></div>
    ${nudgeHtml('chat')}<form class="cform" id="cForm"><textarea name="body" rows="1" maxlength="1000" placeholder="Write a message" required></textarea><button class="pill" type="submit">Send</button></form></div>`;
   if(!d.open)d.showModal();drawNudges();
   const add=ms=>{const box=$('#cMsgs');if(!box)return;const near=box.scrollHeight-box.scrollTop-box.clientHeight<80;
     box.insertAdjacentHTML('beforeend',ms.map(m=>`<div class="bub${m.mine?' me':''}">${esc(m.body)}<small>${new Date(m.t).toLocaleTimeString('en-NG',{hour:'numeric',minute:'2-digit'})}</small></div>`).join(''));if(ms.length){last=ms[ms.length-1].id;if(near||ms.some(m=>m.mine))box.scrollTop=box.scrollHeight}};
   const pull=async first=>{if(document.hidden&&!first)return;const r=await fetchJ('/api/chat/msgs?tid='+tid+'&after='+last).catch(()=>null);if(!r||r.error){if(first)toast((r&&r.error)||'Could not open chat');return}
-    if(first){$('#cWith').textContent=r.thread.with;$('#cTitle').textContent=r.thread.title||'';if(!r.msgs.length)$('#cMsgs').innerHTML='<p class="meta" style="text-align:center;margin:auto">Say hello. Ask about size, condition, or when to meet.</p>'}
+    if(first){const bb=$('#cBlock');if(bb){bb.dataset.on=r.thread.iBlock?'1':'';bb.textContent=r.thread.iBlock?'Unblock':'Block'}$('#cWith').textContent=r.thread.with;$('#cTitle').textContent=r.thread.title||'';if(!r.msgs.length)$('#cMsgs').innerHTML='<p class="meta" style="text-align:center;margin:auto">Say hello. Ask about size, condition, or when to meet.</p>'}
     if(r.msgs.length&&!last)$('#cMsgs').innerHTML='';add(r.msgs)};
   await pull(true);$('#cMsgs').scrollTop=1e9;CHT=setInterval(()=>{if(!$('#cMsgs')||!d.open){clearInterval(CHT);return}pull()},4000);
   const f=$('#cForm');f.elements.body.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!matchMedia('(pointer:coarse)').matches){e.preventDefault();f.requestSubmit()}};
@@ -1772,7 +1777,7 @@ const ATABS=AG.flatMap(g=>g[1].map(([k,l,,,n])=>[k,l,n])),AMETA=Object.fromEntri
 const AF={ids:[['pending','Waiting'],['approved','Approved'],['rejected','Rejected'],['all','All']],sellerpay:[['failed','Failed'],['processing','Sending'],['paid','Paid'],['all','All']],orders:[['all','All'],['verified','Awaiting delivery'],['disputed','Problem reported'],['refunded','Refunded'],['under_review','Needs review'],['pending','Waiting for payment'],['released','Delivered'],['rejected','Rejected'],['expired','Expired']],vendors:[['all','All'],['pending','Waiting'],['active','Approved'],['suspended','Suspended']],users:[['all','Everyone'],['student','Students'],['vendor','Vendors'],['verified','Verified'],['reviewer','Reviewers']],items:[['review','Needs a look'],['rejected','Rejected'],['live','Approved']],schools:[['pending','Requested'],['active','All schools']],verify:[['pending','Waiting'],['approved','Approved, not paid'],['paid','Verified'],['rejected','Not approved'],['all','All']],money:[['all','All'],['boost','Featured'],['reach','Store reach'],['verify','Verified badges'],['store','Store fees'],['commission','Sale fees']],codes:[['all','All'],['unused','Not used'],['used','Used'],['off','Turned off']],log:[['all','Everything'],['payment','Payments'],['account','Accounts'],['money','Earnings'],['other','Other']]};
 const AQ={payments:'Search order #, name, phone or reference',orders:'Search order #, name, phone or reference',vendors:'Search shop, name or phone',users:'Search name, matric, phone or email',codes:'Search code or shop name',log:'Search person, order # or action',items:'Search title or seller',schools:'Search school, short name or state',verify:'Search name, phone or shop',money:'Search name, item or reference'};
 const aAgo=t=>{if(!t)return'';const s=(Date.now()-t)/1e3;return s<60?'just now':s<3600?Math.floor(s/60)+' min ago':s<86400?Math.floor(s/3600)+' h ago':new Date(t).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})};
-const wa=p=>{p=String(p||'');return p?`<a class="link" target="_blank" rel="noopener" href="https://wa.me/${p[0]==='0'?'234'+p.slice(1):p}">${esc(p)}</a>`:''};
+const wa=p=>{p=String(p||'');const d=p.replace(/\D/g,'');return d?`<a class="link" target="_blank" rel="noopener" href="https://wa.me/${d[0]==='0'?'234'+d.slice(1):d}">${esc(p)}</a>`:esc(p)};
 const bdg=(l,k)=>`<span class="badge ${k?'b-'+k:''}">${esc(l)}</span>`;
 const ast=k=>AD.st[k]=AD.st[k]||{q:'',f:(AF[k]||[[''] ])[0][0],page:0};
 async function openAdmin(){const d=$('#adminDlg');AD.rev=!S.user.admin;if(AD.rev)AD.tab='payments';d.className='adm';
@@ -2031,7 +2036,7 @@ function gate(){drawGuide();
     <label>WhatsApp number<input name="phone" inputmode="tel" placeholder="080..."><span class="err" data-e="phone"></span></label>
     <label>Create a password<input name="pw" type="password" autocomplete="new-password" placeholder="At least 8 characters"><span class="err" data-e="pw"></span></label>
     <label>Hostel or where you stay (optional)<input name="where" maxlength="40"></label>
-    <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span>I am a current student at the school above, and I agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label><span class="err" data-e="ok"></span>
+    <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span>I'm 16 or older, I'm a current student at the school above, and I agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label><span class="err" data-e="ok"></span>
     <div class="acts"><button class="pill" type="submit">Create account</button></div></form><p style="margin-top:14px"><button class="link" type="button" id="toIn">Already have an account? Sign in</button></p></div>`;
   $('#reg').onsubmit=e=>{e.preventDefault();const f=e.target,v=n=>f.elements[n].value.trim(),er={};
     const dom=(v('email').split('@')[1]||'').toLowerCase(),ph=v('phone').replace(/\D/g,'');
