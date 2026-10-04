@@ -11,12 +11,23 @@ async function siteOn(env) {
   AT = Date.now(); return ON;
 }
 const asset = (ctx, path) => ctx.env.ASSETS.fetch(new Request(new URL(path, ctx.request.url), ctx.request));
+// Cloudflare doesn't apply _headers to pages that go through a Function, so the app and website pages get the same security headers here.
+// Keep these in step with the /* block in _headers.
+const SEC = {
+  'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Permissions-Policy': 'camera=(), microphone=(self), geolocation=(self), payment=(), usb=(), interest-cohort=()',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests"
+};
+const sec = async r => { r = await r; if (!/text\/html/.test(r.headers.get('content-type') || '')) return r;
+  const out = new Response(r.body, r); for (const [k, v] of Object.entries(SEC)) if (!out.headers.has(k)) out.headers.set(k, v); return out };
 
 export async function onRequest(ctx) {
   const u = new URL(ctx.request.url), p = u.pathname;
   if (ctx.request.method !== 'GET' && ctx.request.method !== 'HEAD') return ctx.next();
-  if (p === '/app' || p === '/app/') return asset(ctx, '/');
-  if (p === '/' && !u.search) return (await siteOn(ctx.env)) ? asset(ctx, '/welcome') : ctx.next();
+  if (p === '/app' || p === '/app/') return sec(asset(ctx, '/'));
+  if (p === '/' && !u.search) return sec((await siteOn(ctx.env)) ? asset(ctx, '/welcome') : ctx.next());
   if (p === '/install' && !u.search && await siteOn(ctx.env)) return Response.redirect(new URL('/#get', u), 302);
-  return ctx.next();
+  return sec(ctx.next());
 }

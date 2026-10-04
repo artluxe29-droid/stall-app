@@ -29,6 +29,9 @@ The app is already prepared:
    - **App name:** `Stall – student marketplace` · **Launcher name:** `Stall`
    - **App version:** `1.0.0` · **Version code:** `1`
    - **Signing key:** *Create new*. Enter your name and a strong password, and keep it safe.
+   - **Location delegation:** turn **on** (needed for live delivery tracking and meeting-spot pins).
+   - **Notification delegation:** turn **on** (needed for order and delivery notifications).
+   - **Play Billing:** leave **off**, unless you decide to sell featuring, store reach, the verified badge or the store fee through Google Play (see the launch review notes).
 4. Download the zip. It contains:
    - `*.aab` — the file you upload to Google Play
    - `signing.keystore` and `signing-key-info.txt` — **your upload key and its passwords**
@@ -105,14 +108,16 @@ SHOP YOUR CAMPUS
 • Seller ratings and reviews from real buyers.
 • Pick up on campus for free, or get it delivered to your hall.
 • Track your order: paid, packed, on the way, delivered.
+• Live delivery tracking: see the seller coming on a map with an arrival time, and drop a pin for the exact meeting spot. Sharing your location is always optional.
 
 SELL IN A MINUTE
 • Snap a photo, set a price, done. Listing single items is free.
 • Open a store for your campus business and reach your whole state or the country.
-• Get paid straight to your bank when the buyer gets their order.
+• Get paid straight to your bank when the buyer gets their order. A small sale fee applies (5%, capped).
+• Collect money from your class with class collections.
 
 SAFE BY DESIGN
-• Chat with sellers inside Stall, so there's a record if anything goes wrong.
+• Chat with sellers inside Stall, so there's a record if anything goes wrong. Report or block anyone.
 • Every new listing photo is checked before it goes live.
 • Verified-seller badges and buyer reviews help you shop with confidence.
 
@@ -135,5 +140,9 @@ Data is **encrypted in transit** (HTTPS) and users **can request deletion** (in-
 | Messages → other in-app messages (chats) | Yes | No | App functionality, fraud prevention |
 | Photos (listing photos, ID card for verification) | Yes | No | App functionality, fraud prevention |
 | App activity (orders, listings) | Yes | No | App functionality |
+| Location → precise location (live delivery tracking, meeting-spot pins) | Yes, optional | No (shown only to the other person on that order) | App functionality |
+| Photos → verification documents (student ID etc.) | Yes, optional | No (checked by Cloudflare's AI as a service provider) | Fraud prevention, account verification |
+| Device or other IDs (push notification address) | Yes | No | App functionality (notifications) |
+| Audio (voice search) | No (the phone's speech service turns it into text; Stall gets only the text) | No | App functionality |
 
 Card details are entered on Paystack's page and **never reach Stall**, so you don't declare card numbers. Paystack is a "service provider", which Google doesn't count as sharing.
