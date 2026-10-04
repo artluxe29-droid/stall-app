@@ -75,7 +75,7 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   for(const s0 of stale)if((await env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,s0.id).run()).meta.changes)ids.push(s0.id);
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='26';
+const SCHEMA_V='27';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -125,6 +125,7 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'ALTER TABLE orders ADD COLUMN pin_lat REAL','ALTER TABLE orders ADD COLUMN pin_lng REAL',
     'ALTER TABLE pending_pay ADD COLUMN claimed INTEGER','ALTER TABLE pending_pay ADD COLUMN checks INTEGER NOT NULL DEFAULT 0',
     'CREATE INDEX IF NOT EXISTS orders_status_created ON orders(status,created)','CREATE INDEX IF NOT EXISTS orders_status_updated ON orders(status,updated)','CREATE INDEX IF NOT EXISTS orders_buyer ON orders(buyer)','CREATE INDEX IF NOT EXISTS orders_seller ON orders(seller)','CREATE INDEX IF NOT EXISTS users_role_created ON users(role,created)','CREATE INDEX IF NOT EXISTS vendor_codes_created ON vendor_codes(created)','CREATE INDEX IF NOT EXISTS listings_created ON listings(created)','CREATE INDEX IF NOT EXISTS listings_cat_created ON listings(cat,created)','CREATE INDEX IF NOT EXISTS listings_uid ON listings(uid)','CREATE INDEX IF NOT EXISTS photos_lid ON photos(lid,n)','CREATE INDEX IF NOT EXISTS order_items_oid ON order_items(oid)','CREATE INDEX IF NOT EXISTS stores_uid ON stores(uid)','CREATE INDEX IF NOT EXISTS store_items_sid ON store_items(sid)','CREATE INDEX IF NOT EXISTS pending_pay_done ON pending_pay(done,created)','CREATE INDEX IF NOT EXISTS payouts_st_upd ON payouts(status,updated)',
+    'ALTER TABLE users ADD COLUMN ms_sell INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN ms_buy INTEGER NOT NULL DEFAULT 0',
     'CREATE TABLE IF NOT EXISTS reports(uid INTEGER NOT NULL,kind TEXT NOT NULL,target INTEGER NOT NULL,reason TEXT,t INTEGER NOT NULL,PRIMARY KEY(uid,kind,target))',
     'CREATE TABLE IF NOT EXISTS blocks(uid INTEGER NOT NULL,bid INTEGER NOT NULL,t INTEGER NOT NULL,PRIMARY KEY(uid,bid))',
     'CREATE TABLE IF NOT EXISTS bank_seen(k TEXT PRIMARY KEY,name TEXT NOT NULL,t INTEGER NOT NULL)',
@@ -324,10 +325,18 @@ const moverOf=o=>o.method==='delivery'?'seller':'buyer';
 const tripOpen=o=>o.status==='verified'&&!o.handed_at&&(o.method==='delivery'?o.dstage==='on_way':true);
 // Minutes to go at the speed they've been moving (walking pace at least).
 const etaMin=(m,spd)=>Math.max(1,Math.ceil(m/Math.max(spd||0,1.3)/60));
+// ---- Milestone badges: a seller's 1st, 5th, 10th… completed sale and a buyer's safe buys. The app shows a shareable badge once for each.
+const MS={sell:[1,5,10,15,20,30,40,50,75,100,150,200,300,500,750,1000],buy:[1,5,10,20,30,50,75,100,200]};
+const msTop=(k,n)=>MS[k].filter(m=>m<=n).pop()||0;
+async function msCounts(env,uid){const [a,b]=await Promise.all([env.DB.prepare("SELECT COUNT(*) c FROM orders WHERE seller=? AND status='released'").bind(uid).first(),env.DB.prepare("SELECT COUNT(*) c FROM orders WHERE buyer=? AND status='released'").bind(uid).first()]);return{sell:a.c,buy:b.c}}
+// A push when a completed order lands someone on a milestone (the badge itself shows next time they open Stall).
+async function msPing(env,o){try{const c1=(await msCounts(env,o.seller)).sell,c2=(await msCounts(env,o.buyer)).buy;
+  if(MS.sell.includes(c1))await ping(env,o.seller,c1===1?'Your first sale on Stall!':c1+' sales on Stall!','You earned a badge. Open Stall to see it and share it.',SITE(env)+'/app?go=badges','ms');
+  if(MS.buy.includes(c2))await ping(env,o.buyer,c2===1?'Your first safe buy on Stall':c2+' safe buys on Stall','You earned a badge. Open Stall to see it and share it.',SITE(env)+'/app?go=badges','ms')}catch(e){}}
 // Releases a held order to the seller. Only a paid (or disputed) order can be released, and only once.
 async function release(env,o,how){const now=Date.now();
   const ch=(await env.DB.prepare("UPDATE orders SET status='released',code_used=?,dstage='done',track=?,updated=? WHERE id=? AND status IN ('verified','disputed')").bind(how==='code'?1:0,track(o,'done',now),now,o.id).run()).meta.changes;
-  if(ch)await env.DB.prepare('DELETE FROM trips WHERE oid=?').bind(o.id).run().catch(()=>{});
+  if(ch){await env.DB.prepare('DELETE FROM trips WHERE oid=?').bind(o.id).run().catch(()=>{});await msPing(env,o)}
   if(ch){if((o.sub!=null?o.sub:o.amount)>=REF_MIN){await refPay(env,o.buyer).catch(()=>{});await refPay(env,o.seller).catch(()=>{})}await payOut(env,o.id);const go=SITE(env)+'/app?go=selling';await notify(env,o.seller,'You’ve been paid '+NGN(o.amount-(o.fee||0))+': '+o.title,'Order complete',['<b>'+esc(o.title)+'</b> has been handed over. We\'re sending <b>₦'+Number(o.amount-(o.fee||0)).toLocaleString('en-NG')+'</b> to your bank now.'],'See your orders',go,await rcMail(env,o.id,'seller','See your orders',go))}return!!ch}
 // Gives the buyer their money back and puts the stock back. Orders not paid through Paystack are just cancelled.
 // The order is claimed ('refunding') before Paystack is asked, so a release or a second refund can't happen at the same time.
@@ -697,6 +706,12 @@ async function route({request,env,params,waitUntil}){
     await env.DB.prepare("INSERT INTO id_checks(uid,kind,photo,status,ai,reason,created,updated) VALUES(?,?,?,?,?,NULL,?,?) ON CONFLICT(uid) DO UPDATE SET kind=excluded.kind,photo=excluded.photo,status=excluded.status,ai=excluded.ai,reason=NULL,updated=excluded.updated").bind(u.id,kind,photo,st,ai.ok===true?'yes':ai.why||'',now,now).run();
     if(st==='approved'){await env.DB.prepare('UPDATE users SET vlevel=2 WHERE id=?').bind(u.id).run();await bumpVer(env);return J({ok:true,status:'approved'})}
     waitUntil(tg(env,'Student ID to check\n'+u.name+' ('+(sc?sc.short||sc.name:'')+') - '+u.phone+'\n'+(ai.why||'')+'\nReview it in Admin → Student IDs.'));return J({ok:true,status:'pending'})}
+  if(path==='me/milestones'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
+    if(request.method==='POST'){const b=await request.json().catch(()=>({})),k=b.kind==='buy'?'buy':'sell',n=Math.max(0,Math.round(+b.n||0));
+      await env.DB.prepare('UPDATE users SET '+(k==='buy'?'ms_buy':'ms_sell')+'=MAX('+(k==='buy'?'ms_buy':'ms_sell')+',?) WHERE id=?').bind(n,u.id).run();return J({ok:true})}
+    const c=await msCounts(env,u.id),sc=u.school_id?await schoolOf(env,u.school_id):null,st=await env.DB.prepare('SELECT name FROM stores WHERE uid=?').bind(u.id).first();
+    const side=k=>{const top=msTop(k,c[k]),seen=u['ms_'+k]||0;return{count:c[k],earned:MS[k].filter(m=>m<=c[k]),next:MS[k].find(m=>m>c[k])||null,fresh:top>seen?top:null}};
+    return J({sell:side('sell'),buy:side('buy'),name:u.role==='vendor'&&u.biz?String(u.biz).slice(0,28):String(u.name||'').split(' ')[0],store:st?st.name:null,school:sc?(sc.short||sc.name):''},200,{'cache-control':'no-store'})}
   if(path==='me/referral'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
     const code=await refCode(env,u),c=await env.DB.prepare('SELECT COUNT(*) n,SUM(ref_paid) p FROM users WHERE referred_by=?').bind(u.id).first();
     const cap=await refCap(env),month=(await env.DB.prepare('SELECT IFNULL(SUM(amt),0) s FROM credit_log WHERE uid=? AND amt>0 AND t>=?').bind(u.id,monthStart()).first()).s;

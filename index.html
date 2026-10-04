@@ -225,6 +225,11 @@ dialog.adm[open]{display:flex;flex-direction:column}
 .lvdot{width:22px;height:22px;border-radius:50%;background:#26306E;border:4px solid #C8F03C;box-shadow:0 0 0 0 rgba(38,48,110,.45);animation:lvp 1.8s infinite}.lvdot.me{background:#C8F03C;border-color:#26306E}
 @keyframes lvp{70%{box-shadow:0 0 0 16px rgba(38,48,110,0)}100%{box-shadow:0 0 0 0 rgba(38,48,110,0)}}
 .lvpin{width:34px;height:34px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:#C8F03C;border:3px solid #26306E;display:grid;place-items:center}.lvpin svg{transform:rotate(45deg)}
+.bdgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-top:10px}
+.bdg{border:0;border-radius:16px;padding:12px 6px;background:var(--blue);color:var(--on);display:grid;gap:2px;justify-items:center;cursor:pointer;font:inherit}
+.bdg b{font-family:"Bricolage Grotesque","Figtree",system-ui,sans-serif;font-size:24px;line-height:1}.bdg span{font-size:11.5px;opacity:.85;text-align:center}
+.bdg.off{background:var(--bg2);color:var(--ink);opacity:.6;cursor:default}
+.bdgsheet{padding:22px 14px 16px}.bdgsheet>div:not(.acts){filter:drop-shadow(0 18px 26px rgba(22,26,51,.22));margin:0 auto;width:max-content;max-width:100%}
 .wkcard{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;border:0;border-radius:20px;padding:16px 18px;margin-bottom:12px;background:#26306E;color:#F6F1E7;text-align:left;cursor:pointer;font:inherit}
 .wkcard small{display:block;color:#CDD2F0;font-size:13px}.wkcard b{display:block;font-family:"Bricolage Grotesque","Figtree",system-ui,sans-serif;font-size:28px;letter-spacing:-.02em;line-height:1.15}.wkcard .go{color:#C8F03C;font-weight:700;font-size:14px;white-space:nowrap}
 .bag+.bag{margin-left:8px}#themeBtn{margin-left:auto}
@@ -942,12 +947,12 @@ function showReceipt(html,text,title){const d=$('#accDlg');d.innerHTML=`<div cla
   if(!d.open)d.showModal()}
 // Receipt to image: drawn by html2canvas (loaded only when needed) from an off-screen copy, on the receipt-board lilac.
 const loadH2C=()=>window.html2canvas?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement('script');s.src='/vendor/html2canvas.min.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)});
-async function rcCanvas(html){await loadH2C();await document.fonts.ready;const w=document.createElement('div');w.style.cssText='position:fixed;left:-10000px;top:0;box-sizing:content-box;width:360px;padding:24px;background:#ECEAF4;-webkit-text-size-adjust:none;text-size-adjust:none';w.innerHTML=html;document.body.appendChild(w);
+async function rcCanvas(html,o={}){await loadH2C();await document.fonts.ready;const pad=o.pad!=null?o.pad:24,bg=o.bg||'#ECEAF4',w=document.createElement('div');w.style.cssText=`position:fixed;left:-10000px;top:0;box-sizing:content-box;width:360px;padding:${pad}px;background:${bg};-webkit-text-size-adjust:none;text-size-adjust:none`;w.innerHTML=html;document.body.appendChild(w);
   await Promise.all([...w.querySelectorAll('img')].map(i=>i.complete?0:new Promise(z=>{i.onload=i.onerror=z})));
   // html2canvas mis-sizes images with height:auto, so pin each to the height it actually has.
   w.querySelectorAll('img').forEach(i=>{const r=i.getBoundingClientRect();i.style.width=r.width+'px';i.style.height=r.height+'px'});
-  try{return await html2canvas(w,{scale:3,backgroundColor:'#ECEAF4',logging:false,useCORS:true})}finally{w.remove()}}
-const rcPng=async html=>new Promise(async(ok,no)=>(await rcCanvas(html)).toBlob(b=>b?ok(b):no(new Error('png')),'image/png'));
+  try{return await html2canvas(w,{scale:3,backgroundColor:bg,logging:false,useCORS:true})}finally{w.remove()}}
+const rcPng=async(html,o)=>new Promise(async(ok,no)=>(await rcCanvas(html,o)).toBlob(b=>b?ok(b):no(new Error('png')),'image/png'));
 // A one-page PDF holding the receipt picture, sized to the receipt (built here, no library needed).
 async function rcPdf(html){const c=await rcCanvas(html),jpg=Uint8Array.from(atob(c.toDataURL('image/jpeg',.92).split(',')[1]),x=>x.charCodeAt(0));
   const pw=+(c.width/3*.75).toFixed(2),ph=+(c.height/3*.75).toFixed(2),en=new TextEncoder(),parts=[],offs=[];let n=0;const add=x=>{const b=typeof x==='string'?en.encode(x):x;parts.push(b);n+=b.length};
@@ -959,6 +964,61 @@ async function rcPdf(html){const c=await rcCanvas(html),jpg=Uint8Array.from(atob
   const x=n;add('xref\n0 7\n0000000000 65535 f \n'+offs.slice(1).map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')+'trailer\n<< /Size 7 /Root 1 0 R /Info 6 0 R >>\nstartxref\n'+x+'\n%%EOF\n');
   return new Blob(parts,{type:'application/pdf'})}
 function saveBlob(b,name){const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),6e4);toast('Saved '+name)}
+// ---- Milestone badges: a seller's 1st, 5th, 10th… sale and a buyer's safe buys. Shown once when earned, kept in Account → Badges, and
+// made into a picture to share on WhatsApp status, with the person's invite link in the message.
+let MSQ=null,MSB=0;
+const ordn=n=>n+((n%100>=11&&n%100<=13)?'th':({1:'st',2:'nd',3:'rd'}[n%10]||'th'));
+const msName=(k,n)=>k==='sell'?(n===1?'First sale':n+' sales'):(n===1?'First safe buy':n+' safe buys');
+async function checkMilestones(){if(!S.user||MSB||document.querySelector('dialog[open]'))return;MSB=1;
+  try{const r=await fetchJ('/api/me/milestones');if(r&&!r.error){MSQ=r;const k=r.sell.fresh?'sell':r.buy.fresh?'buy':null;if(k&&!document.querySelector('dialog[open]'))openBadge(k,r[k].fresh,true)}}catch(e){}MSB=0}
+// The medal: a scalloped rosette (the awning's scallops, all the way round), drawn once per colour.
+const MEDAL={};
+function medal(fill,ring){const k=fill+ring;if(MEDAL[k])return MEDAL[k];const c=document.createElement('canvas'),S2=480,x=c.getContext('2d'),R=176,N=20;c.width=c.height=S2;x.fillStyle=fill;
+  x.beginPath();x.arc(S2/2,S2/2,R,0,Math.PI*2);x.fill();for(let i=0;i<N;i++){const a=i/N*Math.PI*2;x.beginPath();x.arc(S2/2+Math.cos(a)*R,S2/2+Math.sin(a)*R,R*Math.PI/N*1.02,0,Math.PI*2);x.fill()}
+  x.strokeStyle=ring;x.lineWidth=7;x.beginPath();x.arc(S2/2,S2/2,R-26,0,Math.PI*2);x.stroke();return MEDAL[k]=c.toDataURL('image/png')}
+const MST={first:{bg:'#F6F1E7',ink:'#26306E',mut:'#5B6077',top:'awning-cream',edge:'edge-cream',fill:'#C8F03C',ring:'#26306E',num:'#26306E',wm:'wm-indigo'},
+  dots:{bg:'#FFFFFF',img:'dots.png',ink:'#26306E',mut:'#5B6077',mark:'mark-indigo',edge:'edge-white',fill:'#26306E',ring:'#C8F03C',num:'#C8F03C',wm:'wm-indigo'},
+  night:{bg:'#141A3D',img:'night-glow.png',ink:'#F6F1E7',mut:'#9AA1C9',top:'awning-night',edge:'edge-night',fill:'#C8F03C',ring:'#141A3D',num:'#141A3D',wm:'wm-cream'},
+  legend:{bg:'#26306E',ink:'#F6F1E7',mut:'#CDD2F0',mark:'mark-cream',edge:'edge-indigo',fill:'#C8F03C',ring:'#F6F1E7',num:'#26306E',wm:'wm-cream'}};
+const msTier=n=>n===1?'first':n<20?'dots':n<50?'night':'legend';
+const msKick=(k,n)=>k==='sell'?(n===1?'Milestone unlocked':n<20?'Rising seller':n<50?'Trusted seller':'Stall legend'):(n===1?'Milestone unlocked':n<20?'Smart buyer':n<50?'Trusted buyer':'Stall loyal');
+function badgeHtml(k,n,r){const t=MST[msTier(n)],I=f=>`<img src="/icons/receipt/${f}.png" alt="" style="display:block;border:0;margin:0 auto">`,who=(k==='sell'&&r.store)||r.name||'';
+  const title=k==='sell'?(n===1?'First sale on Stall!':`${ordn(n)} sale on Stall`):(n===1?'First safe buy on Stall':`${ordn(n)} safe buy on Stall`);
+  const line=k==='sell'?(n===1?'Paid safely, straight to the bank.':'Paid safely, every single time.'):'My money was held until it reached me.';
+  return `<div style="width:360px;font-family:Figtree,Arial,sans-serif;color:${t.ink};text-align:center">
+   ${t.top?`<div style="line-height:0;background:${t.bg};border-radius:22px 22px 0 0"><img src="/icons/receipt/${t.top}.png" alt="" width="360" height="74" style="display:block;width:360px;height:74px"></div>`:''}
+   <div style="background-color:${t.bg};${t.img?`background-image:url(/icons/receipt/${t.img});background-repeat:${t.img==='dots.png'?'repeat':'no-repeat'};background-size:${t.img==='dots.png'?'28px 28px':'360px 220px'};background-position:50% 0;`:''}${t.top?'':'border-radius:22px 22px 0 0;'}padding:${t.top?'10px':'26px'} 26px 22px">
+    ${t.top?'':I(t.mark).replace('margin:0 auto','margin:0 auto 4px')}
+    <div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:${t.mut};margin-top:8px">${msKick(k,n)}</div>
+    <div style="position:relative;width:190px;height:190px;margin:12px auto 6px"><img src="${medal(t.fill,t.ring)}" alt="" width="190" height="190" style="display:block;width:190px;height:190px">
+     <div style="position:absolute;left:0;right:0;top:${n===1?52:46}px;font-family:'Bricolage Grotesque',Arial,sans-serif;font-weight:800;font-size:${n>=100?52:n===1?60:64}px;line-height:1;color:${t.num};letter-spacing:-.03em">${n===1?'1st':n}</div>
+     <div style="position:absolute;left:0;right:0;top:${n===1?118:116}px;font-size:12px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:${t.num}">${k==='sell'?(n===1?'sale':'sales'):(n===1?'buy':'buys')}</div></div>
+    <div style="font-family:'Bricolage Grotesque',Arial,sans-serif;font-weight:800;font-size:27px;line-height:1.1;letter-spacing:-.02em">${title}</div>
+    ${who?`<div style="font-size:15px;font-weight:700;margin-top:8px">${esc(who)}${r.school?`<span style="font-weight:500;color:${t.mut}"> · ${esc(r.school)}</span>`:''}</div>`:''}
+    <div style="font-size:13px;color:${t.mut};margin-top:4px">${line}</div>
+    <div style="border-top:1.5px dashed ${t.mut};opacity:.9;margin:16px 0 12px"></div>
+    ${I(t.wm)}<div style="font-size:11.5px;color:${t.mut};margin-top:6px">Buy and sell safely on campus · stall-app.pages.dev</div>
+   </div><div style="line-height:0"><img src="/icons/receipt/${t.edge}.png" alt="" width="360" height="14" style="display:block;width:360px;height:14px"></div></div>`}
+async function openBadge(k,n,fresh){const r=MSQ||await fetchJ('/api/me/milestones').catch(()=>null);if(!r||r.error)return toast('Could not load your badges.');MSQ=r;
+  const d=$('#accDlg'),html=badgeHtml(k,n,r),name='stall-'+(k==='sell'?'sales':'buys')+'-'+n;
+  d.innerHTML=`<div class="rcpt bdgsheet"><p class="eyebrow" style="text-align:center;margin:0 0 12px">${fresh?'New badge':'Your badge'}</p>${html}
+   <p class="meta" style="text-align:center;margin-top:14px">${k==='sell'?(fresh?'Congratulations! ':'')+'Share it on your status. Your invite link goes with it.':'Share it and show your friends how to buy safely.'}</p>
+   <div class="acts"><button class="pill" id="bdShare">${ico('share')}Share</button><button class="pill alt" id="bdSave">${ico('download')}Save image</button><button class="pill sm alt" data-close>Close</button></div></div>`;
+  if(!d.open)d.showModal();if(fresh)apiPost('me/milestones',{kind:k,n}).then(()=>{if(MSQ)MSQ[k].fresh=null});
+  const go=(b,fn)=>b.onclick=async()=>{const l=b.innerHTML;b.disabled=true;b.textContent='Preparing…';try{await fn()}catch(e){toast('Could not make the picture. Try again.')}b.disabled=false;b.innerHTML=l};
+  const png=()=>rcPng(html,{pad:0,bg:MST[msTier(n)].bg});
+  go($('#bdSave'),async()=>saveBlob(await png(),name+'.png'));
+  go($('#bdShare'),async()=>{const ref=await myRef().catch(()=>null),link=ref&&ref.link?ref.link:location.origin;
+    const text=k==='sell'?`I just made my ${n===1?'first':ordn(n)} sale on Stall, the safe way to buy and sell on campus. Your money is held until you get your item. Join me: ${link}`:`I just made my ${n===1?'first':ordn(n)} safe buy on Stall. Your money is held until the item reaches you. Join me: ${link}`;
+    const f=new File([await png()],name+'.png',{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[f]}))await navigator.share({files:[f],text}).catch(()=>{});
+    else{window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');toast('Save the image too, to post it with your message')}})}
+async function openBadges(){const d=$('#accDlg');d.innerHTML='<div class="pad"><h2>Badges</h2><p class="meta">Loading…</p></div>';if(!d.open)d.showModal();
+  const r=await fetchJ('/api/me/milestones').catch(()=>null);if(!d.open)return;if(!r||r.error){d.querySelector('.meta').textContent='Could not load your badges.';return}MSQ=r;
+  const row=k=>{const x=r[k],all=[...x.earned.map(n=>({n,on:1})),...(x.next?[{n:x.next,on:0}]:[])];
+    return `<h3 style="margin-top:18px">${k==='sell'?'Selling':'Buying'} <span class="meta" style="font-weight:500">· ${x.count} ${k==='sell'?'completed sale'+(x.count===1?'':'s'):'completed order'+(x.count===1?'':'s')}</span></h3>
+     <div class="bdgrid">${all.length?all.map(b=>b.on?`<button class="bdg" data-badge="${k}" data-n="${b.n}"><b>${b.n===1?'1st':b.n}</b><span>${msName(k,b.n)}</span></button>`:`<div class="bdg off"><b>${b.n}</b><span>${b.n-x.count} to go</span></div>`).join(''):''}</div>`};
+  d.innerHTML=`<div class="pad"><h2>Badges</h2><p class="meta">Earned for completed orders. Tap a badge to share it.</p>${row('sell')}${row('buy')}<div class="acts"><button class="pill sm alt" data-close>Close</button></div></div>`}
 async function openPayReceipt(ref){const r=await fetchJ('/api/pay/receipt?ref='+encodeURIComponent(ref)).catch(()=>({error:'Could not load the receipt. Check your connection.'}));if(r.error||!r.html)return toast(r.error||'No receipt yet');showReceipt(r.html,r.text,r.title)}
 // Account → Payments: receipts for featuring, store reach, the verified badge, the store fee and class collections.
 async function openPays(){const d=$('#accDlg');d.innerHTML='<div class="pad"><h2>Payments</h2><p class="meta">Loading…</p></div>';if(!d.open)d.showModal();
@@ -1083,13 +1143,13 @@ function sellerConsent(){return new Promise(res=>{let d=$('#sellOkDlg');if(!d){d
    <label class="agree"><input type="checkbox" required><span>I agree to these rules, the <a href="/rules" target="_blank">seller rules</a> and the <a href="/terms" target="_blank">Terms</a>.</span></label>
    <div class="acts"><button class="pill" value="ok">I agree</button><button class="pill alt" type="button" data-no>Not now</button></div></form>`;
   let ok=false;d.querySelector('form').onsubmit=()=>{ok=true};d.querySelector('[data-no]').onclick=()=>d.close();d.addEventListener('close',()=>res(ok),{once:true});d.showModal()})}
-async function renderOrders(){const r=await fetchJ('/api/orders/mine').catch(()=>({}));const L=r.orders||[],up=updBox('buy');markSeen('b');
+async function renderOrders(){setTimeout(checkMilestones,1200);const r=await fetchJ('/api/orders/mine').catch(()=>({}));const L=r.orders||[],up=updBox('buy');markSeen('b');
   $('#orderList').innerHTML=(L.length?nudgeHtml('order'):'')+up+(L.length?L.map(o=>orderCard(o,false)).join(''):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>When you buy something, it shows up here.</p><div class="acts" style="justify-content:center"><button class="pill" id="toShop">Start shopping</button></div></div>`);
   drawNudges();$('#orderList').querySelectorAll('[data-rateform]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();if(!f.elements.stars.value)return toast('Tap the stars to rate');
     const r=await apiPost('orders/rate',{id:+f.dataset.rateform,stars:+f.elements.stars.value,text:f.elements.text.value});if(r.error)return toast(r.error);toast('Thanks for rating');renderOrders()});
   $('#orderList').querySelectorAll('[data-payid]').forEach(b=>b.onclick=async()=>{const o=(L).find(x=>x.id==b.dataset.payid);PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)});
   $('#orderList').querySelectorAll('[data-showcode]').forEach(b=>b.onclick=async()=>{const o=(L).find(x=>x.id==b.dataset.showcode);PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)})}
-async function renderSelling(){const [r,w]=await Promise.all([fetchJ('/api/orders/selling').catch(()=>({})),fetchJ('/api/orders/weekly').catch(()=>({}))]);const L=r.orders||[],up=updBox('sell');markSeen('s');WEEK=w&&w.n?w:null;
+async function renderSelling(){setTimeout(checkMilestones,1200);const [r,w]=await Promise.all([fetchJ('/api/orders/selling').catch(()=>({})),fetchJ('/api/orders/weekly').catch(()=>({}))]);const L=r.orders||[],up=updBox('sell');markSeen('s');WEEK=w&&w.n?w:null;
   $('#sellingList').innerHTML=up+(WEEK?`<button class="wkcard" data-weekly><span><small>Your sales this week</small><b>${naira(WEEK.total)}</b><small>${WEEK.n} order${WEEK.n>1?'s':''} delivered</small></span><span class="go">See statement →</span></button>`:'')+(L.length?L.map(o=>orderCard(o,true)).join(''):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>Orders for things you sell show up here.</p></div>`);
   $('#sellingList').querySelectorAll('[data-brateform]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();if(!f.elements.stars.value)return toast('Tap the stars to rate');
     const r=await apiPost('orders/rate-buyer',{id:+f.dataset.brateform,stars:+f.elements.stars.value});if(r.error)return toast(r.error);toast('Thanks for rating the buyer');renderSelling()});
@@ -1137,6 +1197,7 @@ document.addEventListener('click',e=>{
   if(id0==='accInvite'){openInvite();return}
   if(id0==='accClass'){openCollections();return}
   if(id0==='accPays'){openPays();return}
+  if(id0==='accBadges'){openBadges();return}
   if(c('[data-look]')){openLook();return}
   if((b=c('[data-copy]'))&&!c('#adminDlg')){navigator.clipboard&&navigator.clipboard.writeText(b.dataset.copy);toast('Link copied');return}
   if(b=c('[data-share]')){shareThing(b.dataset.share);return}
@@ -1174,6 +1235,7 @@ document.addEventListener('click',e=>{
   if(b=c('[data-live]')){openLive(+b.dataset.live);return}
   if(b=c('[data-livepin]')){openLive(+b.dataset.livepin,true);return}
   if(b=c('[data-payrc]')){openPayReceipt(b.dataset.payrc);return}
+  if(b=c('[data-badge]')){openBadge(b.dataset.badge,+b.dataset.n,false);return}
   if(c('[data-weekly]')){if(WEEK)showReceipt(WEEK.html,WEEK.text,'Your Stall week');return}
   if(b=c('[data-ogot]')){if(!confirm('Do you have your order? The seller will be paid now. Only confirm if you have the item.'))return;apiPost('orders/received',{id:+b.dataset.ogot}).then(r=>{if(r.error)return toast(r.error);toast('Done. The seller is being paid');renderOrders()});return}
   if(b=c('[data-oreport]')){openOrderNote(+b.dataset.oreport,'report');return}
@@ -1261,7 +1323,7 @@ function openAccount(){const u=S.user,d=$('#accDlg');if(!u)return;const ns=NEWS.
    <div class="acch"><div class="sav">${esc((u.name||'?')[0])}</div><div class="t"><h2>${esc(u.name)}</h2><p class="meta">${u.role==='vendor'?'Campus vendor'+(u.biz?' · '+esc(u.biz):''):esc(u.matric||'')}${sch?' · '+esc(sch.short||sch.name):''}</p>
      <div class="abadges">${u.verified?VB:''}${stu&&(u.vlevel||0)>=2?SB(2):stu&&(u.vlevel||0)===1?SB(1):''}</div></div></div>
    ${u.admin||u.reviewer?`<button class="aadmin" type="button" id="accAdmin">${ico('sliders')}<span><b>${u.admin?'Admin dashboard':'Review payments'}</b><small>${u.admin?'Orders, payouts, earnings and settings':'Payments waiting for a decision'}</small></span><span class="go">›</span></button>`:''}
-   <div class="aqk">${tile('accMsgs','chat','Messages',CHATN?CHATN+' unread':'Buyers and sellers',CHATN)}${tile('accSelling','box','Orders to fulfil',ns?ns+' new':'What people bought',ns)}${stu?tile('accClass','list','Collections','Collect money from a group'):''}${tile('accInvite','gift','Invite & credit',u.credit?naira(u.credit)+' credit':'Earn when friends order')}${tile('accPays','wallet','Payments','Receipts for featuring and more')}</div>
+   <div class="aqk">${tile('accMsgs','chat','Messages',CHATN?CHATN+' unread':'Buyers and sellers',CHATN)}${tile('accSelling','box','Orders to fulfil',ns?ns+' new':'What people bought',ns)}${stu?tile('accClass','list','Collections','Collect money from a group'):''}${tile('accInvite','gift','Invite & credit',u.credit?naira(u.credit)+' credit':'Earn when friends order')}${tile('accPays','wallet','Payments','Receipts for featuring and more')}${tile('accBadges','badge','Badges','Share your milestones')}</div>
    ${sec('Selling',[row('accDeliv','truck','Delivery',u.deliv&&u.deliv.on?'You deliver · '+(u.deliv.fee?naira(u.deliv.fee):'free'):'Off · buyers collect from you'),u.verified?'':row('accVerify','badge','Verified seller badge','Show buyers a ✓ badge on your listings'),row('accShare','megaphone','Share Stall','QR code and poster for friends and customers')])}
    ${sec('Your profile',[row('accSchool','school','My school',sch?esc(sch.name):'Choose your school'),stu&&(u.vlevel||0)<2?row('accStu','cap','Verify you\'re a student',u.idCheck==='pending'?'Your document is being checked':'Student ID, course form or fees receipt',u.idCheck==='pending'?chip('Pending'):chip('Get ✓','hot')):'',row('accMail','mail','Email',u.emailVerified?(u.emailNotify?'Updates on · ':'Updates off · ')+esc(u.email):'Add your email for order updates and password resets',u.emailVerified?'':chip('Add','hot')),row('accPw','lock','Change password','')])}
    ${sec('App &amp; preferences',[row('accPush','bell','Notifications','<span id="pushSt">…</span>'),`<div class="arow2 nohover"><span class="i">${ico('sparkle')}</span><span class="t"><b>Theme</b></span><div class="tseg" role="group" aria-label="Appearance">${[['auto','Auto'],['light','Light'],['dark','Dark']].map(([k,l])=>`<button type="button" data-theme="${k}" aria-pressed="${themePref()===k}">${l}</button>`).join('')}</div></div>`,canInstall()?row('accInstall','phone','Install the app','Add Stall to your home screen'):'',row('accGuide','book2','How Stall works','Buying, selling, collections and staying safe')])}
@@ -1765,7 +1827,7 @@ async function loadPub(more){if(!S.user)return;const n=++PQ,mo=more===true,need=
   const own=i=>{i.mine=!!S.user&&i.sid===S.user.uid;i.multi=i.qtyLeft>1;LC.set(i.id,i)};if(mL&&mL.listings){MY=mL.listings;MY.forEach(own)}
   $('#more').disabled=false;if(n!==PQ)return;if(c&&c.listings)c.listings.forEach(own);
   if(a&&a.listings){if(!mo)SHITS=a.storeHits||[];a.listings.forEach(own);PUB=mo?[...PUB,...a.listings]:a.listings;PTOT=a.total;PLD=1}if(b&&b.stores){STORES=b.stores;if(mS&&mS.stores)mS.stores.forEach(m=>{const k=STORES.findIndex(x=>x.id===m.id);k>=0?STORES[k]=m:STORES.unshift(m)})}if((a&&a.listings)||(b&&b.stores)){refresh();renderStores()}}
-function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub();pollNews();if(!r.user.schoolInfo&&!$('#schDlg').open)openSchoolPick(true)}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
+function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub();pollNews();setTimeout(checkMilestones,2500);if(!r.user.schoolInfo&&!$('#schDlg').open)openSchoolPick(true)}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
 const AD={tab:'overview',st:{},sum:{},n:0},OST={pending:['Waiting for payment',''],under_review:['Needs review','warn'],disputed:['Problem reported','bad'],refunded:['Refunded',''],verified:['Paid, awaiting delivery','warn'],released:['Delivered','ok'],expired:['Expired',''],rejected:['Rejected','bad']};
 // Admin sections, grouped for the sidebar: [key, label, icon, short description, summary count to badge].
 const AG=[['Home',[['overview','Overview','home','Today at a glance'],['health','System health','pulse','Payments, email, AI and storage']]],
@@ -2099,7 +2161,7 @@ const NAV={s:[],r:0,v:'shop',cur:{},lc:null};
   if(['boost','reach','verify'].includes(r.kind)&&r.ref)openPayReceipt(r.ref);
   if(r.kind==='order'&&r.oid){const o=await loadOne(r.oid);if(o){PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)}}})();
 // Home-screen shortcuts (long-press the app icon): /?go=sell, /?go=orders, /?go=messages
-(()=>{const sp=new URLSearchParams(location.search),g=sp.get('go');if(!g)return;window.__goT=sp.get('t');history.replaceState(null,'','/app');let n=0;const run=()=>{if(!S.user){if(++n<20)setTimeout(run,300);return}if(g==='sell')$('#tbSell').click();else if(g==='orders')view('orders');else if(g==='selling')view('selling');else if(g==='payments')openPays();else if(g==='invite')openInvite();else if(g==='messages'){const t=+new URLSearchParams(location.search).get('t')||+(window.__goT||0);t?openChat(t):openInbox()}};setTimeout(run,300)})();
+(()=>{const sp=new URLSearchParams(location.search),g=sp.get('go');if(!g)return;window.__goT=sp.get('t');history.replaceState(null,'','/app');let n=0;const run=()=>{if(!S.user){if(++n<20)setTimeout(run,300);return}if(g==='sell')$('#tbSell').click();else if(g==='orders')view('orders');else if(g==='selling')view('selling');else if(g==='payments')openPays();else if(g==='badges')openBadges();else if(g==='invite')openInvite();else if(g==='messages'){const t=+new URLSearchParams(location.search).get('t')||+(window.__goT||0);t?openChat(t):openInbox()}};setTimeout(run,300)})();
 // Links like /?item=L12, /?store=S3 open that item or store (after signing in, if needed); ?r=CODE remembers who invited you.
 (()=>{const sp=new URLSearchParams(location.search),col=(sp.get('collect')||'').toUpperCase();if(!/^[A-Z2-9]{6}$/.test(col))return;history.replaceState(null,'','/app');let n=0;
   const run=()=>{if(!S.user){if(++n<600)setTimeout(run,1000);return}openCollect(col)};setTimeout(run,600)})();
