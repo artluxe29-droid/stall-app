@@ -9,30 +9,30 @@ try{if(matchMedia('(display-mode: standalone)').matches||navigator.standalone===
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Stall · Buy and sell on campus, safely</title>
 <meta name="description" content="Stall is the student marketplace for Nigerian campuses. Buy and sell with students and campus shops near you. You pay in the app, and Stall holds the money until the item is in your hands.">
-<meta name="theme-color" content="#0A0F1E">
+<meta name="theme-color" content="#0F1330">
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/icons/icon-192-v2.png">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon-v2.png">
+<link rel="icon" href="/icons/favicon.svg" type="image/svg+xml"><link rel="icon" href="/icons/favicon-48-v3.png" sizes="48x48">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon-v3.png">
 <meta property="og:title" content="Stall · Buy and sell on campus, safely">
 <meta property="og:description" content="The student marketplace for Nigerian campuses. Your money is held until the item is in your hands.">
 <meta property="og:image" content="/store-assets/feature-graphic.png">
 <link rel="preload" as="image" href="/site/home.webp" type="image/webp">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+
+<link rel="preload" href="/brand/fonts/figtree-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/brand/fonts.css">
 <style>
 /* ---------- tokens ---------- */
 :root{
- --bg:#0A0F1E;--bg-2:#0E1527;--surface:#121A2F;--surface-2:#172038;--line:rgba(148,163,184,.14);--line-2:rgba(148,163,184,.24);
- --ink:#F1F5F9;--ink-2:#CBD5E1;--muted:#94A3B8;--dim:#64748B;
- --acc:#FF9F1C;--acc-ink:#1A1206;--acc-soft:rgba(255,159,28,.12);--ok:#34D399;--ok-soft:rgba(52,211,153,.12);--bad:#F87171;
+ --bg:#0F1330;--bg-2:#131838;--surface:#181E48;--surface-2:#1E2552;--line:rgba(154,161,201,.16);--line-2:rgba(154,161,201,.28);
+ --ink:#F6F1E7;--ink-2:#D9DBEC;--muted:#9AA1C9;--dim:#6E75A0;
+ --acc:#C8F03C;--acc-ink:#1C2457;--acc-soft:rgba(200,240,60,.12);--ok:#34D399;--ok-soft:rgba(52,211,153,.12);--bad:#F87171;
  --r-sm:10px;--r:16px;--r-lg:24px;--r-xl:32px;
  --s1:8px;--s2:16px;--s3:24px;--s4:32px;--s5:48px;--s6:64px;--s7:96px;--s8:128px;
  --ease:cubic-bezier(.22,.8,.24,1);--shadow:0 1px 0 rgba(255,255,255,.04) inset,0 24px 48px -24px rgba(0,0,0,.6);
- --campus:255 159 28;
+ --campus:200 240 60;
 }
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:84px}
 html,body{overflow-x:hidden;overflow-x:clip}
-body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.6 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.6 "Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 [hidden]{display:none!important}
 h1,h2,h3,h4,p{margin:0}a{color:inherit}button,input,textarea{font:inherit;color:inherit}
 img{display:block;max-width:100%}
@@ -44,6 +44,7 @@ img{display:block;max-width:100%}
 .display{font-size:clamp(40px,6.2vw,76px);line-height:1.04;letter-spacing:-.035em;font-weight:800}
 .h2{font-size:clamp(30px,4.2vw,52px);line-height:1.08;letter-spacing:-.03em;font-weight:800}
 .h3{font-size:20px;line-height:1.3;letter-spacing:-.01em;font-weight:700}
+.display,.h2,.h3,.final h2,.stat b{font-family:"Bricolage Grotesque","Figtree",system-ui,sans-serif}
 .lead{font-size:clamp(17px,1.5vw,20px);line-height:1.6;color:var(--ink-2);max-width:56ch}
 .small{font-size:14px;color:var(--muted)}
 .kicker{display:inline-flex;align-items:center;gap:10px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc)}
@@ -51,7 +52,7 @@ img{display:block;max-width:100%}
 /* buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border-radius:12px;border:1px solid transparent;font-weight:700;font-size:16px;text-decoration:none;cursor:pointer;transition:background .2s,border-color .2s,transform .2s var(--ease),box-shadow .2s;-webkit-tap-highlight-color:transparent;white-space:nowrap}
 .btn:active{transform:scale(.98)}
-.btn.acc{background:var(--acc);color:var(--acc-ink);box-shadow:0 8px 24px -10px rgba(255,159,28,.7)}
+.btn.acc{background:var(--acc);color:var(--acc-ink);box-shadow:0 8px 24px -10px rgba(200,240,60,.7)}
 .btn.acc:hover{background:#FFB040}
 .btn.ghost{background:transparent;border-color:var(--line-2);color:var(--ink)}
 .btn.ghost:hover{background:rgba(255,255,255,.04);border-color:rgba(148,163,184,.4)}
@@ -71,7 +72,7 @@ section{position:relative}
 .nav.solid{background:rgba(10,15,30,.82);backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);border-color:var(--line)}
 .nav .w{display:flex;align-items:center;gap:var(--s3);height:72px}
 .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:21px;letter-spacing:-.03em;text-decoration:none}
-.logo img{width:32px;height:32px;border-radius:9px}.logo b::after{content:'.';color:var(--acc)}
+.logo img{width:32px;height:32px;border-radius:9px}.logo .wm{height:24px;width:auto;display:block;color:var(--ink)}.wm .wa{fill:var(--acc)}
 .links{display:flex;gap:4px;margin-left:var(--s3)}
 .links a{padding:8px 12px;border-radius:8px;color:var(--muted);text-decoration:none;font-weight:600;font-size:15px;transition:color .2s}
 .links a:hover{color:var(--ink)}
@@ -83,20 +84,20 @@ section{position:relative}
 .sheet a{display:block;padding:14px 16px;border-radius:10px;text-decoration:none;font-weight:600}.sheet a:hover{background:rgba(255,255,255,.04)}
 /* ---------- hero ---------- */
 .hero{padding:calc(72px + var(--s7)) 0 var(--s7);overflow:hidden}
-.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(48% 55% at 78% 42%,rgba(255,159,28,.13),transparent 70%),radial-gradient(40% 50% at 10% 0%,rgba(59,130,246,.10),transparent 70%);pointer-events:none}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(48% 55% at 78% 42%,rgba(200,240,60,.13),transparent 70%),radial-gradient(40% 50% at 10% 0%,rgba(59,130,246,.10),transparent 70%);pointer-events:none}
 /* hero atmosphere: drifting light, a perspective floor, a halo behind the phone */
 .aur{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .aur i{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5;animation:drift 22s ease-in-out infinite alternate}
-.aur i:nth-child(1){width:520px;height:520px;right:2%;top:4%;background:rgba(255,159,28,.28)}
+.aur i:nth-child(1){width:520px;height:520px;right:2%;top:4%;background:rgba(200,240,60,.28)}
 .aur i:nth-child(2){width:420px;height:420px;left:-6%;top:-12%;background:rgba(59,130,246,.18);animation-duration:27s}
 .aur i:nth-child(3){width:360px;height:360px;right:28%;bottom:-18%;background:rgba(236,72,153,.10);animation-duration:31s;animation-delay:-8s}
 @keyframes drift{to{transform:translate3d(-60px,40px,0) scale(1.15)}}
 .floor{position:absolute;left:-30%;right:-30%;bottom:-6%;height:46%;transform:perspective(600px) rotateX(70deg);transform-origin:50% 100%;pointer-events:none;
- background-image:linear-gradient(rgba(255,159,28,.22) 1px,transparent 1px),linear-gradient(90deg,rgba(255,159,28,.14) 1px,transparent 1px);background-size:60px 60px;
+ background-image:linear-gradient(rgba(200,240,60,.22) 1px,transparent 1px),linear-gradient(90deg,rgba(200,240,60,.14) 1px,transparent 1px);background-size:60px 60px;
  -webkit-mask-image:linear-gradient(to top,#000 0%,transparent 80%);mask-image:linear-gradient(to top,#000 0%,transparent 80%);opacity:.5;animation:floor 4s linear infinite}
 @keyframes floor{to{background-position:0 60px,0 0}}
 .rig{position:relative;transform-style:preserve-3d;transition:transform .5s var(--ease)}
-.halo{position:absolute;left:50%;top:50%;width:440px;height:440px;margin:-220px;border-radius:50%;background:conic-gradient(from 0deg,rgba(255,159,28,0),rgba(255,159,28,.45),rgba(59,130,246,.25),rgba(255,159,28,0) 70%);filter:blur(40px);opacity:.7;animation:spin 18s linear infinite;transform:translateZ(-120px)}
+.halo{position:absolute;left:50%;top:50%;width:440px;height:440px;margin:-220px;border-radius:50%;background:conic-gradient(from 0deg,rgba(200,240,60,0),rgba(200,240,60,.45),rgba(59,130,246,.25),rgba(200,240,60,0) 70%);filter:blur(40px);opacity:.7;animation:spin 18s linear infinite;transform:translateZ(-120px)}
 @keyframes spin{to{transform:translateZ(-120px) rotate(360deg)}}
 .pshadow{position:absolute;left:50%;bottom:-36px;width:240px;height:36px;margin-left:-120px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.65),transparent);filter:blur(6px)}
 .chip-card{transform:translateZ(var(--z,80px));animation:none}
@@ -117,8 +118,8 @@ section{position:relative}
 .proof .chk{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:var(--ink-2)}.proof .chk .ic{color:var(--ok)}
 /* phone */
 .stage-phone{position:relative;display:grid;place-items:center;perspective:1600px}
-.device{position:relative;width:290px;padding:10px;border-radius:44px;background:linear-gradient(145deg,#1F2942,#0B1120);box-shadow:0 0 0 1px rgba(255,255,255,.08) inset,0 50px 100px -30px rgba(0,0,0,.9),0 30px 60px -30px rgba(255,159,28,.25);transform:rotateY(-10deg) rotateX(4deg);transform-style:preserve-3d;transition:transform .6s var(--ease)}
-.device .screen{position:relative;aspect-ratio:9/16;border-radius:35px;overflow:hidden;background:#F5F6FA}
+.device{position:relative;width:290px;padding:10px;border-radius:44px;background:linear-gradient(145deg,#1F2942,#0B1120);box-shadow:0 0 0 1px rgba(255,255,255,.08) inset,0 50px 100px -30px rgba(0,0,0,.9),0 30px 60px -30px rgba(200,240,60,.25);transform:rotateY(-10deg) rotateX(4deg);transform-style:preserve-3d;transition:transform .6s var(--ease)}
+.device .screen{position:relative;aspect-ratio:9/16;border-radius:35px;overflow:hidden;background:#F6F2EA}
 .device .shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .8s var(--ease)}
 .device .shot.on{opacity:1}
 .device .screen::after{content:'';position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,255,255,.16),transparent 30%);pointer-events:none}
@@ -155,7 +156,7 @@ section{position:relative}
 .how{display:grid;grid-template-columns:1.15fr .85fr;gap:var(--s5);align-items:center}
 .diagram{position:relative;padding:var(--s4) var(--s3);border-radius:var(--r-xl);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
 .diagram>svg{width:100%;height:auto;display:block;overflow:visible}
-.diagram .node circle{fill:#1A2440;stroke:var(--line-2);stroke-width:2}
+.diagram .node circle{fill:#232B66;stroke:var(--line-2);stroke-width:2}
 .diagram .node.on circle{stroke:var(--acc)}
 .diagram .node text{fill:var(--ink);font-weight:700;font-size:26px;text-anchor:middle;font-family:inherit}
 .diagram .node .sub{fill:var(--muted);font-weight:700;font-size:21px}
@@ -163,7 +164,7 @@ section{position:relative}
 .diagram .vault .sub{fill:var(--ok)}
 .diagram .lane{fill:none;stroke:rgba(148,163,184,.18);stroke-width:3;stroke-linecap:round}
 .diagram .lane.money.on{stroke:var(--acc);stroke-dasharray:10 10;animation:flow 1s linear infinite}
-.diagram .lane.item.on{stroke:#93C5FD;stroke-dasharray:10 10;animation:flow 1s linear infinite}
+.diagram .lane.item.on{stroke:#A9B4FF;stroke-dasharray:10 10;animation:flow 1s linear infinite}
 .diagram .lane.code.on{stroke:var(--ok);stroke-dasharray:4 8;animation:flow 1s linear infinite}
 .diagram .lane.alert.on{stroke:var(--bad);stroke-dasharray:4 8;animation:flow 1s linear infinite}
 @keyframes flow{to{stroke-dashoffset:-20}}
@@ -194,13 +195,13 @@ section{position:relative}
 .mapcard:active{cursor:grabbing}
 .map3d{position:absolute;left:50%;top:50%;width:620px;height:500px;margin:-250px 0 0 -310px;transform-style:preserve-3d;transform:rotateX(56deg) rotateZ(var(--rz,-14deg))}
 .map3d svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-.map3d .land{fill:#1A2440;stroke:rgba(255,159,28,.45);stroke-width:1.5}
+.map3d .land{fill:#232B66;stroke:rgba(200,240,60,.45);stroke-width:1.5}
 .map3d .gridl{stroke:rgba(148,163,184,.06)}
 .pil{position:absolute;transform-style:preserve-3d;width:0;height:0}
-.pil .f{position:absolute;left:-6px;bottom:0;width:12px;height:var(--h);transform-origin:50% 100%;background:linear-gradient(to top,rgba(255,159,28,.08),rgba(255,159,28,.85))}
+.pil .f{position:absolute;left:-6px;bottom:0;width:12px;height:var(--h);transform-origin:50% 100%;background:linear-gradient(to top,rgba(200,240,60,.08),rgba(200,240,60,.85))}
 .pil .f1{transform:rotateX(-90deg)}.pil .f2{transform:rotateZ(90deg) rotateX(-90deg)}
 .pil .top{position:absolute;left:-7px;top:-7px;width:14px;height:14px;border-radius:50%;background:#FFD9A3;transform:translateZ(var(--h));box-shadow:0 0 16px 3px rgba(255,170,60,.55)}
-.pil .ring{position:absolute;left:-24px;top:-24px;width:48px;height:48px;border-radius:50%;border:1.5px solid rgba(255,159,28,.55);animation:ring 3s ease-out infinite;animation-delay:var(--dl,0s)}
+.pil .ring{position:absolute;left:-24px;top:-24px;width:48px;height:48px;border-radius:50%;border:1.5px solid rgba(200,240,60,.55);animation:ring 3s ease-out infinite;animation-delay:var(--dl,0s)}
 @keyframes ring{from{transform:scale(.25);opacity:1}to{transform:scale(1.5);opacity:0}}
 .pil.flash .top{background:#fff;box-shadow:0 0 26px 8px rgba(110,231,183,.9)}
 .pil .lab{position:absolute;left:0;top:0;transform:translateZ(calc(var(--h) + 24px)) rotateX(-56deg) translateX(-50%);white-space:nowrap;font-size:13px;font-weight:700;background:rgba(10,15,30,.85);padding:3px 8px;border-radius:6px;border:1px solid var(--line-2)}
@@ -325,7 +326,7 @@ section{position:relative}
 .gfake{position:absolute;inset:0;padding:48px 14px 14px;font-size:13px}
 .gfake .urlb{background:#F1F3F4;border-radius:20px;padding:9px 12px;color:#5f6368;display:flex;justify-content:space-between;align-items:center}
 .gfake .menu{position:absolute;right:12px;top:94px;width:190px;background:#fff;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.25);padding:6px 0;color:#202124}
-.gfake .menu div{padding:10px 14px}.gfake .menu .hl{background:#FFF3E0;font-weight:700;color:#0F172A;position:relative}
+.gfake .menu div{padding:10px 14px}.gfake .menu .hl{background:#F1FAD2;font-weight:700;color:#161A33;position:relative}
 .gfake .menu .hl::after{content:'';position:absolute;right:10px;top:50%;width:14px;height:14px;margin-top:-7px;border-radius:50%;background:var(--acc);animation:tapp 1.4s infinite}
 @keyframes tapp{50%{transform:scale(1.6);opacity:.4}}
 .gfake .dlg{position:absolute;left:14px;right:14px;bottom:20px;background:#fff;border-radius:18px;box-shadow:0 -6px 30px rgba(0,0,0,.2);padding:18px;color:#202124}
@@ -351,24 +352,24 @@ section{position:relative}
 .gst b{display:block;font-size:17px;margin-top:8px}.gst p{color:var(--muted);font-size:15px;margin-top:4px}
 .gst .acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:var(--s2)}
 .gst .note b,.gst p b{display:inline;font-size:inherit;margin:0;color:var(--ink)}
-.note{padding:12px 14px;border-radius:12px;background:var(--acc-soft);border:1px solid rgba(255,159,28,.25);color:var(--ink-2);font-size:14.5px}
-.qrbox{background:#fff;border-radius:var(--r);padding:14px;width:200px;color:#0F172A;text-align:center}.qrbox svg{width:100%;height:auto;display:block}.qrbox small{font-weight:700;font-size:13px}
+.note{padding:12px 14px;border-radius:12px;background:var(--acc-soft);border:1px solid rgba(200,240,60,.25);color:var(--ink-2);font-size:14.5px}
+.qrbox{background:#fff;border-radius:var(--r);padding:14px;width:200px;color:#161A33;text-align:center}.qrbox svg{width:100%;height:auto;display:block}.qrbox small{font-weight:700;font-size:13px}
 .yay{padding:var(--s4);border-radius:var(--r-lg);background:var(--ok-soft);border:1px solid rgba(52,211,153,.3)}.yay h3{font-size:24px}.yay p{color:var(--ink-2);margin:8px 0 var(--s2)}
 .pointer{position:fixed;z-index:80;display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;background:var(--acc);color:var(--acc-ink);font-weight:700;font-size:15px;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:bob 1.4s ease-in-out infinite}
 .pointer.tr{top:calc(10px + env(safe-area-inset-top,0));right:10px}.pointer.bc{bottom:calc(14px + env(safe-area-inset-bottom,0));left:50%;margin-left:-110px;width:220px;justify-content:center}
 /* ---------- final cta + footer ---------- */
 .final{padding:var(--s7) 0}
-.final .box{position:relative;overflow:hidden;padding:var(--s6) var(--s5);border-radius:var(--r-xl);background:linear-gradient(135deg,#1A2440,#121A2F);border:1px solid var(--line-2);display:flex;flex-wrap:wrap;gap:var(--s4);align-items:center;justify-content:space-between}
-.final .box::after{content:'';position:absolute;right:-10%;top:-60%;width:60%;height:200%;background:radial-gradient(closest-side,rgba(255,159,28,.18),transparent);pointer-events:none}
+.final .box{position:relative;overflow:hidden;padding:var(--s6) var(--s5);border-radius:var(--r-xl);background:linear-gradient(135deg,#232B66,#181E48);border:1px solid var(--line-2);display:flex;flex-wrap:wrap;gap:var(--s4);align-items:center;justify-content:space-between}
+.final .box::after{content:'';position:absolute;right:-10%;top:-60%;width:60%;height:200%;background:radial-gradient(closest-side,rgba(200,240,60,.18),transparent);pointer-events:none}
 .final .h2{max-width:16ch}
 .final .box{min-height:300px}.final .box>*{position:relative;z-index:1}
 .peek{position:absolute!important;z-index:0!important;right:7%;bottom:-170px;width:210px;padding:8px;border-radius:34px;background:linear-gradient(145deg,#1F2942,#0B1120);box-shadow:0 30px 60px -20px rgba(0,0,0,.9);transform:rotate(-12deg);transition:transform .8s var(--ease)}
 .final .box.in .peek{transform:rotate(-8deg) translateY(-20px)}
 .peek img{border-radius:27px;aspect-ratio:9/16;object-fit:cover;width:100%}
 @media(min-width:861px){.final .box{flex-direction:column;align-items:flex-start;justify-content:center}.final .box h2,.final .box .cta{max-width:62%}}
-.final .box::before{content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:linear-gradient(120deg,rgba(255,159,28,.6),transparent 40%,transparent 60%,rgba(59,130,246,.5));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.final .box::before{content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:linear-gradient(120deg,rgba(200,240,60,.6),transparent 40%,transparent 60%,rgba(59,130,246,.5));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
 .mark{font-size:clamp(96px,20vw,280px);font-weight:800;letter-spacing:-.06em;line-height:.8;margin-top:var(--s5);background:linear-gradient(180deg,rgba(241,245,249,.10),rgba(241,245,249,0) 85%);-webkit-background-clip:text;background-clip:text;color:transparent;user-select:none;white-space:nowrap}
-.mark i{font-style:normal;-webkit-text-fill-color:rgba(255,159,28,.35)}
+.mark .wm{display:block;width:min(100%,960px);height:auto;color:rgba(246,241,231,.05)}.mark .wm .wa{fill:rgba(200,240,60,.16)}
 .faq-tabs{margin-bottom:var(--s3)}
 footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));border-top:1px solid var(--line)}
 .fgrid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:var(--s4)}
@@ -460,7 +461,7 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
 </defs></svg>
 
 <header class="nav" id="nav"><div class="w">
- <a class="logo" href="#top" aria-label="Stall, back to top"><img src="/icons/icon-192-v2.png" alt="" width="32" height="32"><b>Stall</b></a>
+ <a class="logo" href="#top" aria-label="Stall, back to top"><img src="/icons/icon-192-v3.png" alt="" width="32" height="32"><svg class="wm" viewBox="-40 -800 1997 830" role="img" aria-label="Stall" fill="currentColor"><path d="M267 14Q214 14 168.5 3.5Q123 -7 89.5 -30.0Q56 -53 38.5 -91.5Q21 -130 24 -185L165 -197Q167 -164 180.0 -142.5Q193 -121 216.0 -111.0Q239 -101 272 -101Q303 -101 325.5 -111.5Q348 -122 348 -147Q348 -160 340.0 -168.5Q332 -177 310.5 -184.5Q289 -192 248 -202Q197 -215 156.0 -228.0Q115 -241 86.0 -259.0Q57 -277 42.0 -303.5Q27 -330 27 -369Q27 -424 56.5 -462.5Q86 -501 138.0 -521.5Q190 -542 258 -542Q319 -542 372.0 -523.0Q425 -504 455.5 -461.0Q486 -418 478 -347L340 -334Q343 -363 332.0 -383.5Q321 -404 300.0 -414.5Q279 -425 249 -425Q215 -425 196.5 -412.5Q178 -400 178 -381Q178 -366 189.5 -355.5Q201 -345 225.5 -337.5Q250 -330 289 -321Q323 -314 360.0 -303.0Q397 -292 429.0 -273.5Q461 -255 481.0 -225.0Q501 -195 501 -149Q501 -100 474.0 -63.0Q447 -26 395.0 -6.0Q343 14 267 14Z" ></path><path d="M719 12Q626 12 580.5 -35.5Q535 -83 535 -183V-402H477V-504H480Q542 -512 568.0 -545.5Q594 -579 600 -647V-649H695V-528H816V-398H695V-198Q695 -160 713.5 -144.0Q732 -128 759 -128Q773 -128 788.0 -132.0Q803 -136 816 -143V-2Q785 7 761.0 9.5Q737 12 719 12Z" ></path><path d="M970 14Q930 14 894.0 0.0Q858 -14 835.0 -45.5Q812 -77 812 -130Q812 -179 831.0 -209.5Q850 -240 882.0 -258.5Q914 -277 952.0 -286.5Q990 -296 1027 -303Q1079 -313 1105.0 -319.0Q1131 -325 1140.5 -333.0Q1150 -341 1150 -355Q1150 -384 1128.5 -399.0Q1107 -414 1072 -414Q1050 -414 1028.0 -406.0Q1006 -398 992.0 -377.5Q978 -357 979 -319L835 -329Q833 -392 854.0 -433.5Q875 -475 911.5 -498.5Q948 -522 991.5 -532.0Q1035 -542 1078 -542Q1157 -542 1208.0 -512.5Q1259 -483 1283.5 -427.5Q1308 -372 1308 -293V-199Q1308 -166 1308.0 -132.5Q1308 -99 1308.0 -66.0Q1308 -33 1308 0H1168Q1168 -36 1168.0 -73.0Q1168 -110 1168 -151H1162Q1158 -106 1132.5 -68.5Q1107 -31 1065.5 -8.5Q1024 14 970 14ZM1037 -104Q1054 -104 1073.5 -110.5Q1093 -117 1110.5 -132.0Q1128 -147 1139.0 -173.5Q1150 -200 1150 -239V-263L1177 -266Q1169 -253 1150.5 -245.0Q1132 -237 1109.0 -232.5Q1086 -228 1062.5 -223.5Q1039 -219 1019.0 -211.5Q999 -204 986.5 -191.5Q974 -179 974 -157Q974 -131 992.5 -117.5Q1011 -104 1037 -104Z" ></path><rect x="1329" y="-615" width="162" height="615" ></rect><rect x="1518" y="-615" width="162" height="615" ></rect><path d="M1259 -754 a26 26 0 0 1 26 -26 h439 a26 26 0 0 1 26 26 v26 h-491z" ></path><path d="M1259.0 -730 h163.7 v4 a81.8 81.8 0 0 1 -163.7 0z" ></path><path d="M1422.7 -730 h163.7 v4 a81.8 81.8 0 0 1 -163.7 0z" class="wa"></path><path d="M1586.3 -730 h163.7 v4 a81.8 81.8 0 0 1 -163.7 0z" ></path><circle cx="1794" cy="-77" r="100" class="wa"></circle></svg></a>
  <nav class="links" aria-label="Sections"><a href="#how">How it works</a><a href="#live">Live</a><a href="#features">Features</a><a href="#explore">Explore</a><a href="#faq">FAQ</a></nav>
  <div class="right"><span class="hi" id="hi" hidden></span><a class="btn ghost sm open-app" href="/app" id="openApp">Open Stall</a><a class="btn acc sm" href="#get">Get the app</a>
   <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false" aria-controls="sheet"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-menu"/></svg></button></div>
@@ -530,15 +531,15 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
      <g class="node" id="nB" transform="translate(150 180)"><circle r="56"/><svg x="-20" y="-34" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="icon"><use href="#i-user"/></svg><text y="30">You</text></g>
      <g class="node vault" id="nV" transform="translate(400 150)"><circle r="64"/><svg x="-20" y="-40" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="icon"><use href="#i-lock"/></svg><text y="24">Stall</text><text class="sub" y="100">Holds the money only</text></g>
      <g class="node" id="nS" transform="translate(650 180)"><circle r="56"/><svg x="-20" y="-34" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="icon"><use href="#i-store"/></svg><text y="30">Seller</text></g>
-     <defs><radialGradient id="coinG" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#FFF1C2"/><stop offset=".5" stop-color="#FFC233"/><stop offset="1" stop-color="#D88A00"/></radialGradient></defs>
+     <defs><radialGradient id="coinG" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#F4FFD0"/><stop offset=".5" stop-color="#C8F03C"/><stop offset="1" stop-color="#7FA312"/></radialGradient></defs>
      <g class="tok" id="tok" opacity="0">
-      <g data-k="coin"><circle r="24" fill="url(#coinG)" stroke="#B87400" stroke-width="2"/><text y="9" text-anchor="middle" font-size="26" font-weight="800" fill="#6B4200">₦</text></g>
+      <g data-k="coin"><circle r="24" fill="url(#coinG)" stroke="#6E8F0B" stroke-width="2"/><text y="9" text-anchor="middle" font-size="26" font-weight="800" fill="#26306E">₦</text></g>
       <g data-k="box"><rect x="-22" y="-20" width="44" height="40" rx="7" fill="#C08A52" stroke="#8A5A2B" stroke-width="2"/><rect x="-4" y="-20" width="8" height="40" fill="#E9C79A"/><text y="44" text-anchor="middle" font-size="16" font-weight="800" fill="#E9C79A">Item</text></g>
       <g data-k="key"><rect x="-40" y="-16" width="80" height="32" rx="9" fill="#ECFDF5" stroke="#34D399" stroke-width="2"/><text y="6" text-anchor="middle" font-size="16" font-weight="800" fill="#065F46" letter-spacing="1">7Q4K</text></g>
       <g data-k="alert"><circle r="22" fill="#F87171"/><text y="9" text-anchor="middle" font-size="26" font-weight="800" fill="#1A0606">!</text></g>
      </g>
     </svg>
-    <div class="legend"><span><i style="background:var(--acc)"></i>Money</span><span><i style="background:#93C5FD"></i>Item</span><span><i style="background:var(--ok)"></i>Release code</span><span><i style="background:var(--bad)"></i>Problem report</span></div>
+    <div class="legend"><span><i style="background:var(--acc)"></i>Money</span><span><i style="background:#A9B4FF"></i>Item</span><span><i style="background:var(--ok)"></i>Release code</span><span><i style="background:var(--bad)"></i>Problem report</span></div>
    </div>
    <div>
     <div class="steps" role="tablist" aria-label="Order steps" id="steps"></div>
@@ -638,12 +639,12 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
 
 <footer><div class="w">
  <div class="fgrid">
-  <div><a class="logo" href="#top"><img src="/icons/icon-192-v2.png" alt="" width="32" height="32"><b>Stall</b></a><p>The safe way to buy and sell on Nigerian campuses.</p></div>
+  <div><a class="logo" href="#top"><img src="/icons/icon-192-v3.png" alt="" width="32" height="32"><svg class="wm" viewBox="-40 -800 1997 830" role="img" aria-label="Stall" fill="currentColor"><path d="M267 14Q214 14 168.5 3.5Q123 -7 89.5 -30.0Q56 -53 38.5 -91.5Q21 -130 24 -185L165 -197Q167 -164 180.0 -142.5Q193 -121 216.0 -111.0Q239 -101 272 -101Q303 -101 325.5 -111.5Q348 -122 348 -147Q348 -160 340.0 -168.5Q332 -177 310.5 -184.5Q289 -192 248 -202Q197 -215 156.0 -228.0Q115 -241 86.0 -259.0Q57 -277 42.0 -303.5Q27 -330 27 -369Q27 -424 56.5 -462.5Q86 -501 138.0 -521.5Q190 -542 258 -542Q319 -542 372.0 -523.0Q425 -504 455.5 -461.0Q486 -418 478 -347L340 -334Q343 -363 332.0 -383.5Q321 -404 300.0 -414.5Q279 -425 249 -425Q215 -425 196.5 -412.5Q178 -400 178 -381Q178 -366 189.5 -355.5Q201 -345 225.5 -337.5Q250 -330 289 -321Q323 -314 360.0 -303.0Q397 -292 429.0 -273.5Q461 -255 481.0 -225.0Q501 -195 501 -149Q501 -100 474.0 -63.0Q447 -26 395.0 -6.0Q343 14 267 14Z" ></path><path d="M719 12Q626 12 580.5 -35.5Q535 -83 535 -183V-402H477V-504H480Q542 -512 568.0 -545.5Q594 -579 600 -647V-649H695V-528H816V-398H695V-198Q695 -160 713.5 -144.0Q732 -128 759 -128Q773 -128 788.0 -132.0Q803 -136 816 -143V-2Q785 7 761.0 9.5Q737 12 719 12Z" ></path><path d="M970 14Q930 14 894.0 0.0Q858 -14 835.0 -45.5Q812 -77 812 -130Q812 -179 831.0 -209.5Q850 -240 882.0 -258.5Q914 -277 952.0 -286.5Q990 -296 1027 -303Q1079 -313 1105.0 -319.0Q1131 -325 1140.5 -333.0Q1150 -341 1150 -355Q1150 -384 1128.5 -399.0Q1107 -414 1072 -414Q1050 -414 1028.0 -406.0Q1006 -398 992.0 -377.5Q978 -357 979 -319L835 -329Q833 -392 854.0 -433.5Q875 -475 911.5 -498.5Q948 -522 991.5 -532.0Q1035 -542 1078 -542Q1157 -542 1208.0 -512.5Q1259 -483 1283.5 -427.5Q1308 -372 1308 -293V-199Q1308 -166 1308.0 -132.5Q1308 -99 1308.0 -66.0Q1308 -33 1308 0H1168Q1168 -36 1168.0 -73.0Q1168 -110 1168 -151H1162Q1158 -106 1132.5 -68.5Q1107 -31 1065.5 -8.5Q1024 14 970 14ZM1037 -104Q1054 -104 1073.5 -110.5Q1093 -117 1110.5 -132.0Q1128 -147 1139.0 -173.5Q1150 -200 1150 -239V-263L1177 -266Q1169 -253 1150.5 -245.0Q1132 -237 1109.0 -232.5Q1086 -228 1062.5 -223.5Q1039 -219 1019.0 -211.5Q999 -204 986.5 -191.5Q974 -179 974 -157Q974 -131 992.5 -117.5Q1011 -104 1037 -104Z" ></path><rect x="1329" y="-615" width="162" height="615" ></rect><rect x="1518" y="-615" width="162" height="615" ></rect><path d="M1259 -754 a26 26 0 0 1 26 -26 h439 a26 26 0 0 1 26 26 v26 h-491z" ></path><path d="M1259.0 -730 h163.7 v4 a81.8 81.8 0 0 1 -163.7 0z" ></path><path d="M1422.7 -730 h163.7 v4 a81.8 81.8 0 0 1 -163.7 0z" class="wa"></path><path d="M1586.3 -730 h163.7 v4 a81.8 81.8 0 0 1 -163.7 0z" ></path><circle cx="1794" cy="-77" r="100" class="wa"></circle></svg></a><p>The safe way to buy and sell on Nigerian campuses.</p></div>
   <div><h4>Product</h4><a href="#how">How it works</a><a href="#features">Features</a><a href="#get">Get the app</a><a href="/app">Open Stall</a></div>
   <div><h4>Trust</h4><a href="/rules">Buyer protection &amp; rules</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/delete-account">Delete account</a></div>
   <div><h4>Contact</h4><span id="contact"><a href="#league">Bring Stall to your campus</a></span></div>
  </div>
- <div class="mark" aria-hidden="true">Stall<i>.</i></div>
+ <div class="mark" aria-hidden="true"><svg class="wm" viewBox="-40 -800 1997 830" aria-hidden="true" fill="currentColor"><path d="M267 14Q214 14 168.5 3.5Q123 -7 89.5 -30.0Q56 -53 38.5 -91.5Q21 -130 24 -185L165 -197Q167 -164 180.0 -142.5Q193 -121 216.0 -111.0Q239 -101 272 -101Q303 -101 325.5 -111.5Q348 -122 348 -147Q348 -160 340.0 -168.5Q332 -177 310.5 -184.5Q289 -192 248 -202Q197 -215 156.0 -228.0Q115 -241 86.0 -259.0Q57 -277 42.0 -303.5Q27 -330 27 -369Q27 -424 56.5 -462.5Q86 -501 138.0 -521.5Q190 -542 258 -542Q319 -542 372.0 -523.0Q425 -504 455.5 -461.0Q486 -418 478 -347L340 -334Q343 -363 332.0 -383.5Q321 -404 300.0 -414.5Q279 -425 249 -425Q215 -425 196.5 -412.5Q178 -400 178 -381Q178 -366 189.5 -355.5Q201 -345 225.5 -337.5Q250 -330 289 -321Q323 -314 360.0 -303.0Q397 -292 429.0 -273.5Q461 -255 481.0 -225.0Q501 -195 501 -149Q501 -100 474.0 -63.0Q447 -26 395.0 -6.0Q343 14 267 14Z" ></path><path d="M719 12Q626 12 580.5 -35.5Q535 -83 535 -183V-402H477V-504H480Q542 -512 568.0 -545.5Q594 -579 600 -647V-649H695V-528H816V-398H695V-198Q695 -160 713.5 -144.0Q732 -128 759 -128Q773 -128 788.0 -132.0Q803 -136 816 -143V-2Q785 7 761.0 9.5Q737 12 719 12Z" ></path><path d="M970 14Q930 14 894.0 0.0Q858 -14 835.0 -45.5Q812 -77 812 -130Q812 -179 831.0 -209.5Q850 -240 882.0 -258.5Q914 -277 952.0 -286.5Q990 -296 1027 -303Q1079 -313 1105.0 -319.0Q1131 -325 1140.5 -333.0Q1150 -341 1150 -355Q1150 -384 1128.5 -399.0Q1107 -414 1072 -414Q1050 -414 1028.0 -406.0Q1006 -398 992.0 -377.5Q978 -357 979 -319L835 -329Q833 -392 854.0 -433.5Q875 -475 911.5 -498.5Q948 -522 991.5 -532.0Q1035 -542 1078 -542Q1157 -542 1208.0 -512.5Q1259 -483 1283.5 -427.5Q1308 -372 1308 -293V-199Q1308 -166 1308.0 -132.5Q1308 -99 1308.0 -66.0Q1308 -33 1308 0H1168Q1168 -36 1168.0 -73.0Q1168 -110 1168 -151H1162Q1158 -106 1132.5 -68.5Q1107 -31 1065.5 -8.5Q1024 14 970 14ZM1037 -104Q1054 -104 1073.5 -110.5Q1093 -117 1110.5 -132.0Q1128 -147 1139.0 -173.5Q1150 -200 1150 -239V-263L1177 -266Q1169 -253 1150.5 -245.0Q1132 -237 1109.0 -232.5Q1086 -228 1062.5 -223.5Q1039 -219 1019.0 -211.5Q999 -204 986.5 -191.5Q974 -179 974 -157Q974 -131 992.5 -117.5Q1011 -104 1037 -104Z" ></path><rect x="1329" y="-615" width="162" height="615" ></rect><rect x="1518" y="-615" width="162" height="615" ></rect><path d="M1259 -754 a26 26 0 0 1 26 -26 h439 a26 26 0 0 1 26 26 v26 h-491z" ></path><path d="M1259.0 -730 h163.7 v4 a81.8 81.8 0 0 1 -163.7 0z" ></path><path d="M1422.7 -730 h163.7 v4 a81.8 81.8 0 0 1 -163.7 0z" class="wa"></path><path d="M1586.3 -730 h163.7 v4 a81.8 81.8 0 0 1 -163.7 0z" ></path><circle cx="1794" cy="-77" r="100" class="wa"></circle></svg></div>
  <div class="legal"><span>© <span id="yr"></span> Stall. Made for Nigerian students.</span><span>Payments by Paystack</span></div>
 </div></footer>
 <div class="toast" id="toast" hidden role="status"></div>
@@ -658,7 +659,7 @@ const short=n=>n>=1e6?(n/1e6).toFixed(n>=1e7?0:1).replace(/\.0$/,'')+'M':n>=1e4?
 const ago=t=>{const m=Math.max(1,Math.round((Date.now()-t)/6e4));return m<60?m+' min ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago'};
 const icon=(k,cls='')=>`<svg viewBox="0 0 24 24" class="ic ${cls}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-${k}"/></svg>`;
 const CAT={books:['book','#FFEDD5','#C2410C'],tech:['tech','#DBEAFE','#1D4ED8'],fashion:['fashion','#FCE7F3','#BE185D'],hostel:['hostel','#DCFCE7','#15803D'],food:['food','#FEF3C7','#B45309'],services:['services','#EDE9FE','#6D28D9']};
-const cat=c=>CAT[c]||['bag','#E2E8F0','#334155'];
+const cat=c=>CAT[c]||['bag','#E2E8F0','#3D4160'];
 const toast=m=>{const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2600)};
 const getJ=u=>fetch(u).then(r=>r.ok?r.json():Promise.reject(r.status));
 const post=(u,b)=>fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json()).catch(()=>({error:'Could not reach Stall. Check your connection.'}));
@@ -695,13 +696,13 @@ function drawChips(items){const L=items.filter(x=>x.k!=='joined').slice(0,2);
 
 // ---- how it works: two roads, one diagram
 const TM={hand:30,answer:4,send:24,pay:24};const dur=(n,m)=>m?(n>=60&&n%60===0?(n===60?'1 hour':n/60+' hours'):n+' minutes'):(n===1?'1 hour':n+' hours');
-const GOOD=[{t:'You pay',d:'Your money goes to Stall, not to the seller. The seller sees it\'s paid and gets your order ready.',p:'pM1',tk:'₦',c:'#FF9F1C',n:['nB','nV']},
- {t:'The seller brings you the item',d:'At pickup or delivery, the item goes straight from the seller to you. Check it properly.',p:'pI2',tk:'',c:'#93C5FD',n:['nS','nB'],box:1},
+const GOOD=[{t:'You pay',d:'Your money goes to Stall, not to the seller. The seller sees it\'s paid and gets your order ready.',p:'pM1',tk:'₦',c:'#C8F03C',n:['nB','nV']},
+ {t:'The seller brings you the item',d:'At pickup or delivery, the item goes straight from the seller to you. Check it properly.',p:'pI2',tk:'',c:'#A9B4FF',n:['nS','nB'],box:1},
  {t:'Happy? Give your release code',d:'Your code is your "yes". The seller enters it in the app.',p:'pC3',tk:'',c:'#34D399',n:['nB','nS'],key:1},
- {t:'The seller gets paid',d:'Stall sends the money to the seller\'s bank. Nobody had to trust a stranger.',p:'pM4',tk:'₦',c:'#FF9F1C',n:['nV','nS']}];
-const BAD=[GOOD[0],{t:'The item arrives broken',d:'The seller hands it over, but the screen is cracked. Not what the photos showed.',p:'pI2',tk:'',c:'#93C5FD',n:['nS','nB'],box:1},
+ {t:'The seller gets paid',d:'Stall sends the money to the seller\'s bank. Nobody had to trust a stranger.',p:'pM4',tk:'₦',c:'#C8F03C',n:['nV','nS']}];
+const BAD=[GOOD[0],{t:'The item arrives broken',d:'The seller hands it over, but the screen is cracked. Not what the photos showed.',p:'pI2',tk:'',c:'#A9B4FF',n:['nS','nB'],box:1},
  {t:'Don\'t give the code. Report it.',d:'Tap "Report a problem" and add a photo. Your money stays with Stall while it\'s sorted out.',p:'pA3',tk:'!',c:'#F87171',n:['nB','nV']},
- {t:'You get your money back',d:'When the item isn\'t as described, Stall refunds you in full to your card or account.',p:'pMR',tk:'₦',c:'#FF9F1C',n:['nV','nB']}];
+ {t:'You get your money back',d:'When the item isn\'t as described, Stall refunds you in full to your card or account.',p:'pMR',tk:'₦',c:'#C8F03C',n:['nV','nB']}];
 const H={bad:false,i:0,auto:true,timer:null,raf:0};
 const STEPS=()=>H.bad?BAD:GOOD;
 function drawSteps(){const S=STEPS();$('#steps').innerHTML=S.map((s,k)=>`<button class="step" role="tab" aria-selected="${k===H.i}" data-k="${k}"><span class="n">${k+1}</span><span><b>${esc(s.t)}</b><p>${esc(s.d)}</p></span><span class="bar"><i></i></span></button>`).join('')}
@@ -829,23 +830,23 @@ const andOther=android&&!inApp&&(/SamsungBrowser|OPR\/|Opera|OPT\/|EdgA|Firefox|
 let dip=null,G={v:null,i:0};
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;if(G.v==='android')drawG()});
 addEventListener('appinstalled',()=>{ev('installed');G.v='done';drawG()});
-const ICON='<img src="/icons/icon-192-v2.png" alt="">';
+const ICON='<img src="/icons/icon-192-v3.png" alt="">';
 const FAKE={
  menu:`<div class="urlb"><span>${esc(location.host)}</span><span>⋮</span></div><div class="menu"><div>New tab</div><div>Bookmarks</div><div class="hl">Install app</div><div>Settings</div></div>`,
  prompt:`<div class="urlb"><span>${esc(location.host)}</span><span>⋮</span></div><div class="dlg"><div class="r">${ICON}<span>Install app?<br><small style="font-weight:500;color:#5f6368">Stall</small></span></div><div class="bt"><span>Cancel</span><span>Install</span></div></div>`,
- home:`<div class="home"><i></i><i></i><i></i><i></i><i></i><span class="me">${ICON}</span><i></i><i></i></div><p style="text-align:center;color:#5f6368;margin-top:10px">Look for the navy <b style="color:#0F172A">S.</b> icon</p>`,
+ home:`<div class="home"><i></i><i></i><i></i><i></i><i></i><span class="me">${ICON}</span><i></i><i></i></div><p style="text-align:center;color:#5f6368;margin-top:10px">Look for the indigo <b style="color:#26306E">Stall</b> icon</p>`,
  chrome:`<div class="urlb"><span>Opening in Chrome…</span><span>⋮</span></div><div style="text-align:center;margin-top:120px;color:#5f6368">${ICON.replace('alt','style="width:64px;height:64px;border-radius:16px" alt')}<p style="margin-top:12px">Chrome installs Stall safely</p></div>`,
  inapp:`<div class="urlb" style="background:#075E54;color:#fff"><span>stall</span><span style="font-size:18px">⋮</span></div><div class="menu" style="top:70px"><div>Refresh</div><div class="hl">Open in Chrome</div><div>Copy link</div></div>`,
  share:`<div style="padding:30px 10px;color:#111;text-align:center">${ICON.replace('alt','style="width:56px;height:56px;border-radius:14px" alt')}<p style="margin-top:10px;font-weight:700">stall</p></div><div class="share"><i></i><i></i><i class="hl"></i><i></i><i></i></div>`,
  sheet:`<div class="sheet"><div>Copy</div><div>Add to Reading List</div><div class="hl">Add to Home Screen ⊕</div><div>Find on Page</div></div><div class="share"><i></i><i></i><i class="hl"></i><i></i><i></i></div>`,
  add:`<div class="urlb" style="background:#F2F2F7"><span>Cancel</span><b style="color:#111">Add to Home Screen</b><span style="color:#007AFF;font-weight:700">Add</span></div><div style="display:flex;gap:12px;align-items:center;margin:20px 10px;color:#111">${ICON.replace('alt','style="width:56px;height:56px;border-radius:14px" alt')}<b>Stall</b></div>`,
- qr:`<div style="padding:60px 18px;text-align:center;color:#0F172A"><p style="font-weight:800;font-size:18px">Scan the code</p><p style="color:#64748B;margin-top:6px">with your phone camera</p></div>`,
- done:`<div style="text-align:center;margin-top:130px;color:#0F172A">${ICON.replace('alt','style="width:72px;height:72px;border-radius:18px" alt')}<p style="font-weight:800;font-size:20px;margin-top:12px">You're in 🎉</p></div>`};
+ qr:`<div style="padding:60px 18px;text-align:center;color:#161A33"><p style="font-weight:800;font-size:18px">Scan the code</p><p style="color:#5B6077;margin-top:6px">with your phone camera</p></div>`,
+ done:`<div style="text-align:center;margin-top:130px;color:#161A33">${ICON.replace('alt','style="width:72px;height:72px;border-radius:18px" alt')}<p style="font-weight:800;font-size:20px;margin-top:12px">You're in 🎉</p></div>`};
 const intent='intent://'+location.host+'/#get#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent('https://play.google.com/store/apps/details?id=com.android.chrome')+';end';
 function flows(){return{
  android:[{t:'Tap "Install Stall"',p:'Your phone will ask if you want to add Stall. It\'s free and tiny.',f:'menu',a:()=>dip?`<button class="btn acc" data-gi>Install Stall</button>`:`<p class="note" style="margin-top:0">Tap <b>⋮</b> at the top right of Chrome, then <b>Install app</b> (or <b>Add to Home screen</b>).</p><button class="btn ghost sm" data-gn>Done, next</button>`},
   {t:'Tap "Install" to confirm',p:'Android shows a small box. Tap Install.',f:'prompt',a:()=>`<button class="btn ghost sm" data-gn>Done, next</button>`},
-  {t:'Open Stall from your home screen',p:'Look for the navy S. icon, open it and sign up with your matric number.',f:'home',a:()=>`<a class="btn acc" href="/app">Open Stall now</a>`}],
+  {t:'Open Stall from your home screen',p:'Look for the indigo Stall icon with the little awning, open it and sign up with your matric number.',f:'home',a:()=>`<a class="btn acc" href="/app">Open Stall now</a>`}],
  androidOther:[{t:'Open this page in Chrome',p:'This browser makes its own copy of apps, and Google Play Protect may block it. Chrome installs Stall safely.',f:'chrome',a:()=>`<a class="btn acc" href="${intent}" data-goc>Open in Chrome</a><button class="btn ghost sm" data-copy>Copy link</button>`},
   {t:'Then tap "Install Stall"',p:'In Chrome, scroll to this section and follow the steps.',f:'menu',a:()=>''}],
  inapp:[{t:'Tap ⋮ at the top right',p:'Apps like WhatsApp and Instagram can\'t install other apps, so open this page in your browser first.',f:'inapp',pt:['tr','Tap ⋮ up here ↗'],a:()=>`<button class="btn ghost sm" data-copy>Or copy the link</button><button class="btn ghost sm" data-gn>Done, next</button>`},

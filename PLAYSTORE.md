@@ -6,7 +6,7 @@ The app is already prepared:
 - the app manifest has a description, categories, shortcuts and screenshots
 - `/.well-known/assetlinks.json` proves the app and the website belong together; you fill it in from **Admin → Settings → Android app**
 - in-app account deletion (**Account → Delete my account**), which Google requires, plus a public page at `/delete-account`
-- store graphics in [`store-assets/`](store-assets): six 1080×1920 phone screenshots and the 1024×500 feature graphic. The 512×512 icon is `icons/icon-512-v2.png`.
+- store graphics in [`store-assets/`](store-assets): six 1080×1920 phone screenshots and the 1024×500 feature graphic. The 512×512 icon is `icons/icon-512-v3.png`.
 
 > **Decide your domain first.** The Android app is tied to one web address. If you plan to move from `stall-app.pages.dev` to your own domain (e.g. `stall.ng`), do that **before** packaging; otherwise you'll have to publish a new app later.
 
@@ -49,7 +49,7 @@ The app is already prepared:
    - **Financial features:** the app takes payments for goods through a third-party processor (Paystack); it is not a bank, loan or crypto app.
    - **Data safety:** see the answers below.
    - **Data deletion:** *Yes, users can request deletion* → URL `https://stall-app.pages.dev/delete-account`. In-app deletion: Account → Delete my account.
-3. **Store listing:** paste the text below, upload `icons/icon-512-v2.png` as the app icon, `store-assets/feature-graphic.png` as the feature graphic, and the six `store-assets/phone-*.png` files as phone screenshots. Category: **Shopping**. Contact email: your support email.
+3. **Store listing:** paste the text below, upload `icons/icon-512-v3.png` as the app icon, `store-assets/feature-graphic.png` as the feature graphic, and the six `store-assets/phone-*.png` files as phone screenshots. Category: **Shopping**. Contact email: your support email.
 
 ## 4. Upload, then link the app to the website
 
