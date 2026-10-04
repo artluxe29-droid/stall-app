@@ -374,6 +374,17 @@ const rcText=m=>{const t=s=>String(s).replace(/<[^>]+>/g,'').replace(/&amp;/g,'&
 const mailReceipt=(m,btn,url)=>`<div style="background:#ECEAF4;padding:24px 12px;${RF}">${rcHtml(m,mailOrigin(url))}
   ${btn?`<p style="text-align:center;margin:22px 0 6px"><a href="${url}" style="background:#26306E;color:#fff;text-decoration:none;padding:12px 20px;border-radius:12px;font-weight:700;display:inline-block">${esc(btn)}</a></p>`:''}
   <p style="max-width:360px;margin:18px auto 0;font-size:12px;line-height:1.5;color:#5B6077;text-align:center">You get this because you have an account on Stall. Turn off order emails in Account → Email updates.</p></div>`;
+// Receipt for a payment to Stall (featuring, store reach, verified badge, store fee) or a class collection. p is its pending_pay row.
+async function payReceiptFor(env,p){if(!p||p.done!==1||p.kind==='order')return null;
+  const d=JSON.parse(p.data||'{}'),r=JSON.parse(p.result||'{}'),py=await env.DB.prepare('SELECT created FROM payments WHERE ref=?').bind(p.ref).first(),t=(py&&py.created)||p.created;
+  const allCredit=String(p.ref).startsWith('CR'),cr=allCredit?p.amount:(d.credit||0),cash=allCredit?0:p.amount,name=String(p.label||p.kind).replace(/ \(₦\d+ credit used\)$/,''),th=nightAt(t)?'night':'awning';
+  const pill={boost:r.until?'Featured until '+dday(r.until):'Featured',reach:r.until?'Reach upgraded until '+dday(r.until):'Reach upgraded',verify:'Your verified badge is on',store:'Your store is open',collect:'Sent to the class rep'}[p.kind]||'Paid';
+  const what=p.kind==='boost'?'Featuring, '+d.days+' day'+(d.days>1?'s':''):p.kind==='reach'?'Store reach, '+REACH_DAYS+' days':esc(name);
+  const rows=p.kind==='collect'?[[esc(name),NGN(d.amount||cash)],...(cash>(d.amount||cash)?[['Service fee',NGN(cash-d.amount)]]:[])]:[[what,NGN(cash+cr)],...(['boost','reach'].includes(p.kind)?[[p.kind==='boost'?'For':'Store',esc(name)]]:[]),...(cr?[['Stall credit used',NGN(-cr)]]:[])];
+  return{theme:th,subject:'Receipt: '+name,eyebrow:th==='night'?'LATE-NIGHT RECEIPT':'RECEIPT',label:p.kind==='collect'?'Paid for a class collection':'Paid to Stall',amount:cash,pill,
+    rows:[['Reference',esc(p.ref),1],...rows],total:['Total paid',NGN(cash)],info:[['Paid',dtime(t)],...(allCredit?[['Paid with','Stall credit']]:[])],tag:p.kind==='collect'?'Collected safely with Stall.':'Thanks for growing with Stall.'}}
+async function mailPayReceipt(env,ref){try{const p=await env.DB.prepare('SELECT * FROM pending_pay WHERE ref=?').bind(ref).first(),m=await payReceiptFor(env,p);
+  if(m)await mailTo(env,p.uid,m.subject,mailReceipt(m,'Open Stall',SITE(env)+'/app?go=payments'))}catch(e){}}
 // Made-up receipts, one of each design, for the admin's "Send sample receipts" button.
 const sampleReceipts=()=>{const now=Date.now(),ws=weekStart();return[
   {theme:'awning',subject:'You’ve been paid ₦13,800: Wireless earbuds',eyebrow:'PAID OUT',label:'You’ve been paid',amount:13800,pill:'Sent to GTBank •••0101',rows:[['Order','#1093',1],['Wireless earbuds','₦14,000'],['Delivery you did','₦500'],['Stall fee','−₦700']],total:['You get','₦13,800'],info:[['Buyer','Femi Adeyemi'],['Completed',dtime(now)]],stars:[5,'Femi rated this sale'],tag:'Sell. Get paid. Sleep well.'},
@@ -560,7 +571,7 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
     const got=opt.credit?0:p.kind==='order'?res.fee:p.kind==='collect'?(d.fee||0):p.amount;if(opt.credit)label=label+' (paid with credit)';
     await env.DB.prepare('INSERT OR IGNORE INTO payments(ref,uid,kind,target,label,days,amount,created) VALUES(?,?,?,?,?,?,?,?)').bind(ref,u.id,p.kind==='order'?'commission':p.kind,res.id||(p.kind==='order'?'O'+res.oid:p.kind==='collect'?'C'+d.cid:d.target)||null,label,p.kind==='reach'?REACH_DAYS:(d.days||null),got,now).run();
     await env.DB.prepare('UPDATE pending_pay SET done=1,result=? WHERE ref=?').bind(JSON.stringify(res),ref).run();
-    await logA(env,u,'money',act,label+' · ₦'+got,{who:u.name+' ('+(u.biz||u.phone)+')'});return{ok:true,kind:p.kind,...res}}
+    await logA(env,u,'money',act,label+' · ₦'+got,{who:u.name+' ('+(u.biz||u.phone)+')'});if(p.kind!=='order')await mailPayReceipt(env,ref);return{ok:true,kind:p.kind,ref,...res}}
   catch(e){await env.DB.prepare('UPDATE pending_pay SET done=0 WHERE ref=?').bind(ref).run();return{error:'Could not finish this payment yet. It will be retried. Reference '+ref}}}
 // Any unexpected error comes back as a clear JSON message (not Cloudflare's error page, which the app would read as a lost
 // connection), and the Stall team gets the details on Telegram.
@@ -787,9 +798,10 @@ async function route({request,env,params,waitUntil}){
   if(path==='me/seller-ok'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
     await env.DB.prepare('UPDATE users SET seller_ok=IFNULL(seller_ok,?) WHERE id=?').bind(Date.now(),u.id).run();return J({ok:true})}
   if(path==='me'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
-    const v=await env.DB.prepare('SELECT status,reason FROM verify_requests WHERE uid=?').bind(u.id).first(),ic=await env.DB.prepare('SELECT status,reason FROM id_checks WHERE uid=?').bind(u.id).first();
-    return J({user:{...pub(u),schoolInfo:await schoolOf(env,u.school_id),verify:v?v.status:null,verifyReason:v&&v.reason,idCheck:ic?ic.status:null,idReason:ic&&ic.reason,mustVerify:(await getK(env,'require_verified'))==='1',freeLeft:await freeLeft(env,u.id)}})}
-  if(path==='listings'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);await ensure(env);const NOW=Math.floor(Date.now()/6e4)*6e4;waitUntil(dailyCleanup(env));waitUntil(weeklyMails(env));waitUntil(payJobs(env).catch(()=>{}));
+    // Independent lookups go to the database together: each round trip from Nigeria to the database costs time.
+    const [v,ic,si,rv,fl]=await Promise.all([env.DB.prepare('SELECT status,reason FROM verify_requests WHERE uid=?').bind(u.id).first(),env.DB.prepare('SELECT status,reason FROM id_checks WHERE uid=?').bind(u.id).first(),schoolOf(env,u.school_id),getK(env,'require_verified'),freeLeft(env,u.id)]);
+    return J({user:{...pub(u),schoolInfo:si,verify:v?v.status:null,verifyReason:v&&v.reason,idCheck:ic?ic.status:null,idReason:ic&&ic.reason,mustVerify:rv==='1',freeLeft:fl}})}
+  if(path==='listings'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);waitUntil(sweep(env).catch(()=>{}));const NOW=Math.floor(Date.now()/6e4)*6e4;waitUntil(dailyCleanup(env));waitUntil(weeklyMails(env));waitUntil(payJobs(env).catch(()=>{}));
     const sp=url.searchParams,ids=(sp.get('ids')||'').split(',').map(x=>+x.slice(1)).filter(x=>x>0).slice(0,60),w=[LIVE],v=[];let lim=Math.min(96,Math.max(1,+sp.get('n')||24)),off=Math.max(0,+sp.get('off')||0),total;
     const cut=Math.floor((NOW-2*864e5)/6e5)*6e5;
     if(sp.get('mine')){w.push('l.uid=?',"(l.review!='live' OR (l.sold=1 AND l.created<=?))");v.push(u.id,cut);lim=50;off=0}
@@ -803,8 +815,9 @@ async function route({request,env,params,waitUntil}){
       if(mn>0){w.push('l.price>=?');v.push(mn)}if(mx>0){w.push('l.price<=?');v.push(mx)}if(['New','Like new','Used'].includes(cond)){w.push('l.cond=?');v.push(cond)}
       if(sp.get('dl')==='1')w.push('u.deliv_on=1');if(sp.get('vf')==='1')w.push('(u.verified=1 OR u.vlevel>=1)');if(sp.get('r4')==='1')w.push('u.rating_n>0 AND u.rating_sum>=4*u.rating_n')}
     const wh=' FROM listings l JOIN users u ON u.id=l.uid LEFT JOIN schools sc ON sc.id=l.school_id WHERE '+w.join(' AND '),srt={lo:'l.price ASC,l.id DESC',hi:'l.price DESC,l.id DESC',top:'(u.rating_sum+6.0)/(u.rating_n+2) DESC,u.rating_n DESC,l.created DESC'}[sp.get('sort')]||`(IFNULL(l.featured_until,0)>${NOW}) DESC,l.created DESC,l.id DESC`;
-    const feed=!ids.length&&!sp.get('mine'),run=async()=>{const total=feed?(await env.DB.prepare('SELECT COUNT(*) c'+wh).bind(...v).first()).c:undefined;
-      const rs=(await env.DB.prepare('SELECT l.*,u.verified AS sv,u.vlevel AS svl,u.role AS srole,u.deliv_on,u.deliv_fee,u.deliv_note,u.rating_sum,u.rating_n,sc.short AS ssh,sc.name AS snm'+wh+' ORDER BY '+srt+' LIMIT ? OFFSET ?').bind(...v,lim,off).all()).results;
+    const feed=!ids.length&&!sp.get('mine'),run=async()=>{const [cn,ra]=await Promise.all([feed?env.DB.prepare('SELECT COUNT(*) c'+wh).bind(...v).first():null,
+        env.DB.prepare('SELECT l.*,u.verified AS sv,u.vlevel AS svl,u.role AS srole,u.deliv_on,u.deliv_fee,u.deliv_note,u.rating_sum,u.rating_n,sc.short AS ssh,sc.name AS snm'+wh+' ORDER BY '+srt+' LIMIT ? OFFSET ?').bind(...v,lim,off).all()]);
+      const total=cn?cn.c:undefined,rs=ra.results;
       // Searches also look in open stores, so "jollof" finds food stalls as well as listings.
       const sq=(sp.get('q')||'').trim().slice(0,60),words=sq.split(/\s+/).filter(Boolean).slice(0,5),sc2=sp.get('scope')||'school';let storeHits=[];
       if(feed&&words.length&&!off){const ww=["i.review='live'",'i.avail=1','s.isopen=1',LIVE],vv=[];for(const word of words){ww.push('(i.title LIKE ? OR i.descr LIKE ?)');vv.push('%'+word+'%','%'+word+'%')}
@@ -958,6 +971,12 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(+url.searchParams.get('id')||0).first();if(!o||(o.buyer!==u.id&&o.seller!==u.id))return J({error:'Order not found.'},404);
     const m=await receiptFor(env,o,o.buyer===u.id?'buyer':'seller');if(!m)return J({error:'There\'s no receipt for this order yet.'},404);
     return J({html:rcHtml(m,''),text:rcText(m),title:m.subject},200,{'cache-control':'no-store'})}
+  if(path==='pay/receipt'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
+    const p=await env.DB.prepare('SELECT * FROM pending_pay WHERE ref=? AND uid=?').bind(String(url.searchParams.get('ref')||''),u.id).first(),m=await payReceiptFor(env,p);
+    if(!m)return J({error:'There\'s no receipt for this payment.'},404);return J({html:rcHtml(m,''),text:rcText(m),title:m.subject},200,{'cache-control':'no-store'})}
+  if(path==='pay/mine'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
+    const rs=(await env.DB.prepare("SELECT p.ref,p.kind,p.label,p.amount,p.data,y.created FROM pending_pay p JOIN payments y ON y.ref=p.ref WHERE p.uid=? AND p.done=1 AND p.kind!='order' ORDER BY y.created DESC LIMIT 50").bind(u.id).all()).results;
+    return J({pays:rs.map(r=>({ref:r.ref,kind:r.kind,label:({boost:'Featured: ',reach:'Store reach: '}[r.kind]||'')+String(r.label||r.kind).replace(/ \(₦\d+ credit used\)$/,''),paid:String(r.ref).startsWith('CR')?0:r.amount,credit:String(r.ref).startsWith('CR')?r.amount:(JSON.parse(r.data||'{}').credit||0),t:r.created}))},200,{'cache-control':'no-store'})}
   if(path==='orders/weekly'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
     const w=await weekOf(env,u.id,weekStart());return J({n:w.n,total:w.total,html:w.n?rcHtml(w,''):'',text:w.n?rcText(w):''},200,{'cache-control':'no-store'})}
   if(path==='orders/selling'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);
@@ -1381,7 +1400,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       if(cr&&cr>=w.amount){if(!(await env.DB.prepare('UPDATE users SET credit=credit-? WHERE id=? AND credit>=?').bind(cr,u.id,cr).run()).meta.changes)return J({error:'Not enough credit.'},400);
         await env.DB.prepare('INSERT INTO credit_log(uid,amt,why,t) VALUES(?,?,?,?)').bind(u.id,-cr,w.label||kind,Date.now()).run();
         const cref='CR'+rnd(8);await env.DB.prepare('INSERT INTO pending_pay(ref,uid,kind,data,amount,label,created,done) VALUES(?,?,?,?,?,?,?,0)').bind(cref,u.id,kind,JSON.stringify(data),w.amount,w.label||kind,Date.now()).run();
-        const f=await fulfil(env,cref,{credit:true});if(f.error){await env.DB.prepare('UPDATE users SET credit=credit+? WHERE id=?').bind(cr,u.id).run();return J(f,400)}return J({...f,credit:true})}
+        const f=await fulfil(env,cref,{credit:true});if(f.error){await env.DB.prepare('UPDATE users SET credit=credit+? WHERE id=?').bind(cr,u.id).run();return J(f,400)}return J({...f,credit:true,ref:cref})}
       if(cr){data.credit=cr;w={...w,amount:w.amount-cr,label:(w.label||kind)+' (₦'+cr+' credit used)'}}
       const r=await ps(env,'/transaction/initialize',{method:'POST',body:JSON.stringify({email:u.email||('user'+u.phone+'@stall.app'),amount:w.amount*100,currency:'NGN',callback_url:url.origin+'/app',metadata:{kind,target,days,uid:u.id,level:w.level||null},...(w.split||{})})});
       if(!r.status)return J({error:r.message||'Could not start payment.'},502);

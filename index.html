@@ -797,7 +797,7 @@ const SB=l=>l>=2?'<span class="sb" title="Stall checked a school document">✓ V
 const until=t=>new Date(t).toLocaleString('en-NG',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
 async function startFeature(body,b){const lb=b.textContent;b.disabled=true;b.textContent='Opening secure payment…';
   const r=await apiPost('pay/start',body);if(r.url){location.href=r.url;return}
-  if(r.credit&&r.ok){b.textContent='Done ✓';toast((body.kind==='reach'?'Store reach upgraded':'Featured')+(r.until?' until '+until(r.until):'')+'. Paid with credit');await refreshMe();await loadPub();renderStores();const m=myStore();if(body.kind==='reach'&&m)storePage(m.id);else{const dd=$('#detail');if(dd.open&&String(body.target)[0]==='L')openDetail(body.target);else if(m&&String(body.target)[0]==='S')storePage(m.id)}return}
+  if(r.credit&&r.ok){b.textContent='Done ✓';toast((body.kind==='reach'?'Store reach upgraded':'Featured')+(r.until?' until '+until(r.until):'')+'. Paid with credit');await refreshMe();await loadPub();renderStores();const m=myStore();if(body.kind==='reach'&&m)storePage(m.id);else{const dd=$('#detail');if(dd.open&&String(body.target)[0]==='L')openDetail(body.target);else if(m&&String(body.target)[0]==='S')storePage(m.id)}if(r.ref)openPayReceipt(r.ref);return}
   b.disabled=false;b.textContent=lb;toast(r.error||'Could not start payment. Try again.');if(r.verify)openStudentVerify()}
 // "Use your credit": credit pays up to CFG.creditPct% of the price; the rest is paid by card.
 const creditUse=price=>Math.min((S.user&&S.user.credit)||0,Math.floor(price*((CFG.creditPct!=null?CFG.creditPct:50))/100));
@@ -923,6 +923,11 @@ function orderCard(o,seller){const badge={pending:'Awaiting payment',under_revie
 let WEEK=null;
 function showReceipt(html,text,title){const d=$('#accDlg');d.innerHTML=`<div class="rcpt">${html}<div class="acts">${navigator.share?'<button class="pill sm" id="rcShare">Share</button>':''}<button class="pill sm alt" data-close>Close</button></div></div>`;
   const sh=$('#rcShare');if(sh)sh.onclick=()=>navigator.share({title,text}).catch(()=>{});if(!d.open)d.showModal()}
+async function openPayReceipt(ref){const r=await fetchJ('/api/pay/receipt?ref='+encodeURIComponent(ref)).catch(()=>({error:'Could not load the receipt. Check your connection.'}));if(r.error||!r.html)return toast(r.error||'No receipt yet');showReceipt(r.html,r.text,r.title)}
+// Account → Payments: receipts for featuring, store reach, the verified badge, the store fee and class collections.
+async function openPays(){const d=$('#accDlg');d.innerHTML='<div class="pad"><h2>Payments</h2><p class="meta">Loading…</p></div>';if(!d.open)d.showModal();
+  const r=await fetchJ('/api/pay/mine').catch(()=>({}));if(!d.open)return;const L=r.pays||[];
+  d.innerHTML=`<div class="pad"><h2>Payments</h2><p class="meta">What you've paid for on Stall. Receipts for things you buy are under Orders.</p>${L.length?L.map(p=>`<div class="order" style="margin:10px 0 0;display:flex;justify-content:space-between;align-items:center;gap:10px"><div><b>${esc(p.label)}</b><div class="meta">${p.paid?naira(p.paid):'Paid with credit'}${p.paid&&p.credit?' + '+naira(p.credit)+' credit':''} · ${new Date(p.t).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})}</div></div><button class="pill sm alt" data-payrc="${esc(p.ref)}">Receipt</button></div>`).join(''):'<div class="empty" style="padding:30px 0"><p>No payments yet. When you feature an item or upgrade your store, the receipt shows up here.</p></div>'}<div class="acts"><button class="pill sm alt" data-close>Close</button></div></div>`}
 async function openReceipt(id){const r=await fetchJ('/api/orders/receipt?id='+id).catch(()=>({error:'Could not load the receipt. Check your connection.'}));if(r.error||!r.html)return toast(r.error||'No receipt yet');showReceipt(r.html,r.text,r.title)}
 // Report a problem, give your side, or say you handed it over: a short note and an optional photo.
 function openOrderNote(oid,mode){const d=$('#accDlg'),M={report:['Report a problem','What went wrong? Be specific, e.g. "the screen is cracked" or "they didn\'t come to the meeting point".','Send report'],
@@ -1032,6 +1037,7 @@ document.addEventListener('click',e=>{
   if(id0==='accPush'){openPushSettings();return}
   if(id0==='accInvite'){openInvite();return}
   if(id0==='accClass'){openCollections();return}
+  if(id0==='accPays'){openPays();return}
   if(c('[data-look]')){openLook();return}
   if((b=c('[data-copy]'))&&!c('#adminDlg')){navigator.clipboard&&navigator.clipboard.writeText(b.dataset.copy);toast('Link copied');return}
   if(b=c('[data-share]')){shareThing(b.dataset.share);return}
@@ -1062,6 +1068,7 @@ document.addEventListener('click',e=>{
   if(b=c('[data-star]')){const f=b.closest('form'),n=+b.dataset.star;f.elements.stars.value=n;f.querySelectorAll('[data-star]').forEach(x=>x.classList.toggle('on',+x.dataset.star<=n));return}
   if(b=c('[data-dlvset]')){openDelivery('store');return}
   if(b=c('[data-receipt]')){openReceipt(+b.dataset.receipt);return}
+  if(b=c('[data-payrc]')){openPayReceipt(b.dataset.payrc);return}
   if(c('[data-weekly]')){if(WEEK)showReceipt(WEEK.html,WEEK.text,'Your Stall week');return}
   if(b=c('[data-ogot]')){if(!confirm('Do you have your order? The seller will be paid now. Only confirm if you have the item.'))return;apiPost('orders/received',{id:+b.dataset.ogot}).then(r=>{if(r.error)return toast(r.error);toast('Done. The seller is being paid');renderOrders()});return}
   if(b=c('[data-oreport]')){openOrderNote(+b.dataset.oreport,'report');return}
@@ -1149,7 +1156,7 @@ function openAccount(){const u=S.user,d=$('#accDlg');if(!u)return;const ns=NEWS.
    <div class="acch"><div class="sav">${esc((u.name||'?')[0])}</div><div class="t"><h2>${esc(u.name)}</h2><p class="meta">${u.role==='vendor'?'Campus vendor'+(u.biz?' · '+esc(u.biz):''):esc(u.matric||'')}${sch?' · '+esc(sch.short||sch.name):''}</p>
      <div class="abadges">${u.verified?VB:''}${stu&&(u.vlevel||0)>=2?SB(2):stu&&(u.vlevel||0)===1?SB(1):''}</div></div></div>
    ${u.admin||u.reviewer?`<button class="aadmin" type="button" id="accAdmin">${ico('sliders')}<span><b>${u.admin?'Admin dashboard':'Review payments'}</b><small>${u.admin?'Orders, payouts, earnings and settings':'Payments waiting for a decision'}</small></span><span class="go">›</span></button>`:''}
-   <div class="aqk">${tile('accMsgs','chat','Messages',CHATN?CHATN+' unread':'Buyers and sellers',CHATN)}${tile('accSelling','box','Orders to fulfil',ns?ns+' new':'What people bought',ns)}${stu?tile('accClass','list','Collections','Collect money from a group'):''}${tile('accInvite','gift','Invite & credit',u.credit?naira(u.credit)+' credit':'Earn when friends order')}</div>
+   <div class="aqk">${tile('accMsgs','chat','Messages',CHATN?CHATN+' unread':'Buyers and sellers',CHATN)}${tile('accSelling','box','Orders to fulfil',ns?ns+' new':'What people bought',ns)}${stu?tile('accClass','list','Collections','Collect money from a group'):''}${tile('accInvite','gift','Invite & credit',u.credit?naira(u.credit)+' credit':'Earn when friends order')}${tile('accPays','wallet','Payments','Receipts for featuring and more')}</div>
    ${sec('Selling',[row('accDeliv','truck','Delivery',u.deliv&&u.deliv.on?'You deliver · '+(u.deliv.fee?naira(u.deliv.fee):'free'):'Off · buyers collect from you'),u.verified?'':row('accVerify','badge','Verified seller badge','Show buyers a ✓ badge on your listings'),row('accShare','megaphone','Share Stall','QR code and poster for friends and customers')])}
    ${sec('Your profile',[row('accSchool','school','My school',sch?esc(sch.name):'Choose your school'),stu&&(u.vlevel||0)<2?row('accStu','cap','Verify you\'re a student',u.idCheck==='pending'?'Your document is being checked':'Student ID, course form or fees receipt',u.idCheck==='pending'?chip('Pending'):chip('Get ✓','hot')):'',row('accMail','mail','Email',u.emailVerified?(u.emailNotify?'Updates on · ':'Updates off · ')+esc(u.email):'Add your email for order updates and password resets',u.emailVerified?'':chip('Add','hot')),row('accPw','lock','Change password','')])}
    ${sec('App &amp; preferences',[row('accPush','bell','Notifications','<span id="pushSt">…</span>'),`<div class="arow2 nohover"><span class="i">${ico('sparkle')}</span><span class="t"><b>Theme</b></span><div class="tseg" role="group" aria-label="Appearance">${[['auto','Auto'],['light','Light'],['dark','Dark']].map(([k,l])=>`<button type="button" data-theme="${k}" aria-pressed="${themePref()===k}">${l}</button>`).join('')}</div></div>`,canInstall()?row('accInstall','phone','Install the app','Add Stall to your home screen'):'',row('accGuide','book2','How Stall works','Buying, selling, collections and staying safe')])}
@@ -1983,9 +1990,10 @@ const NAV={s:[],r:0,v:'shop',cur:{},lc:null};
   if(r.signedOut||!S.user)return toast(msg+'. Open Stall to see it.');
   toast(r.note||msg);await refreshMe();await loadPub();if(r.kind==='store'&&r.id){renderStores();storePage(r.id)}
   if(r.kind==='collect'&&r.code)openCollect(r.code);
+  if(['boost','reach','verify'].includes(r.kind)&&r.ref)openPayReceipt(r.ref);
   if(r.kind==='order'&&r.oid){const o=await loadOne(r.oid);if(o){PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)}}})();
 // Home-screen shortcuts (long-press the app icon): /?go=sell, /?go=orders, /?go=messages
-(()=>{const sp=new URLSearchParams(location.search),g=sp.get('go');if(!g)return;window.__goT=sp.get('t');history.replaceState(null,'','/app');let n=0;const run=()=>{if(!S.user){if(++n<20)setTimeout(run,300);return}if(g==='sell')$('#tbSell').click();else if(g==='orders')view('orders');else if(g==='selling')view('selling');else if(g==='invite')openInvite();else if(g==='messages'){const t=+new URLSearchParams(location.search).get('t')||+(window.__goT||0);t?openChat(t):openInbox()}};setTimeout(run,300)})();
+(()=>{const sp=new URLSearchParams(location.search),g=sp.get('go');if(!g)return;window.__goT=sp.get('t');history.replaceState(null,'','/app');let n=0;const run=()=>{if(!S.user){if(++n<20)setTimeout(run,300);return}if(g==='sell')$('#tbSell').click();else if(g==='orders')view('orders');else if(g==='selling')view('selling');else if(g==='payments')openPays();else if(g==='invite')openInvite();else if(g==='messages'){const t=+new URLSearchParams(location.search).get('t')||+(window.__goT||0);t?openChat(t):openInbox()}};setTimeout(run,300)})();
 // Links like /?item=L12, /?store=S3 open that item or store (after signing in, if needed); ?r=CODE remembers who invited you.
 (()=>{const sp=new URLSearchParams(location.search),col=(sp.get('collect')||'').toUpperCase();if(!/^[A-Z2-9]{6}$/.test(col))return;history.replaceState(null,'','/app');let n=0;
   const run=()=>{if(!S.user){if(++n<600)setTimeout(run,1000);return}openCollect(col)};setTimeout(run,600)})();
