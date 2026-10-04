@@ -295,11 +295,13 @@ async function refund(env,o,why){if(!['verified','disputed','under_review'].incl
   if(ch){await restock(env,[o.id]);await notify(env,o.buyer,'Refund on its way: '+o.title,'You\'re being refunded',['Your order for <b>'+esc(o.title)+'</b> was cancelled. '+esc(why),'Your <b>₦'+Number(o.amount).toLocaleString('en-NG')+'</b> is going back to the card or account you paid with. It can take a few working days to show.'],'See your orders',SITE(env)+'/app?go=orders')}await bumpVer(env);return{ok:true}}
 // ---- Email (Resend). Secrets: RESEND_API_KEY, and EMAIL_FROM like "Stall <hello@yourdomain.ng>" once your domain is verified in Resend.
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const mailHtml=(title,lines,btn,url)=>`<div style="font-family:Arial,Helvetica,sans-serif;background:#F5F6FA;padding:24px"><div style="max-width:480px;margin:auto;background:#fff;border-radius:16px;padding:28px">
-  <div style="font-size:24px;font-weight:800;color:#0F172A">Stall<span style="color:#FF9F1C">.</span></div><h1 style="font-size:20px;color:#0F172A;margin:18px 0 10px">${esc(title)}</h1>
-  ${lines.map(l=>`<p style="font-size:15px;line-height:1.5;color:#334155;margin:0 0 10px">${l}</p>`).join('')}
-  ${btn?`<p style="margin:18px 0 6px"><a href="${url}" style="background:#0F172A;color:#fff;text-decoration:none;padding:12px 20px;border-radius:12px;font-weight:700;display:inline-block">${esc(btn)}</a></p>`:''}
-  <p style="font-size:12px;color:#94A3B8;margin-top:22px">You get this because you have an account on Stall. Turn off order emails in Account → Email updates.</p></div></div>`;
+// Brand header: the wordmark is a PNG (email apps don't show SVG); "Stall" shows if images are blocked.
+const mailOrigin=url=>(String(url||'').match(/^https?:\/\/[^/]+/)||['https://stall-app.pages.dev'])[0];
+const mailHtml=(title,lines,btn,url)=>`<div style="font-family:Arial,Helvetica,sans-serif;background:#F6F2EA;padding:24px"><div style="max-width:480px;margin:auto;background:#fff;border-radius:16px;overflow:hidden">
+  <div style="background:#26306E;padding:18px 28px"><img src="${mailOrigin(url)}/icons/email-wordmark-v3.png" alt="Stall" width="74" height="31" style="display:block;border:0;color:#F6F1E7;font-size:22px;font-weight:800"></div><div style="padding:24px 28px 28px"><h1 style="font-size:20px;color:#161A33;margin:0 0 10px">${esc(title)}</h1>
+  ${lines.map(l=>`<p style="font-size:15px;line-height:1.5;color:#3D4160;margin:0 0 10px">${l}</p>`).join('')}
+  ${btn?`<p style="margin:18px 0 6px"><a href="${url}" style="background:#26306E;color:#fff;text-decoration:none;padding:12px 20px;border-radius:12px;font-weight:700;display:inline-block">${esc(btn)}</a></p>`:''}
+  <p style="font-size:12px;color:#5B6077;margin-top:22px">You get this because you have an account on Stall. Turn off order emails in Account → Email updates.</p></div></div></div>`;
 async function sendEmail(env,to,subject,html){if(!env.RESEND_API_KEY||!to)return{skipped:true};
   try{const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'content-type':'application/json'},body:JSON.stringify({from:env.EMAIL_FROM||'Stall <onboarding@resend.dev>',to:[to],subject,html})});
     const j=await r.json().catch(()=>({}));const ok=r.ok&&!!j.id;await setK(env,'email_last',JSON.stringify({t:Date.now(),ok,err:ok?null:String(j.message||j.name||('HTTP '+r.status)).slice(0,200)}));return ok?{ok:true}:{error:j.message||'Email failed'}}
@@ -514,7 +516,7 @@ async function route({request,env,params,waitUntil}){
     if(!env.RESEND_API_KEY)return J({error:'Email is not set up yet. Upload your student ID instead.'},503);
     if(!await allow(env,'vem:'+u.id,5,36e5))return slow();
     const taken=await env.DB.prepare('SELECT 1 FROM users WHERE email=? AND email_verified=1 AND id!=?').bind(email,u.id).first();if(taken)return J({error:'That email is already confirmed on another account.'},409);
-    const code=await newCode(env,'em:'+u.id,email),r=await sendEmail(env,email,'Your Stall code: '+code,mailHtml('Confirm your email',['Your code is:','<b style="font-size:28px;letter-spacing:4px;color:#0F172A">'+code+'</b>','It expires in 15 minutes. If you didn\'t ask for this, ignore this email.']));
+    const code=await newCode(env,'em:'+u.id,email),r=await sendEmail(env,email,'Your Stall code: '+code,mailHtml('Confirm your email',['Your code is:','<b style="font-size:28px;letter-spacing:4px;color:#26306E">'+code+'</b>','It expires in 15 minutes. If you didn\'t ask for this, ignore this email.']));
     if(r.error)return J({error:'We could not send the email. Check the address and try again.'},502);return J({ok:true,school:await schoolMail(env,email)})}
   if(path==='verify/email/confirm'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
     const b=await request.json().catch(()=>({})),r=await useCode(env,'em:'+u.id,b.code);if(r.error)return J(r,400);const email=r.data,sch=await schoolMail(env,email),lvl=sch&&u.role==='student'?Math.max(u.vlevel||0,1):(u.vlevel||0);
@@ -541,7 +543,7 @@ async function route({request,env,params,waitUntil}){
     const u=await env.DB.prepare("SELECT * FROM users WHERE (matric=? OR phone=?) AND status!='deleted'").bind(raw.toUpperCase(),phoneN(raw)).first();
     const generic=J({ok:true,message:'If that account has a confirmed email, we have sent it a code.'});
     if(!u||!u.email_verified||!u.email||!await allow(env,'fgtu:'+u.id,4,36e5))return generic;
-    const code=await newCode(env,'pw:'+u.id);await sendEmail(env,u.email,'Reset your Stall password',mailHtml('Reset your password',['Your code is:','<b style="font-size:28px;letter-spacing:4px;color:#0F172A">'+code+'</b>','It expires in 15 minutes. If you didn\'t ask to reset your password, ignore this email. Your password stays the same.']));
+    const code=await newCode(env,'pw:'+u.id);await sendEmail(env,u.email,'Reset your Stall password',mailHtml('Reset your password',['Your code is:','<b style="font-size:28px;letter-spacing:4px;color:#26306E">'+code+'</b>','It expires in 15 minutes. If you didn\'t ask to reset your password, ignore this email. Your password stays the same.']));
     return generic}
   if(path==='auth/reset'&&request.method==='POST'){await ensure(env);const b=await request.json().catch(()=>({})),raw=String(b.id||'').trim(),pw=String(b.password||'');
     if(!await allow(env,'rst:'+ipOf(request),30,36e5))return slow();
