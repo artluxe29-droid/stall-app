@@ -341,7 +341,9 @@ async function weekOf(env,uid,ws){const days=[0,0,0,0,0,0,0];let n=0,total=0,fee
   const u=await env.DB.prepare('SELECT rating_sum,rating_n FROM users WHERE id=?').bind(uid).first();
   return{theme:'weekly',week:isoWeek(ws),label:ws===weekStart()?'Your sales this week':'Your sales last week',n,total,fees,days,rating:u?rat(u):{avg:0,n:0},subject:'Your Stall week: '+NGN(total)+' in sales'}}
 const rcImg=(b,n,w,h,st='')=>`<img src="${b}/icons/receipt/${n}.png" width="${w}" height="${h}" alt="" style="display:block;border:0;${st}">`;
-const rcRow=(l,r,c,mut,bold,size=14)=>`<tr><td style="padding:4px 10px 4px 0;font-size:${size}px;color:${mut};text-align:left;vertical-align:top;white-space:nowrap">${l}</td><td style="padding:4px 0;font-size:${size}px;color:${c};font-weight:${bold?700:500};text-align:right;vertical-align:top">${r}</td></tr>`;
+// Short labels and values stay on one line; long ones (item names, reasons) wrap.
+const rcNw=(x,n)=>String(x).replace(/<[^>]+>|&[a-z#0-9]+;/g,'.').length<=n?';white-space:nowrap':'';
+const rcRow=(l,r,c,mut,bold,size=14)=>`<tr><td style="padding:4px 10px 4px 0;font-size:${size}px;color:${mut};text-align:left;vertical-align:top${rcNw(l,14)}">${l}</td><td style="padding:4px 0;font-size:${size}px;color:${c};font-weight:${bold?700:500};text-align:right;vertical-align:top${rcNw(r,16)}">${r}</td></tr>`;
 const rcRule=c=>`<tr><td colspan="2" style="padding:7px 0"><div style="border-top:1.5px dashed ${c};height:0;line-height:0;font-size:0">&nbsp;</div></td></tr>`;
 const rcWrap=(inner,b,edge)=>`<table role="presentation" class="rc" width="360" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:360px;margin:0 auto;border-collapse:collapse;${RF}">${inner}<tr><td style="padding:0;line-height:0;font-size:0">${rcImg(b,edge,360,14,'width:100%;height:14px')}</td></tr></table>`;
 // The receipt itself. b is the site origin for images ('' inside the app).
@@ -357,8 +359,8 @@ function rcHtml(m,b){
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px"><tr>${m.days.map((v,i)=>`<td style="height:112px;vertical-align:bottom;padding:0 3px;text-align:center"><div style="height:${Math.max(4,Math.round(v/mx*92))}px;background:${i===top&&v?'#C8F03C':'#3A46A0'};border-radius:6px 6px 2px 2px;font-size:0;line-height:0">&nbsp;</div><div style="font-size:10px;color:#9AA1C9;padding-top:4px">${'MTWTFSS'[i]}</div></td>`).join('')}</tr></table>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rcRule('#3A4470')}${rcRow('Orders delivered',String(m.n),'#F6F1E7','#9AA1C9',1)}${rcRow('Stall fees',NGN(-m.fees),'#F6F1E7','#9AA1C9')}${rcRow('Paid out',NGN(m.total-m.fees),'#C8F03C','#9AA1C9',1,16)}${m.rating.n?rcRow('Rating',m.rating.avg+' ★ from '+m.rating.n+' buyer'+(m.rating.n>1?'s':''),'#F6F1E7','#9AA1C9'):''}</table></td></tr>`,b,'edge-indigo')}
   const c=RC[m.theme];
-  return rcWrap(`<tr><td style="padding:0;line-height:0;font-size:0">${rcImg(b,c.top,360,74,'width:100%;height:auto')}</td></tr>
-  <tr><td style="background-color:${c.bg};${m.theme==='night'?'background-image:radial-gradient(260px 200px at 50% 0,rgba(200,240,60,.13),rgba(200,240,60,0) 70%);':''}padding:8px 26px 22px;color:${c.ink};text-align:center">
+  return rcWrap(`<tr><td style="padding:0;line-height:0;font-size:0;background:${c.bg};border-radius:22px 22px 0 0">${rcImg(b,c.top,360,74,'width:100%;height:auto')}</td></tr>
+  <tr><td style="background-color:${c.bg};${m.theme==='night'?`background-image:url(${b}/icons/receipt/night-glow.png);background-repeat:no-repeat;background-position:50% 0;background-size:360px 220px;`:''}padding:8px 26px 22px;color:${c.ink};text-align:center">
    ${rcImg(b,c.mark,43,40,'margin:6px auto 12px')}
    <div style="font-size:11px;font-weight:700;letter-spacing:.16em;color:${m.theme==='night'?'#8C93BF':c.mut}">${m.eyebrow}</div>
    <div style="font-size:13px;color:${c.mut};margin-top:12px">${m.label}</div>
