@@ -28,3 +28,4 @@ Built once on the server (`receiptFor` and `rcHtml` in `functions/api/[[path]].j
 - **Full stops**: refunds.
 - **Weekly statement**: sellers. It shows in Orders to fulfil and is emailed every Monday for the week before.
 - Admin → Email → **Send sample receipts** sends one of each.
+- **Payments to Stall** (featuring, store reach, verified badge, store fee) and class collections also get an Awning stripe (or Night) receipt. You can find them again in Account → Payments.
