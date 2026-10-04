@@ -9,7 +9,7 @@
 
 ## Files (`icons/`)
 - Icon: `stall-mark.svg` (indigo), `stall-mark-cream.svg`, `stall-mark-white.svg`, `stall-mark-black.svg`
-- Posts wordmark: `wordmark-{indigo,cream,white,black}.svg`
+- Posts wordmark: `wordmark-{indigo,cream,white,black}.svg`, and `wordmark-indigo-lime.svg` (lime full stop)
 - Plain wordmark (for lockups): `wordmark-plain-{indigo,cream,white,black}.svg`
 
 ## Colours
@@ -20,3 +20,11 @@ Bricolage Grotesque (headlines, prices) and Figtree (everything else), self-host
 
 ## Icons
 Rounded 2px line on a 24px grid with one signature dot. Used in the app's icon set, tab bar and the website.
+
+## Receipts
+Built once on the server (`receiptFor` and `rcHtml` in `functions/api/[[path]].js`) and used in both the receipt emails and the app's receipt sheet, from email-safe tables and the PNGs in `icons/receipt/`.
+- **Awning stripe**: buyer receipts by day, and every seller payout. The awning sits on top, the icon below it, the Posts wordmark at the foot.
+- **Night**: buyer receipts for orders paid between 7pm and 6am (Lagos time).
+- **Full stops**: refunds.
+- **Weekly statement**: sellers. It shows in Orders to fulfil and is emailed every Monday for the week before.
+- Admin → Email → **Send sample receipts** sends one of each.
