@@ -216,6 +216,15 @@ dialog.adm[open]{display:flex;flex-direction:column}
 .upd p{font-size:15px;padding:6px 0;border-bottom:1px solid var(--line)}.upd p:last-child{border-bottom:0}
 .onote{font-size:14px;margin-top:8px;padding:8px 12px;border-radius:12px;background:var(--bg)}
 .rcpt{padding:22px 14px 16px}.rcpt .rc{filter:drop-shadow(0 18px 26px rgba(22,26,51,.22))}.rcpt .acts{justify-content:center;flex-wrap:wrap;gap:8px;margin-top:18px}.rcpt .pill .ic{width:16px;height:16px;margin-right:6px;vertical-align:-3px}
+.live{width:min(560px,calc(100% - 20px));height:min(92vh,820px);overflow:hidden}.live[open]{display:flex;flex-direction:column}
+.lvh{padding:18px 20px 12px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.lvh small{display:block;color:var(--mut,#5B6077);font-size:13px}
+.lveta{font-family:"Bricolage Grotesque","Figtree",system-ui,sans-serif;font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.1}.lveta.here{color:#2E8B57}
+.lvmap{flex:1;min-height:240px;margin:0 12px;border-radius:20px;overflow:hidden;background:#E4E7F7;position:relative}.lvmap .lvnote{position:absolute;inset:auto 12px 12px;z-index:500;background:rgba(255,255,255,.94);color:#161A33;border-radius:14px;padding:10px 12px;font-size:13px}
+.lvb{padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px}.lvchips{display:flex;gap:6px;flex-wrap:wrap}.lvchips button{border:0;border-radius:999px;padding:8px 12px;font:inherit;font-size:13px;font-weight:700;background:var(--bg2,#EDE7DA);color:inherit;cursor:pointer}
+.lvchips button.on{background:#26306E;color:#C8F03C}.lvshare{width:100%;justify-content:center}.lvshare.on{background:#D93F3F;color:#fff}
+.lvdot{width:22px;height:22px;border-radius:50%;background:#26306E;border:4px solid #C8F03C;box-shadow:0 0 0 0 rgba(38,48,110,.45);animation:lvp 1.8s infinite}.lvdot.me{background:#C8F03C;border-color:#26306E}
+@keyframes lvp{70%{box-shadow:0 0 0 16px rgba(38,48,110,0)}100%{box-shadow:0 0 0 0 rgba(38,48,110,0)}}
+.lvpin{width:34px;height:34px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:#C8F03C;border:3px solid #26306E;display:grid;place-items:center}.lvpin svg{transform:rotate(45deg)}
 .wkcard{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;border:0;border-radius:20px;padding:16px 18px;margin-bottom:12px;background:#26306E;color:#F6F1E7;text-align:left;cursor:pointer;font:inherit}
 .wkcard small{display:block;color:#CDD2F0;font-size:13px}.wkcard b{display:block;font-family:"Bricolage Grotesque","Figtree",system-ui,sans-serif;font-size:28px;letter-spacing:-.02em;line-height:1.15}.wkcard .go{color:#C8F03C;font-weight:700;font-size:14px;white-space:nowrap}
 .bag+.bag{margin-left:8px}#themeBtn{margin-left:auto}
@@ -628,6 +637,7 @@ small.flag,b.flag,span.flag{width:auto;height:auto;border-radius:0;box-shadow:no
 <dialog id="adminDlg"></dialog>
 <dialog id="verDlg"></dialog>
 <dialog id="accDlg"></dialog>
+<dialog id="liveDlg" class="live" aria-label="Live delivery"></dialog>
 <dialog id="revDlg"></dialog>
 <dialog id="chatDlg" class="chatdlg"></dialog>
 <dialog id="voiceDlg" class="vdlg"></dialog>
@@ -898,6 +908,7 @@ function orderCard(o,seller){const badge={pending:'Awaiting payment',under_revie
    ${o.status==='rejected'?`<div class="onote bad">Payment not accepted${o.note?': '+esc(o.note):''}.${seller?'':' If you did pay, contact the seller or the Stall team.'}</div>`:''}
    ${o.status==='under_review'?`<div class="onote">${seller?'Stall is checking this order. Don\'t hand over the item yet.':'Stall is checking this order. You will see the result here, usually within a few hours.'}</div>`:''}
    ${['verified','released'].includes(o.status)&&o.method?tracker(o):''}
+   ${ver&&!o.handedAt&&o.method?liveActs(o,seller):''}
    ${['verified','disputed','released'].includes(o.status)?`<p class="meta" style="margin-top:6px"><button class="link" data-chat="O${o.id}">Message the ${them}</button></p>`:''}
    ${o.method==='delivery'&&ver?`<div class="onote">${seller?`<b>Deliver to:</b> ${esc(o.addr)}${o.dphone?' · '+wa2(o.dphone):''}`:`Delivering to ${esc(o.addr)}`}</div>`:''}
    ${o.method==='pickup'&&ver&&!seller?`<div class="onote">${o.stage==='ready'?'<b>Ready for pickup</b>':'Pick up'}${o.pickup?' at '+esc(o.pickup):''}. Bring your release code.</div>`:''}
@@ -954,6 +965,69 @@ async function openPays(){const d=$('#accDlg');d.innerHTML='<div class="pad"><h2
   const r=await fetchJ('/api/pay/mine').catch(()=>({}));if(!d.open)return;const L=r.pays||[];
   d.innerHTML=`<div class="pad"><h2>Payments</h2><p class="meta">What you've paid for on Stall. Receipts for things you buy are under Orders.</p>${L.length?L.map(p=>`<div class="order" style="margin:10px 0 0;display:flex;justify-content:space-between;align-items:center;gap:10px"><div><b>${esc(p.label)}</b><div class="meta">${p.paid?naira(p.paid):'Paid with credit'}${p.paid&&p.credit?' + '+naira(p.credit)+' credit':''} · ${new Date(p.t).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})}</div></div><button class="pill sm alt" data-payrc="${esc(p.ref)}">Receipt</button></div>`).join(''):'<div class="empty" style="padding:30px 0"><p>No payments yet. When you feature an item or upgrade your store, the receipt shows up here.</p></div>'}<div class="acts"><button class="pill sm alt" data-close>Close</button></div></div>`}
 async function openReceipt(id){const r=await fetchJ('/api/orders/receipt?id='+id).catch(()=>({error:'Could not load the receipt. Check your connection.'}));if(r.error||!r.html)return toast(r.error||'No receipt yet');showReceipt(r.html,r.text,r.title)}
+// ---- Live delivery: whoever is moving (seller on deliveries, buyer on pickups) can share their location while this screen is open;
+// the other side sees them on the map with an arrival time. The meeting spot is a pin: the buyer's for deliveries, the seller's for pickups.
+function liveActs(o,seller){const dl=o.method==='delivery',mover=dl?seller:!seller,pinMine=dl?!seller:seller,on=dl?o.stage==='on_way':true,a=[];
+  if(on)a.push(`<button class="pill sm${mover?'':' alt'}" data-live="${o.id}">${ico('pin')} ${mover?(dl?'Delivering now':'Heading there'):(dl?'Track live':'See the buyer coming')}</button>`);
+  if(pinMine)a.push(`<button class="link" data-livepin="${o.id}">${o.pin?'Change the meeting spot':dl?'Drop a pin for the delivery spot':'Drop a pin for the pickup spot'}</button>`);
+  return a.length?`<div class="acts" style="gap:12px;align-items:center">${a.join('')}</div>`:''}
+const loadMap=()=>window.L?Promise.resolve():new Promise((ok,no)=>{const l=document.createElement('link');l.rel='stylesheet';l.href='/vendor/leaflet.css';document.head.appendChild(l);
+  const s=document.createElement('script');s.src='/vendor/leaflet.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)});
+const LV={};
+const lvAgo=t=>{const s=Math.max(0,Math.round((Date.now()-t)/1e3));return s<10?'just now':s<60?s+'s ago':Math.round(s/60)+' min ago'};
+const lvKm=m=>m<1000?Math.round(m/10)*10+' m':(m/1000).toFixed(1)+' km';
+async function openLive(oid,pinMode){const d=$('#liveDlg');lvStop();Object.assign(LV,{oid,pinMode:!!pinMode,share:false,last:0,me:null,info:null,fitted:0,moved:0,newPin:null,ck:null});
+  d.innerHTML=`<div class="lvh"><div><small id="lvWho">Loading…</small><div class="lveta" id="lvEta">…</div><small id="lvSub"></small></div><button class="pill sm alt" data-close>Close</button></div><div class="lvmap" id="lvMap"></div><div class="lvb" id="lvB"></div>`;
+  if(!d.open)d.showModal();try{await loadMap()}catch(e){$('#lvMap').innerHTML='<div class="lvnote">The map could not load. Check your connection.</div>'}
+  if(window.L&&d.open){const m=LV.map=L.map('lvMap',{zoomControl:false,attributionControl:true}).setView([9.08,8.68],6);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(m);L.control.zoom({position:'topright'}).addTo(m);
+    m.on('click',e=>{if(LV.pinMode)lvSetPin(e.latlng.lat,e.latlng.lng)});setTimeout(()=>m.invalidateSize(),200)}
+  await lvPoll(true);LV.poll=setInterval(()=>lvPoll(false),5000)}
+function lvStop(){clearInterval(LV.poll);LV.poll=null;if(LV.watch!=null)navigator.geolocation.clearWatch(LV.watch);LV.watch=null;if(LV.lock){LV.lock.release().catch(()=>{});LV.lock=null}
+  if(LV.map){LV.map.remove();LV.map=null}LV.mk={}}
+$('#liveDlg').addEventListener('close',()=>{if(LV.share)apiPost('orders/live/stop',{id:LV.oid});LV.share=false;lvStop()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&LV.share&&!LV.lock&&navigator.wakeLock)navigator.wakeLock.request('screen').then(l=>LV.lock=l).catch(()=>{})});
+const lvIcon=(cls,html)=>L.divIcon({className:'',html,iconSize:[34,34],iconAnchor:cls==='pin'?[17,34]:[11,11]});
+function lvMark(k,lat,lng,html,cls){if(!LV.map)return;LV.mk=LV.mk||{};if(LV.mk[k])LV.mk[k].setLatLng([lat,lng]);else LV.mk[k]=L.marker([lat,lng],{icon:lvIcon(cls,html),keyboard:false}).addTo(LV.map)}
+function lvFit(){if(!LV.map)return;const pts=Object.values(LV.mk||{}).map(m=>m.getLatLng());if(!pts.length)return;if(pts.length===1)LV.map.setView(pts[0],LV.map.getZoom()<15?16:LV.map.getZoom());else LV.map.fitBounds(L.latLngBounds(pts),{padding:[50,50],maxZoom:17})}
+async function lvPoll(first){const r=await fetchJ('/api/orders/track?id='+LV.oid).catch(()=>null);if(!r||!$('#liveDlg').open)return;if(r.error){$('#lvWho').textContent=r.error;return}
+  LV.info=r;const mover=r.me===r.mover,dl=r.mover==='seller',pinMine=dl?r.me==='buyer':r.me==='seller';LV.mover=mover;LV.pinMine=pinMine;
+  if(!r.open&&!LV.pinMode){$('#lvWho').textContent='Not on the way right now';$('#lvEta').textContent='—';$('#lvSub').textContent=dl?'Live tracking starts when the seller marks the order as out for delivery.':'This order has been collected or closed.';lvControls(r);return}
+  const who=esc((r.who||'').split(' ')[0]||(dl?'The seller':'The buyer'));
+  $('#lvWho').innerHTML=LV.pinMode?'Meeting spot':mover?(dl?'You\'re delivering':'You\'re heading to collect'):(dl?who+' is bringing your order':who+' is coming to collect');
+  $('#lvEta').className='lveta'+(r.here?' here':'');$('#lvEta').textContent=LV.pinMode?(r.pin?'Pin dropped':'Tap the map'):r.here?'Here':r.eta!=null?'About '+r.eta+' min':mover?'Not sharing':'Waiting…';
+  $('#lvSub').innerHTML=LV.pinMode?'Tap where you\'ll meet, or use your location.'+(r.spot?' Spot: '+esc(r.spot):''):
+    [r.dist!=null?lvKm(r.dist)+' away':'',r.lastAt?(r.etaBy==='said'?'they said it ':'updated ')+lvAgo(r.lastAt):'',r.spot?esc(r.spot):''].filter(Boolean).join(' · ')||(mover?'Share your location or tap a time so they know when to expect you.':'They haven\'t shared their location yet. You\'ll get a notification when they do.');
+  if(r.pin)lvMark('pin',r.pin.lat,r.pin.lng,`<div class="lvpin">${ico('pin')}</div>`,'pin');
+  if(r.live&&!mover)lvMark('them',r.live.lat,r.live.lng,'<div class="lvdot"></div>','dot');else if(!r.live&&LV.mk&&LV.mk.them){LV.map.removeLayer(LV.mk.them);delete LV.mk.them}
+  if(first){lvFit();if(!r.pin&&!r.live&&!LV.pinMode&&LV.map)$('#lvMap').insertAdjacentHTML('beforeend',`<div class="lvnote">${pinMine?'Drop a pin for the meeting spot so the other side knows exactly where to go.':'No meeting spot pinned yet. You can still follow them once they share.'}</div>`)}
+  else if(r.live&&!mover&&!LV.fitted){LV.fitted=1;lvFit()}
+  lvControls(r)}
+function lvControls(r){const b=$('#lvB');if(!b)return;
+  // Only rebuild when something visible changes, so buttons don't reset under a finger every 5 seconds.
+  const key=JSON.stringify([LV.pinMode,r.open,LV.mover,LV.share,!!r.pin,!!r.live,LV.pinMine]);if(key===LV.ck&&b.innerHTML)return;LV.ck=key;
+  if(LV.pinMode){b.innerHTML=`<button class="pill alt lvshare" id="lvHere">${ico('pin')} Use my current location</button><div class="acts" style="margin:0"><button class="pill sm" id="lvSave" ${LV.newPin?'':'disabled'}>Save meeting spot</button>${r.pin?'<button class="link" id="lvClear">Remove pin</button>':''}</div>`;
+    $('#lvHere').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>lvSetPin(p.coords.latitude,p.coords.longitude,true),()=>toast('Turn on location for Stall, or tap the map instead'),{enableHighAccuracy:true,timeout:15000}):toast('Location is not available on this phone');
+    $('#lvSave').onclick=async()=>{const x=await apiPost('orders/pin',{id:LV.oid,...LV.newPin});if(x.error)return toast(x.error);toast('Meeting spot saved');LV.pinMode=false;LV.newPin=null;lvPoll(true);if(!$('#orders').hidden)renderOrders();if(!$('#selling').hidden)renderSelling()};
+    const cl=$('#lvClear');if(cl)cl.onclick=async()=>{await apiPost('orders/pin',{id:LV.oid,clear:true});toast('Pin removed');LV.newPin=null;if(LV.mk.pin){LV.map.removeLayer(LV.mk.pin);delete LV.mk.pin}lvPoll(false)};return}
+  if(!r.open){b.innerHTML='';return}
+  if(!LV.mover){b.innerHTML=`<p class="meta" style="margin:0">${r.live?'Their location updates every few seconds while they have Stall open.':'Live location is optional. They can also send a quick time estimate.'} You'll get a notification when they're close.</p>${LV.pinMine?`<button class="link" id="lvPinBtn">${r.pin?'Change the meeting spot':'Drop a pin for the meeting spot'}</button>`:''}`;
+    const pb=$('#lvPinBtn');if(pb)pb.onclick=()=>{LV.pinMode=true;lvPoll(false)};return}
+  b.innerHTML=`<button class="pill lvshare${LV.share?' on':''}" id="lvShare">${ico('pin')} ${LV.share?'Stop sharing my location':'Share my location'}</button>
+   <p class="meta" style="margin:0">${LV.share?'Sharing while this screen is open. Keep Stall open on your way; it stops when you close this or hand over.':'Optional. Only this '+(r.mover==='seller'?'buyer':'seller')+' sees it, only for this order, and it stops at handover.'}</p>
+   <div class="lvchips" aria-label="Or tell them when"><span class="meta" style="align-self:center">Or tell them:</span>${[5,10,15,30].map(n=>`<button data-lveta="${n}">${n} min</button>`).join('')}<button data-lveta="here">I'm here</button></div>`;
+  $('#lvShare').onclick=()=>LV.share?lvShareOff():lvShareOn();
+  b.querySelectorAll('[data-lveta]').forEach(x=>x.onclick=async()=>{const h=x.dataset.lveta==='here',y=await apiPost('orders/eta',h?{id:LV.oid,here:true}:{id:LV.oid,min:+x.dataset.lveta});if(y.error)return toast(y.error);toast(h?'They know you\'re here':'Sent: about '+x.dataset.lveta+' min');lvPoll(false)})}
+function lvSetPin(lat,lng,center){LV.newPin={lat,lng};lvMark('pin',lat,lng,`<div class="lvpin">${ico('pin')}</div>`,'pin');if(center&&LV.map)LV.map.setView([lat,lng],17);const s=$('#lvSave');if(s)s.disabled=false;$('#lvEta').textContent='Pin dropped'}
+function lvShareOn(){if(!navigator.geolocation)return toast('Location is not available on this phone. Use the time buttons instead.');
+  LV.share=true;lvControls(LV.info);if(navigator.wakeLock)navigator.wakeLock.request('screen').then(l=>LV.lock=l).catch(()=>{});
+  LV.watch=navigator.geolocation.watchPosition(async p=>{const c=p.coords;lvMark('me',c.latitude,c.longitude,'<div class="lvdot me"></div>','dot');if(!LV.moved){LV.moved=1;lvFit()}
+    if(Date.now()-LV.last<4000)return;LV.last=Date.now();const r=await apiPost('orders/live',{id:LV.oid,lat:c.latitude,lng:c.longitude,acc:c.accuracy});
+    if(r.error){toast(r.error);if(r.stopped||r.closed)lvShareOff(true);return}if(r.eta!=null){$('#lvEta').className='lveta'+(r.eta===0?' here':'');$('#lvEta').textContent=r.eta===0?'Here':'About '+r.eta+' min';$('#lvSub').textContent=lvKm(r.dist)+' to the meeting spot'}},
+    // Only a refused permission stops sharing; GPS dropping out for a moment (indoors, under trees) just waits for the next fix.
+    e=>{if(e.code===1){toast('Location is off for Stall. Allow it in your phone settings, or use the time buttons.');lvShareOff()}else{const x=$('#lvSub');if(x)x.textContent='Looking for GPS signal… keep this screen open.'}},{enableHighAccuracy:true,maximumAge:3000,timeout:20000})}
+function lvShareOff(quiet){if(LV.watch!=null)navigator.geolocation.clearWatch(LV.watch);LV.watch=null;if(LV.lock){LV.lock.release().catch(()=>{});LV.lock=null}
+  if(LV.share&&!quiet)apiPost('orders/live/stop',{id:LV.oid});LV.share=false;LV.moved=0;if(LV.mk&&LV.mk.me){LV.map.removeLayer(LV.mk.me);delete LV.mk.me}lvControls(LV.info||{open:true})}
 // Report a problem, give your side, or say you handed it over: a short note and an optional photo.
 function openOrderNote(oid,mode){const d=$('#accDlg'),M={report:['Report a problem','What went wrong? Be specific, e.g. "the screen is cracked" or "they didn\'t come to the meeting point".','Send report'],
    side:['Give your side','Explain what happened. A photo helps Stall decide fairly, e.g. the item, the handover spot or a chat screenshot.','Send'],
@@ -1093,6 +1167,8 @@ document.addEventListener('click',e=>{
   if(b=c('[data-star]')){const f=b.closest('form'),n=+b.dataset.star;f.elements.stars.value=n;f.querySelectorAll('[data-star]').forEach(x=>x.classList.toggle('on',+x.dataset.star<=n));return}
   if(b=c('[data-dlvset]')){openDelivery('store');return}
   if(b=c('[data-receipt]')){openReceipt(+b.dataset.receipt);return}
+  if(b=c('[data-live]')){openLive(+b.dataset.live);return}
+  if(b=c('[data-livepin]')){openLive(+b.dataset.livepin,true);return}
   if(b=c('[data-payrc]')){openPayReceipt(b.dataset.payrc);return}
   if(c('[data-weekly]')){if(WEEK)showReceipt(WEEK.html,WEEK.text,'Your Stall week');return}
   if(b=c('[data-ogot]')){if(!confirm('Do you have your order? The seller will be paid now. Only confirm if you have the item.'))return;apiPost('orders/received',{id:+b.dataset.ogot}).then(r=>{if(r.error)return toast(r.error);toast('Done. The seller is being paid');renderOrders()});return}
@@ -1107,7 +1183,7 @@ document.addEventListener('click',e=>{
   if(b=c('[data-onoshow]')){if(!confirm('Cancel because the buyer didn\'t come to collect it or can\'t be reached? They are refunded and get a strike. They can say it isn\'t true, so only do this if you tried to reach them.'))return;apiPost('orders/cancel',{id:+b.dataset.onoshow,noshow:true}).then(r=>{if(r.error)return toast(r.error);toast('Order cancelled');renderSelling()});return}
   if(b=c('[data-oobject]')){if(!confirm('Tell Stall the seller\'s "didn\'t show up" claim isn\'t true? The strike on your account is removed.'))return;apiPost('orders/object',{id:+b.dataset.oobject}).then(r=>{if(r.error)return toast(r.error);toast('Strike removed. Thanks for telling us.');renderOrders()});return}
   if(b=c('[data-ocancel]')){const why=prompt(b.dataset.strike==='1'?'You already packed or sent this order, so cancelling now counts as a strike. Cancel and refund the buyer? Tell them why (optional).':'Cancel this order and refund the buyer? Tell them why (optional).','');if(why===null)return;apiPost('orders/cancel',{id:+b.dataset.ocancel,reason:why}).then(r=>{if(r.error)return toast(r.error);toast('Order cancelled. Buyer refunded');renderSelling()});return}
-  if(b=c('[data-stage]')){b.disabled=true;apiPost('orders/stage',{id:+b.dataset.stage,stage:b.dataset.to}).then(r=>{if(r.error){b.disabled=false;return toast(r.error)}toast('Buyer updated');renderSelling()});return}
+  if(b=c('[data-stage]')){b.disabled=true;apiPost('orders/stage',{id:+b.dataset.stage,stage:b.dataset.to}).then(r=>{if(r.error){b.disabled=false;return toast(r.error)}toast('Buyer updated');renderSelling();if(r.stage==='on_way')openLive(+b.dataset.stage)});return}
   if(id0==='installX'){try{localStorage.setItem('stall:hideInstall','1')}catch(e){}drawInstall()}
   if(id0==='tbSell'){S.user&&S.user.role==='vendor'?(myStore()?storePage(myStore().id):view('stores')):$('#sellBtn').click()}
   if(id==='bagBtn')openCart();
@@ -1599,14 +1675,14 @@ const GUIDE={buy:['Buying',[
   ['sliders','Narrow it down','Tap <b>Filters</b> to set a price range or condition, or to see only verified sellers, sellers who deliver, or sellers rated 4★ and up. Sort by top-rated sellers or price.','filters'],
   ['chat','Ask the seller first','Tap the message button on any item or store to chat inside Stall: ask about size, condition, or when to meet. Keep chats in Stall so there\'s a record.',null],
   ['bag','Add to bag and pay','Add items, open your bag, and tap <b>Check out</b>. Choose <b>Pick up</b> (free) or <b>Delivery</b> if the seller offers it, then pay by card, bank transfer or USSD on Paystack\'s secure page.',null],
-  ['truck','Track your order','Under <b>Orders</b> you\'ll see each step: paid, packed, on the way (or ready for pickup), delivered. You get a notice at every step.','orders'],
+  ['truck','Track your order','Under <b>Orders</b> you\'ll see each step: paid, packed, on the way (or ready for pickup), delivered. You get a notice at every step. On deliveries you can drop a pin for the exact meeting spot and, once it\'s out for delivery, tap <b>Track live</b> to see the seller coming on a map with an arrival time. For pickups it works the other way: tap <b>Heading there</b> to show the seller you\'re on your way. Sharing your location is always optional.','orders'],
   ['key','Use your release code','After paying you get a <b>release code</b>. Only give it to the seller once the item is in your hands and you\'ve checked it. You can also tap <b>I\'ve got it</b>.','orders'],
   ['star','Rate the seller','When your order is complete, give the seller 1 to 5 stars. Your rating helps other students choose good sellers.',null]]],
  sell:['Selling',[
   ['plus','Post an item','Tap <b>Sell</b>, add photos, a title and a price, and say how many you have. Listing single items is free. Stall checks the photo matches before it goes live.','sell'],
   ['lock','Add your bank account once','When you first sell, add the account you want to be paid into. Tap <b>Verify account</b> so the name is confirmed automatically.',null],
   ['truck','Offer delivery (optional)','In <b>Account → Delivery</b>, switch on "I deliver" and set your fee. Buyers can then choose delivery, and you keep the whole delivery fee.','delivery'],
-  ['box','Handle orders','New paid orders appear under <b>Account → Orders to fulfil</b>. Tap <b>Mark as packed</b>, then <b>Out for delivery</b> or <b>Ready for pickup</b>, so the buyer knows what\'s happening.','selling'],
+  ['box','Handle orders','New paid orders appear under <b>Account → Orders to fulfil</b>. Tap <b>Mark as packed</b>, then <b>Out for delivery</b> or <b>Ready for pickup</b>, so the buyer knows what\'s happening. When you head out, tap <b>Delivering now</b> to share your location with the buyer (optional) or just tell them “10 min”. They get a notice when you\'re close.','selling'],
   ['wallet','Get paid','Stall holds the buyer\'s money until they have the item. Enter the buyer\'s release code and we send the money to your bank, minus a fee of {fee}. Once an order is on the way or ready for pickup, you\'re paid automatically after {pay} if the buyer reports no problem. If a buyer has the item but won\'t give the code, tap <b>I handed it over</b>: they get {hand} to confirm or report a problem.',null],
   ['store','Open a store','Running a campus business? Open a store for a one-time ₦5,000 to list many items in one place, and pay to reach your whole state or the whole country.','stores'],
   ['list','Collect money from a group','Class dues, handouts, church or hostel contributions, event tickets: open <b>Account → Collect money from a group</b>, create a collection and share the link. People pay in the app, you see who has paid, and the money goes straight to your bank account.','classcol'],
