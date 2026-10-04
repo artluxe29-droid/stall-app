@@ -1,7 +1,11 @@
 // Cloudflare Pages Function. Secret: PAYSTACK_SECRET. D1 binding: DB.
 import {SCHOOLS,STATES} from '../../lib/schools.js';
 const J=(d,s=200,h={})=>new Response(JSON.stringify(d),{status:s,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'strict-origin-when-cross-origin',...h}});
-const ps=(env,p,o={})=>fetch('https://api.paystack.co'+p,{...o,headers:{Authorization:'Bearer '+env.PAYSTACK_SECRET,'content-type':'application/json'}}).then(r=>r.json());
+// Every call to an outside service gives up after a few seconds, so a slow Paystack/Resend/Telegram can't hang a request.
+const T_OUT=()=>AbortSignal.timeout(10000);
+const IFNULL0=x=>x||'paid';
+const sameStr=(a,b)=>{a=String(a);b=String(b);if(a.length!==b.length)return false;let x=0;for(let i=0;i<a.length;i++)x|=a.charCodeAt(i)^b.charCodeAt(i);return x===0};
+const ps=(env,p,o={})=>fetch('https://api.paystack.co'+p,{signal:T_OUT(),...o,headers:{Authorization:'Bearer '+env.PAYSTACK_SECRET,'content-type':'application/json'}}).then(r=>r.json());
 const E=new TextEncoder(),hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
 const sha=async s=>hex(await crypto.subtle.digest('SHA-256',E.encode(s)));
 const pbk=async(pw,salt)=>{const k=await crypto.subtle.importKey('raw',E.encode(pw),'PBKDF2',false,['deriveBits']);return hex(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:E.encode(salt),iterations:100000},k,256))};
@@ -13,7 +17,8 @@ const allow=async(env,key,max,win)=>{const now=Date.now();if((await env.DB.prepa
 // Built fresh for each request: Cloudflare doesn't allow creating responses when the Worker starts, and a response can only be sent once.
 const slow=()=>J({error:'Too many tries. Please wait a little and try again.'},429);
 // A photo must be a real JPEG, PNG or WebP data URL under ~330 KB, not just text claiming to be one.
-const imgOk=x=>{if(typeof x!=='string'||x.length>450000)return false;const m=x.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]{16})/);if(!m)return false;
+// The whole string must be base64 (not just its start), so nothing like a quote or an HTML attribute can ride along after the image.
+const imgOk=x=>{if(typeof x!=='string'||x.length>450000)return false;const m=x.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]{16})[A-Za-z0-9+/]*={0,2}$/);if(!m)return false;
   let h;try{h=atob(m[2].slice(0,16))}catch(e){return false}const c=i=>h.charCodeAt(i);
   return m[1]==='jpeg'?c(0)===0xFF&&c(1)===0xD8:m[1]==='png'?c(0)===0x89&&h.slice(1,4)==='PNG':h.slice(0,4)==='RIFF'&&h.slice(8,12)==='WEBP'};
 // Edge cache (Cloudflare's Cache API). Does nothing where the Cache API isn't available.
@@ -55,16 +60,22 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
     await env.DB.prepare('UPDATE orders SET reminded=? WHERE id=?').bind(now,o.id).run();
     await notify(env,o.buyer,'Seller gets paid in '+dur(TM.pay/4)+': '+o.title,'Do you have your order?',['The seller of <b>'+esc(o.title)+'</b> will be paid automatically in about '+dur(TM.pay/4)+'.','If you have it, tap <b>I\'ve got it</b>. If it hasn\'t come or something is wrong, tap <b>Report a problem</b> before then.'],'Open your orders',SITE(env)+'/app?go=orders').catch(()=>{})}
   // A problem report the other side didn't answer within TM.answer is decided for the side that reported it.
-  for(const o of await all("SELECT * FROM orders WHERE status='disputed' AND disp_due<? AND disp_reply IS NULL LIMIT 5",now)){
+  // A seller's report on an order that never left 'paid'/'packed' isn't decided automatically: an admin looks (it could be a seller trying to get paid without sending).
+  for(const o of await all("SELECT * FROM orders WHERE status='disputed' AND disp_due<? AND disp_reply IS NULL AND NOT (disp_by='seller' AND IFNULL(dstage,'paid') IN ('paid','packed')) ORDER BY disp_due LIMIT 5",now)){
     if(o.disp_by==='seller'){if(await release(env,o,'dispute').catch(()=>false))await strike(env,o.buyer,'no_response',o.id).catch(()=>{})}
     else{const r=await refund(env,o,'The seller didn\'t answer the buyer\'s report in time.').catch(()=>({error:1}));if(!r.error)await strike(env,o.seller,'no_response',o.id).catch(()=>{})}}
   await env.DB.prepare('DELETE FROM trips WHERE started<? OR IFNULL(t,started)<?').bind(now-TRIP_MAX,now-36e5).run().catch(()=>{});
-  const stale=(await env.DB.prepare("SELECT id FROM orders WHERE status='pending' AND deadline<?").bind(now).all()).results;
-  if(!stale.length)return;const ids=stale.map(s=>s.id);
-  await env.DB.batch(ids.map(id=>env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,id)));
+  // A refund cut off half way (the request died after claiming it): an admin checks Paystack, because the money may already be on its way back.
+  for(const o of await all("SELECT id,title,amount FROM orders WHERE status='refunding' AND updated<? LIMIT 5",now-10*6e4)){
+    if((await env.DB.prepare("UPDATE orders SET status='under_review',note=?,updated=? WHERE id=? AND status='refunding'").bind('A refund was started but not confirmed. Check Paystack → Refunds before doing anything else.',now,o.id).run()).meta.changes)
+      await tg(env,'Check order #'+o.id+' ('+o.title+', ₦'+o.amount+'): a refund was started but not confirmed. Look in Paystack → Refunds.')}
+  const stale=(await env.DB.prepare("SELECT id FROM orders WHERE status='pending' AND deadline<? LIMIT 50").bind(now).all()).results;
+  if(!stale.length)return;const ids=[];
+  // Only orders this run actually expired get their stock back (two runs at once, or a payment landing just now, must not restock twice).
+  for(const s0 of stale)if((await env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,s0.id).run()).meta.changes)ids.push(s0.id);
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='25';
+const SCHEMA_V='26';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -112,6 +123,8 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'ALTER TABLE orders ADD COLUMN method TEXT','ALTER TABLE orders ADD COLUMN addr TEXT','ALTER TABLE orders ADD COLUMN dphone TEXT','ALTER TABLE orders ADD COLUMN dstage TEXT','ALTER TABLE orders ADD COLUMN track TEXT',
     'CREATE INDEX IF NOT EXISTS listings_school ON listings(school_id,created)','CREATE INDEX IF NOT EXISTS listings_state ON listings(state,created)','CREATE INDEX IF NOT EXISTS listings_review ON listings(review)','CREATE INDEX IF NOT EXISTS stores_school ON stores(school_id)',
     'ALTER TABLE orders ADD COLUMN pin_lat REAL','ALTER TABLE orders ADD COLUMN pin_lng REAL',
+    'ALTER TABLE pending_pay ADD COLUMN claimed INTEGER','ALTER TABLE pending_pay ADD COLUMN checks INTEGER NOT NULL DEFAULT 0',
+    'CREATE INDEX IF NOT EXISTS orders_status_created ON orders(status,created)','CREATE INDEX IF NOT EXISTS orders_status_updated ON orders(status,updated)','CREATE INDEX IF NOT EXISTS orders_buyer ON orders(buyer)','CREATE INDEX IF NOT EXISTS orders_seller ON orders(seller)','CREATE INDEX IF NOT EXISTS users_role_created ON users(role,created)','CREATE INDEX IF NOT EXISTS vendor_codes_created ON vendor_codes(created)','CREATE INDEX IF NOT EXISTS listings_created ON listings(created)','CREATE INDEX IF NOT EXISTS listings_cat_created ON listings(cat,created)','CREATE INDEX IF NOT EXISTS listings_uid ON listings(uid)','CREATE INDEX IF NOT EXISTS photos_lid ON photos(lid,n)','CREATE INDEX IF NOT EXISTS order_items_oid ON order_items(oid)','CREATE INDEX IF NOT EXISTS stores_uid ON stores(uid)','CREATE INDEX IF NOT EXISTS store_items_sid ON store_items(sid)','CREATE INDEX IF NOT EXISTS pending_pay_done ON pending_pay(done,created)','CREATE INDEX IF NOT EXISTS payouts_st_upd ON payouts(status,updated)',
     'CREATE TABLE IF NOT EXISTS trips(oid INTEGER PRIMARY KEY,who TEXT NOT NULL,lat REAL,lng REAL,acc REAL,spd REAL,t INTEGER,started INTEGER NOT NULL,eta INTEGER,eta_t INTEGER,here_t INTEGER,near INTEGER NOT NULL DEFAULT 0,arrived INTEGER NOT NULL DEFAULT 0)'])await env.DB.prepare(q).run().catch(()=>{});
   if(!(await env.DB.prepare("SELECT v FROM settings WHERE k='mig_nationwide'").first())){
     await env.DB.batch(SCHOOLS.map(([n,sh,st,k])=>env.DB.prepare('INSERT OR IGNORE INTO schools(name,short,state,kind,active,created) VALUES(?,?,?,?,1,?)').bind(n,sh,st,k,Date.now())));
@@ -209,7 +222,8 @@ async function refPay(env,uid){const amt=await refReward(env);if(!amt)return;con
   const a1=await giveCredit(env,x.referred_by,amt,'invite: user #'+uid),a2=await giveCredit(env,uid,amt,'invited by user #'+x.referred_by),first=String(x.name||'Your friend').split(' ')[0],N=v=>'₦'+v.toLocaleString('en-NG');
   if(a1)await notify(env,x.referred_by,'You earned '+N(a1)+' Stall credit','You earned '+N(a1)+' credit',[esc(first)+' just completed their first order on Stall.','Use your credit to pay part of featuring your items or store.'],'Invite more friends',SITE(env)+'/app?go=invite');
   if(a2)await notify(env,uid,'You earned '+N(a2)+' Stall credit','Welcome bonus: '+N(a2)+' credit',['Thanks for your first order. Use your credit to pay part of featuring your items or store.'],'Open Stall',SITE(env)+'/app')}
-async function recipFor(env,code,acct,name){const k=code+':'+acct,had=await env.DB.prepare('SELECT code FROM ps_recips WHERE k=?').bind(k).first();if(had)return{code:had.code};
+const psMode=env=>String(env.PAYSTACK_SECRET||'').startsWith('sk_live')?'live:':'';
+async function recipFor(env,code,acct,name){const k=psMode(env)+code+':'+acct,had=await env.DB.prepare('SELECT code FROM ps_recips WHERE k=?').bind(k).first();if(had)return{code:had.code};
   const r=await ps(env,'/transferrecipient',{method:'POST',body:JSON.stringify({type:'nuban',name:String(name||'Stall seller').slice(0,100),account_number:acct,bank_code:code,currency:'NGN'})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
   if(!r.status||!r.data||!r.data.recipient_code){await setK(env,'payout_last',JSON.stringify({t:Date.now(),ok:false,err:String(r.message||'No recipient returned').slice(0,200)}));return{error:r.message||'Paystack could not set up this seller.'}}
   await env.DB.prepare('INSERT OR IGNORE INTO ps_recips(k,code,created) VALUES(?,?,?)').bind(k,r.data.recipient_code,Date.now()).run();return{code:r.data.recipient_code}}
@@ -255,6 +269,15 @@ async function balanceCheck(env){const bal=await psBalance(env),owed=await owedN
 // each). Retries are safe: payOut checks earlier attempts with Paystack first, so a seller is never paid twice.
 const AUTO_MAX=6;
 async function payJobs(env){await ensure(env);const now=Date.now();if(now-(+(await getK(env,'payjob_at'))||0)<55*6e4)return;await setK(env,'payjob_at',now);
+  // Payments Paystack took that Stall never finished (missed webhook, request cut off): finish them now. Each is checked a few times at most.
+  for(const p of (await env.DB.prepare("SELECT ref FROM pending_pay WHERE ref NOT LIKE 'CR%' AND created>? AND checks<6 AND ((done=0 AND created<?) OR (done=2 AND IFNULL(claimed,created)<?)) ORDER BY checks,created DESC LIMIT 10").bind(now-2*864e5,now-10*6e4,now-15*6e4).all()).results){
+    await env.DB.prepare('UPDATE pending_pay SET checks=checks+1,done=CASE WHEN done=2 THEN 0 ELSE done END WHERE ref=?').bind(p.ref).run();
+    const f=await fulfil(env,p.ref).catch(e=>({error:String(e&&e.message||e)}));
+    if(f&&f.ok&&!f.already&&!f.processing)await tg(env,'Finished a payment that had been missed: '+p.ref+' ('+(f.kind||'')+').');
+    else if(f&&f.error&&!f.notPaid)await tg(env,'A payment could not be finished: '+p.ref+'. '+f.error)}
+  // Payouts stuck 'queued' or 'sending' for an hour (cut off, or Paystack's update missed): ask Paystack again. payOut checks earlier attempts first, so nothing is sent twice.
+  for(const p of (await env.DB.prepare("SELECT oid FROM payouts WHERE status IN ('queued','processing') AND updated<? ORDER BY updated LIMIT 5").bind(now-60*6e4).all()).results){
+    if((await env.DB.prepare("UPDATE payouts SET status='failed',err=? WHERE oid=? AND status IN ('queued','processing')").bind('Not confirmed yet, checking with Paystack again',p.oid).run()).meta.changes)await payOut(env,p.oid,{quiet:true}).catch(()=>{})}
   const v=await balanceCheck(env).catch(()=>null),bal=v&&v.bal;
   const due=(await env.DB.prepare("SELECT oid,amount,auto FROM payouts WHERE status='failed' AND auto<? AND updated<? ORDER BY updated LIMIT 5").bind(AUTO_MAX,now-50*6e4).all()).results;
   for(const p of due){if(bal!=null&&bal<p.amount)continue;// not enough money yet: wait, without using up a try
@@ -280,7 +303,7 @@ const COLLECT_FEE_DEFAULT=50,collectFee=async env=>{const v=await getK(env,'coll
 // What the payer pays on top so the rep receives the full amount: Stall's fee plus Paystack's charge on the total.
 const collectCharge=(a,st)=>{let t=a+st;for(let i=0;i<5;i++)t=a+st+Math.min(Math.round(t*.015)+(t>=2500?100:0),2000);return t-a};
 async function subFor(env,u){if(!u.bank_verified||!u.acct_no||!u.bank_code)return{error:'Add and verify the bank account the class money should go to.'};
-  const k=u.bank_code+':'+u.acct_no,c=await env.DB.prepare('SELECT code FROM ps_subs WHERE k=?').bind(k).first();if(c)return{code:c.code};
+  const k=psMode(env)+u.bank_code+':'+u.acct_no,c=await env.DB.prepare('SELECT code FROM ps_subs WHERE k=?').bind(k).first();if(c)return{code:c.code};
   const r=await ps(env,'/subaccount',{method:'POST',body:JSON.stringify({business_name:String(u.name||'Class rep').slice(0,80)+' (Stall class collections)',settlement_bank:u.bank_code,account_number:u.acct_no,percentage_charge:0})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
   if(!r.status||!r.data||!r.data.subaccount_code)return{error:'Paystack could not set up payments to that account: '+(r.message||'unknown error')};
   await env.DB.prepare('INSERT OR IGNORE INTO ps_subs(k,code,created) VALUES(?,?,?)').bind(k,r.data.subaccount_code,Date.now()).run();return{code:r.data.subaccount_code}}
@@ -303,10 +326,14 @@ async function release(env,o,how){const now=Date.now();
   if(ch)await env.DB.prepare('DELETE FROM trips WHERE oid=?').bind(o.id).run().catch(()=>{});
   if(ch){if((o.sub!=null?o.sub:o.amount)>=REF_MIN){await refPay(env,o.buyer).catch(()=>{});await refPay(env,o.seller).catch(()=>{})}await payOut(env,o.id);const go=SITE(env)+'/app?go=selling';await notify(env,o.seller,'You’ve been paid '+NGN(o.amount-(o.fee||0))+': '+o.title,'Order complete',['<b>'+esc(o.title)+'</b> has been handed over. We\'re sending <b>₦'+Number(o.amount-(o.fee||0)).toLocaleString('en-NG')+'</b> to your bank now.'],'See your orders',go,await rcMail(env,o.id,'seller','See your orders',go))}return!!ch}
 // Gives the buyer their money back and puts the stock back. Orders not paid through Paystack are just cancelled.
+// The order is claimed ('refunding') before Paystack is asked, so a release or a second refund can't happen at the same time.
 async function refund(env,o,why){if(!['verified','disputed','under_review'].includes(o.status))return{error:'This order can no longer be refunded.'};
+  if(!(await env.DB.prepare("UPDATE orders SET status='refunding',updated=? WHERE id=? AND status IN ('verified','disputed','under_review')").bind(Date.now(),o.id).run()).meta.changes)return{error:'This order can no longer be refunded.'};
   if(o.paid_via==='paystack'&&o.r_ref){const r=await ps(env,'/refund',{method:'POST',body:JSON.stringify({transaction:o.r_ref})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
-    if(!r.status)return{error:'Paystack could not start the refund: '+(r.message||'unknown error')}}
-  const ch=(await env.DB.prepare("UPDATE orders SET status='refunded',note=?,dstage=NULL,updated=? WHERE id=? AND status IN ('verified','disputed','under_review')").bind(why,Date.now(),o.id).run()).meta.changes;
+    if(!r.status){await env.DB.prepare("UPDATE orders SET status=?,updated=? WHERE id=? AND status='refunding'").bind(o.status,Date.now(),o.id).run();
+      await tg(env,'Refund failed for order #'+o.id+' ('+o.title+', ₦'+o.amount+'): '+(r.message||'unknown error')+'\nCheck the Paystack balance, then refund it in Admin → Orders.');
+      return{error:'Paystack could not start the refund: '+(r.message||'unknown error')}}}
+  const ch=(await env.DB.prepare("UPDATE orders SET status='refunded',note=?,dstage=NULL,updated=? WHERE id=? AND status='refunding'").bind(why,Date.now(),o.id).run()).meta.changes;
   if(ch){await env.DB.prepare('DELETE FROM trips WHERE oid=?').bind(o.id).run().catch(()=>{});await restock(env,[o.id]);await notify(env,o.buyer,'Refund on its way: '+o.title,'You\'re being refunded',['Your order for <b>'+esc(o.title)+'</b> was cancelled. '+esc(why),'Your <b>₦'+Number(o.amount).toLocaleString('en-NG')+'</b> is going back to the card or account you paid with. It can take a few working days to show.'],'See your orders',SITE(env)+'/app?go=orders',await rcMail(env,o.id,'buyer','See your orders',SITE(env)+'/app?go=orders'))}await bumpVer(env);return{ok:true}}
 // ---- Email (Resend). Secrets: RESEND_API_KEY, and EMAIL_FROM like "Stall <hello@yourdomain.ng>" once your domain is verified in Resend.
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -422,7 +449,7 @@ async function weeklyMails(env){if(!env.RESEND_API_KEY||Date.now()-WK_AT<6e4)ret
     if(!(await env.DB.prepare('UPDATE settings SET v=? WHERE k=? AND v=?').bind(String(nx),k,String(cur)).run()).meta.changes)return;
     for(const r of rs){const w=await weekOf(env,r.seller,ws);if(w.n)await mailTo(env,r.seller,w.subject,mailReceipt(w,'Open Stall',SITE(env)+'/app?go=selling'))}}catch(e){}}
 async function sendEmail(env,to,subject,html){if(!env.RESEND_API_KEY||!to)return{skipped:true};
-  try{const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'content-type':'application/json'},body:JSON.stringify({from:env.EMAIL_FROM||'Stall <onboarding@resend.dev>',to:[to],subject,html})});
+  try{const r=await fetch('https://api.resend.com/emails',{signal:T_OUT(),method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'content-type':'application/json'},body:JSON.stringify({from:env.EMAIL_FROM||'Stall <onboarding@resend.dev>',to:[to],subject,html})});
     const j=await r.json().catch(()=>({}));const ok=r.ok&&!!j.id;await setK(env,'email_last',JSON.stringify({t:Date.now(),ok,err:ok?null:String(j.message||j.name||('HTTP '+r.status)).slice(0,200)}));return ok?{ok:true}:{error:j.message||'Email failed'}}
   catch(e){await setK(env,'email_last',JSON.stringify({t:Date.now(),ok:false,err:String(e&&e.message||e).slice(0,200)})).catch(()=>{});return{error:'Email failed'}}}
 // Order emails go only to confirmed email addresses, and only if the person hasn't turned them off.
@@ -447,7 +474,7 @@ async function vapidJwt(env,aud){const v=await vapid(env),enc=o=>b64u(E.encode(J
 async function ping(env,uid,title,body,url,tag){try{const subs=(await env.DB.prepare('SELECT endpoint FROM push_subs WHERE uid=?').bind(uid).all()).results;if(!subs.length)return;
   await env.DB.prepare('INSERT INTO notes(uid,title,body,url,tag,t) VALUES(?,?,?,?,?,?)').bind(uid,String(title).slice(0,80),String(body||'').slice(0,180),url||'/',tag||null,Date.now()).run();
   for(const{endpoint}of subs){const{jwt,pub}=await vapidJwt(env,new URL(endpoint).origin);
-    const r=await fetch(endpoint,{method:'POST',headers:{TTL:'86400',Urgency:'high','content-length':'0',Authorization:'vapid t='+jwt+', k='+pub}}).catch(()=>null);
+    const r=await fetch(endpoint,{signal:T_OUT(),method:'POST',headers:{TTL:'86400',Urgency:'high','content-length':'0',Authorization:'vapid t='+jwt+', k='+pub}}).catch(()=>null);
     if(r&&(r.status===404||r.status===410))await env.DB.prepare('DELETE FROM push_subs WHERE endpoint=?').bind(endpoint).run();
     await setK(env,'push_last',JSON.stringify({t:Date.now(),ok:!!r&&r.status<300,err:r&&r.status>=300?'Push service said '+r.status:r?null:'Could not reach the push service'}))}}catch(e){}}
 const SITE=env=>env.SITE_URL||'https://stall-app.pages.dev';
@@ -511,7 +538,7 @@ async function cleanup(env,a){const now=Date.now(),D=864e5;
   const old=(await env.DB.prepare("SELECT id FROM listings WHERE sold=1 AND created<? AND id NOT IN (SELECT i.ref_id FROM order_items i JOIN orders o ON o.id=i.oid WHERE i.kind='listing' AND o.status IN ('pending','under_review','verified')) LIMIT 500").bind(now-SOLD_DAYS*D).all()).results.map(r=>r.id);
   if(old.length){const ph=old.map(()=>'?').join(',');await delPhotos(env,old);await env.DB.prepare(`DELETE FROM listings WHERE id IN (${ph})`).bind(...old).run()}
   const ol=(await env.DB.prepare('SELECT DISTINCT lid FROM photos WHERE (lid>0 AND lid NOT IN (SELECT id FROM listings)) OR (lid<0 AND -lid NOT IN (SELECT id FROM store_items)) LIMIT 500').all()).results.map(r=>r.lid),orph=await delPhotos(env,ol);
-  await env.DB.prepare('DELETE FROM sessions WHERE exp<?').bind(now).run();await env.DB.prepare('DELETE FROM notes WHERE t<?').bind(now-7*D).run().catch(()=>{});await env.DB.prepare('DELETE FROM attempts WHERE t<?').bind(now-D).run();
+  await env.DB.prepare('DELETE FROM sessions WHERE exp<?').bind(now).run();await env.DB.prepare('DELETE FROM notes WHERE t<?').bind(now-7*D).run().catch(()=>{});await env.DB.prepare('DELETE FROM attempts WHERE t<?').bind(now-D).run();await env.DB.prepare('DELETE FROM pending_pay WHERE done!=1 AND created<?').bind(now-30*D).run().catch(()=>{});
   await setK(env,'cleanup_at',now);const res={receipts:rc,listings:old.length,orphans:orph};
   if(a||rc||old.length||orph)await logA(env,a,'other','cleaned up storage','Storage',{detail:`Removed ${rc} old receipt photos, ${old.length} old sold listings, ${orph} unused photos`});
   return res}
@@ -532,7 +559,7 @@ const pickSchool=async(env,b)=>{const id=+b.school_id||0;
   const r=await env.DB.prepare('INSERT INTO schools(name,short,state,kind,active,created) VALUES(?,?,?,?,0,?)').bind(n,null,st,'other',Date.now()).run();
   return{id:r.meta.last_row_id,name:n,short:null,state:st}};
 const start=async(env,uid)=>{const t=rnd(32);await env.DB.prepare('INSERT INTO sessions(h,uid,exp) VALUES(?,?,?)').bind(await sha(t),uid,Date.now()+2592e6).run();return 'stall_s='+t+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000'};
-const tg=async(env,text)=>{if(!env.TELEGRAM_BOT_TOKEN||!env.TELEGRAM_CHAT_ID)return;try{await fetch('https://api.telegram.org/bot'+env.TELEGRAM_BOT_TOKEN+'/sendMessage',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:env.TELEGRAM_CHAT_ID,text})})}catch(e){}};
+const tg=async(env,text)=>{if(!env.TELEGRAM_BOT_TOKEN||!env.TELEGRAM_CHAT_ID)return;try{await fetch('https://api.telegram.org/bot'+env.TELEGRAM_BOT_TOKEN+'/sendMessage',{signal:T_OUT(),method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:env.TELEGRAM_CHAT_ID,text})})}catch(e){}};
 const STORE_FEE=5000;
 const storeBad=d=>{const t=k=>String(d[k]||'').trim();if(t('name').length<2||t('name').length>40)return 'Enter a store name.';if(!BANKS[d.bank_code||''])return 'Choose a payout bank.';
   if(!/^\d{10}$/.test(t('acct')))return 'Enter your 10-digit account number.';if(!t('acctName'))return 'Verify your store account number first.';if(t('spot').length<2)return 'Where can buyers find you?';return ''};
@@ -549,8 +576,8 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
   if(!opt.credit){const v=(await ps(env,'/transaction/verify/'+ref)).data||{};
   if(v.status!=='success')return{error:'Payment not completed. You were not charged.',notPaid:true};
   if(v.amount!==p.amount*100)return{error:'Payment amount did not match. Contact Stall support with reference '+ref}}
-  if(!(await env.DB.prepare('UPDATE pending_pay SET done=2 WHERE ref=? AND done=0').bind(ref).run()).meta.changes)return{ok:true,processing:true,kind:p.kind};
-  const u=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(p.uid).first(),d=JSON.parse(p.data||'{}'),now=Date.now();let res={},label=p.label,act='';
+  if(!(await env.DB.prepare('UPDATE pending_pay SET done=2,claimed=? WHERE ref=? AND done=0').bind(Date.now(),ref).run()).meta.changes)return{ok:true,processing:true,kind:p.kind};
+  const u=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(p.uid).first(),d=JSON.parse(p.data||'{}'),now=Date.now();let res={},label=p.label,act='',applied=false;
   try{
     if(p.kind==='store'){const has=await env.DB.prepare('SELECT id FROM stores WHERE uid=?').bind(u.id).first();
       if(has){res={id:'S'+has.id,note:'You already had a store, so no new one was made. Contact Stall support for a refund with reference '+ref};act='paid store fee but already had a store (refund due)';await tg(env,'Refund due: '+u.name+' paid a store fee but already has a store. Ref '+ref)}
@@ -565,7 +592,11 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
           :env.DB.prepare('UPDATE store_items SET qty_left=CASE WHEN qty_left IS NULL THEN NULL ELSE qty_left-? END WHERE id=? AND (qty_left IS NULL OR qty_left>=?)').bind(i.q,i.ref_id,i.q)).run()).meta.changes;if(!ch)break;got.push(i)}
         if(got.length<its.length){if(got.length)await env.DB.batch(got.map(i=>i.kind==='listing'?env.DB.prepare('UPDATE listings SET qty_left=qty_left+?,sold=0 WHERE id=?').bind(i.q,i.ref_id):env.DB.prepare('UPDATE store_items SET qty_left=qty_left+? WHERE id=? AND qty_left IS NOT NULL').bind(i.q,i.ref_id)));
           st='under_review';note='Paid through Paystack after the order expired, and the item is no longer available. Refund the buyer (reference '+ref+').'}}
-      else if(o.status!=='pending'){st=o.status;note=(o.note?o.note+' ':'')+'Also paid through Paystack (reference '+ref+'), so the buyer may have paid twice. Check and refund.'}
+      else if(o.status!=='pending'){// Paid twice: keep the first payment's record (and its reference, which a refund uses); flag this one for a manual refund.
+        note=(o.note?o.note+' ':'')+'Also paid through Paystack (reference '+ref+'), so the buyer may have paid twice. Refund that reference in Paystack.';
+        await env.DB.prepare('UPDATE orders SET note=?,updated=? WHERE id=?').bind(note,now,o.id).run();await tg(env,'Order needs a look\n'+o.title+' - ₦'+p.amount+'\n'+note+'\nOrder #'+o.id);
+        res={oid:o.id,fee:0,status:o.status,dup:true};act='paid order #'+o.id+' a second time (refund reference '+ref+')';label=o.title}
+      if(!res.dup){
       const code=st==='verified'?o.code||relCode():o.code;
       // The order records exactly what was paid for: total, pickup or delivery, and where to.
       await env.DB.prepare('UPDATE orders SET status=?,code=?,note=?,paid_via=?,fee=?,r_amount=?,r_ref=?,amount=?,method=?,addr=?,dphone=?,dstage=?,track=?,updated=?,paid_at=IFNULL(paid_at,?) WHERE id=?')
@@ -573,7 +604,7 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
       if(note)await tg(env,'Order needs a look\n'+o.title+' - ₦'+p.amount+'\n'+note+'\nOrder #'+o.id);
       if(st==='verified'&&o.status!=='verified')await notify(env,o.seller,'New paid order: '+o.title,'You have a new order',[esc(o.buyer_name)+' paid <b>₦'+Number(p.amount).toLocaleString('en-NG')+'</b> for <b>'+esc(o.title)+'</b>'+(d.method==='delivery'?', to be delivered to '+esc(d.addr||''):', for pickup')+'.','Stall is holding the money. You\'re paid as soon as the buyer gives you their release code.'],'Open your orders',SITE(env)+'/app?go=orders');
       if(st==='verified'&&o.status!=='verified')await mailOrderReceipt(env,o.id,'buyer');
-      res={oid:o.id,fee,status:st};act='paid order #'+o.id+' through Paystack (Stall fee ₦'+fee+')';label=o.title}
+      res={oid:o.id,fee,status:st};act='paid order #'+o.id+' through Paystack (Stall fee ₦'+fee+')';label=o.title}}
     else if(p.kind==='collect'){const c=await env.DB.prepare('SELECT * FROM collections WHERE id=?').bind(d.cid).first();if(!c)throw new Error('collection missing');
       const ins=await env.DB.prepare('INSERT OR IGNORE INTO collect_pays(cid,uid,name,matric,amount,fee,ref,created) VALUES(?,?,?,?,?,?,?,?)').bind(c.id,u.id,u.name,u.matric||u.phone,d.amount,d.fee||0,ref,now).run();
       if(!ins.meta.changes)await tg(env,'Paid twice for a class collection: '+u.name+' ('+u.phone+') paid again for "'+c.title+'" (reference '+ref+'). The money went to the class rep; ask them to refund it.');
@@ -583,13 +614,16 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
       const until=(cur.reach===d.level&&(cur.reach_until||0)>now?cur.reach_until:now)+REACH_DAYS*864e5;await env.DB.prepare('UPDATE stores SET reach=?,reach_until=? WHERE id=?').bind(d.level,until,id).run();res={until};act='upgraded store reach ('+d.level+', '+REACH_DAYS+' days)'}
     else if(p.kind==='boost'){const tbl=String(d.target)[0]==='L'?'listings':'stores',id=+String(d.target).slice(1),cur=(await env.DB.prepare('SELECT featured_until f FROM '+tbl+' WHERE id=?').bind(id).first()||{}).f||0;
       const until=Math.max(cur,now)+d.days*864e5;await env.DB.prepare('UPDATE '+tbl+' SET featured_until=? WHERE id=?').bind(until,id).run();res={until};act='featured '+(tbl==='listings'?'listing':'store')+' for '+d.days+' days'}
+    applied=true;
     if(d.credit>0){await env.DB.prepare('UPDATE users SET credit=MAX(0,credit-?) WHERE id=?').bind(d.credit,u.id).run();await env.DB.prepare('INSERT INTO credit_log(uid,amt,why,t) VALUES(?,?,?,?)').bind(u.id,-d.credit,label,now).run()}
     await bumpVer(env);
     const got=opt.credit?0:p.kind==='order'?res.fee:p.kind==='collect'?(d.fee||0):p.amount;if(opt.credit)label=label+' (paid with credit)';
     await env.DB.prepare('INSERT OR IGNORE INTO payments(ref,uid,kind,target,label,days,amount,created) VALUES(?,?,?,?,?,?,?,?)').bind(ref,u.id,p.kind==='order'?'commission':p.kind,res.id||(p.kind==='order'?'O'+res.oid:p.kind==='collect'?'C'+d.cid:d.target)||null,label,p.kind==='reach'?REACH_DAYS:(d.days||null),got,now).run();
     await env.DB.prepare('UPDATE pending_pay SET done=1,result=? WHERE ref=?').bind(JSON.stringify(res),ref).run();
     await logA(env,u,'money',act,label+' · ₦'+got,{who:u.name+' ('+(u.biz||u.phone)+')'});if(p.kind!=='order')await mailPayReceipt(env,ref);return{ok:true,kind:p.kind,ref,...res}}
-  catch(e){await env.DB.prepare('UPDATE pending_pay SET done=0 WHERE ref=?').bind(ref).run();return{error:'Could not finish this payment yet. It will be retried. Reference '+ref}}}
+  // If the purchase itself was already applied, running it again would double it (two orders paid, featuring twice): keep it as done and alert.
+  catch(e){if(applied){await env.DB.prepare('UPDATE pending_pay SET done=1,result=? WHERE ref=?').bind(JSON.stringify(res),ref).run().catch(()=>{});await tg(env,'Payment '+ref+' ('+p.kind+') went through, but saving its records failed: '+String(e&&e.message||e).slice(0,200)+'. Check Admin → Earnings.');return{ok:true,kind:p.kind,ref,...res}}
+    await env.DB.prepare('UPDATE pending_pay SET done=0 WHERE ref=?').bind(ref).run();return{error:'Could not finish this payment yet. It will be retried. Reference '+ref}}}
 // Any unexpected error comes back as a clear JSON message (not Cloudflare's error page, which the app would read as a lost
 // connection), and the Stall team gets the details on Telegram.
 export async function onRequest(ctx){try{return await route(ctx)}catch(e){
@@ -938,7 +972,7 @@ async function route({request,env,params,waitUntil}){
       await env.DB.prepare('DELETE FROM store_items WHERE sid=?').bind(mine.id).run();await env.DB.prepare('DELETE FROM stores WHERE id=?').bind(mine.id).run();return ok()}
   }
 const naira=n=>'₦'+Number(n||0).toLocaleString('en-NG');
-const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.acct_no,acctName:r.acct_name,status:r.status,deadline:r.deadline,code:r.status==='verified'?r.code:null,note:r.note,updated:r.updated,buyerName:r.buyer_name,buyerPhone:r.buyer_phone,sellerName:r.seller_name,sellerPhone:r.seller_phone,card:!!r.bank_ok&&!!env.PAYSTACK_SECRET,fee:r.fee!=null?r.fee:feeOf(r.amount),paidVia:r.paid_via||null,
+const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask(r.acct_no),acctName:null,status:r.status,deadline:r.deadline,code:r.status==='verified'?r.code:null,note:r.note,updated:r.updated,buyerName:r.buyer_name,buyerPhone:r.buyer_phone,sellerName:r.seller_name,sellerPhone:r.seller_phone,card:!!r.bank_ok&&!!env.PAYSTACK_SECRET,fee:r.fee!=null?r.fee:feeOf(r.amount),paidVia:r.paid_via||null,
   sub:r.sub!=null?r.sub:r.amount,deliv:{on:!!r.d_on,fee:r.d_fee||0,note:r.d_note||''},pickup:r.pickup||'',method:r.method||null,addr:r.addr||'',dphone:r.dphone||'',stage:r.dstage||null,track:JSON.parse(r.track||'[]'),pin:r.pin_lat!=null?{lat:r.pin_lat,lng:r.pin_lng}:null,rated:r.rated||null,payout:r.payout||null,paidAt:r.paid_at||null,
   holdUntil:r.status==='verified'&&!r.handed_at&&MOVED.includes(r.dstage)?(r.staged_at||r.paid_at)+TM.pay:null,refundAt:r.status==='verified'&&!r.handed_at&&!MOVED.includes(r.dstage)&&r.paid_at?(r.staged_at||r.paid_at)+TM.send:null,
   handedAt:r.handed_at||null,handUntil:r.handed_at?r.handed_at+TM.hand:null,early:(r.dstage||'paid')==='paid',dispBy:r.disp_by||null,dispDue:r.status==='disputed'?r.disp_due||null:null,dispReply:r.disp_reply||null,brate:r.brate||null});
@@ -978,7 +1012,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
         .bind(u.id,g.seller,u.name,u.phone,g.sname,g.sphone||'',title,amount,g.bank,g.acct,g.acctName,now+PAY_WINDOW,now,now,BANKS[g.bcode]?g.bcode:null,okCard(g)?1:0,feeOf(amount,fc),amount,g.dl.on?1:0,g.dl.fee,g.dl.note||null,clean(g.pickup,60)||null).run();
       const oid=r.meta.last_row_id;await env.DB.prepare('UPDATE orders SET consent=? WHERE id=?').bind(now,oid).run();
       await env.DB.batch(g.items.map(i=>env.DB.prepare('INSERT INTO order_items(oid,kind,ref_id,title,price,q) VALUES(?,?,?,?,?,?)').bind(oid,i.kind,i.ref_id,i.title,i.price,i.q)));
-      made.push({id:oid,title,amount,bank:g.bank,acct:g.acct,acctName:g.acctName,sellerName:g.sname,sellerPhone:g.sphone||'',status:'pending',deadline:now+PAY_WINDOW,card:okCard(g)&&!!env.PAYSTACK_SECRET,fee:feeOf(amount,fc),sub:amount,deliv:g.dl,pickup:clean(g.pickup,60),method:null,stage:null,track:[]})}
+      made.push({id:oid,title,amount,bank:g.bank,acct:mask(g.acct),acctName:null,sellerName:g.sname,sellerPhone:g.sphone||'',status:'pending',deadline:now+PAY_WINDOW,card:okCard(g)&&!!env.PAYSTACK_SECRET,fee:feeOf(amount,fc),sub:amount,deliv:g.dl,pickup:clean(g.pickup,60),method:null,stage:null,track:[]})}
     await bump();return J({orders:made})}
   if(path==='orders/mine'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);
     const rs=(await env.DB.prepare('SELECT * FROM orders WHERE buyer=? ORDER BY created DESC LIMIT 100').bind(u.id).all()).results;
@@ -1177,6 +1211,8 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       if(side!=='seller')return J({error:'Only the seller can do this.'},403);
       if(o.status!=='verified')return J({error:'Only paid orders can be marked as handed over.'},400);
       if(o.handed_at)return J({error:'You already marked this as handed over.'},400);
+      // It must have moved on first (packed, on its way, or ready), so a seller can't mark a just-paid order as handed over and be paid while the buyer sleeps.
+      if(IFNULL0(o.dstage)==='paid')return J({error:o.method==='delivery'?'Mark the order as packed or out for delivery first.':'Mark the order as ready for pickup first.'},400);
       await env.DB.prepare('UPDATE orders SET handed_at=?,updated=? WHERE id=? AND status=\'verified\'').bind(now,now,o.id).run();await ev();
       waitUntil(notify(env,o.buyer,'Did you get it? '+o.title,'The seller says you have your order',['The seller says they handed over <b>'+esc(o.title)+'</b>.','If you have it, tap <b>I\'ve got it</b>. If you don\'t, or something is wrong, tap <b>Report a problem</b> within '+dur(TM.hand)+'. After that the seller is paid automatically.'],...go));return J({ok:true,until:now+TM.hand})}
     if(path==='orders/object'){
@@ -1336,7 +1372,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
       else await env.DB.prepare('INSERT INTO schools(name,short,state,kind,active,created) VALUES(?,?,?,?,1,?)').bind(n,sh,st,String(b.kind||'university'),Date.now()).run();
       await logA(env,a,'other',b.id?'approved/updated school':'added school',n+' · '+st);return J({ok:true})}
     // Wipes everything people made while testing, before going live. Test Paystack keys only; admins, settings and schools stay.
-    if(path==='admin/clear-test'){if(/^sk_live_/.test(env.PAYSTACK_SECRET||''))return J({error:'Stall is using a live Paystack key, so real data can\'t be cleared.'},403);
+    if(path==='admin/clear-test'){if(!/^sk_test_/.test(env.PAYSTACK_SECRET||''))return J({error:'Clearing is only possible while Stall uses a Paystack test key, so real data can\'t be wiped by mistake.'},403);
       const T=['orders','order_items','payouts','payments','pending_pay','threads','msgs','reviews','strikes','evidence','collections','collect_pays','listings','photos','store_items','stores','verify_requests','id_checks','push_subs','notes','credit_log','attempts','codes','vendor_codes','ps_recips','ps_subs'];
       const cnt=async q=>(await env.DB.prepare(q).first().catch(()=>({c:0}))).c;
       const what={users:await cnt('SELECT COUNT(*) c FROM users WHERE IFNULL(is_admin,0)=0'),orders:await cnt('SELECT COUNT(*) c FROM orders'),listings:await cnt('SELECT COUNT(*) c FROM listings'),stores:await cnt('SELECT COUNT(*) c FROM stores'),payments:await cnt('SELECT COUNT(*) c FROM payments'),chats:await cnt('SELECT COUNT(*) c FROM threads'),collections:await cnt('SELECT COUNT(*) c FROM collections')};
@@ -1454,6 +1490,8 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
         await env.DB.prepare('INSERT INTO credit_log(uid,amt,why,t) VALUES(?,?,?,?)').bind(u.id,-cr,w.label||kind,Date.now()).run();
         const cref='CR'+rnd(8);await env.DB.prepare('INSERT INTO pending_pay(ref,uid,kind,data,amount,label,created,done) VALUES(?,?,?,?,?,?,?,0)').bind(cref,u.id,kind,JSON.stringify(data),w.amount,w.label||kind,Date.now()).run();
         const f=await fulfil(env,cref,{credit:true});if(f.error){await env.DB.prepare('UPDATE users SET credit=credit+? WHERE id=?').bind(cr,u.id).run();return J(f,400)}return J({...f,credit:true,ref:cref})}
+      // Credit is only taken when the payment finishes, so only one part-credit payment can be open at a time (otherwise the same credit discounts several).
+      if(cr&&await env.DB.prepare("SELECT 1 FROM pending_pay WHERE uid=? AND done=0 AND created>? AND data LIKE '%\"credit\":%'").bind(u.id,Date.now()-36e5).first())return J({error:'You have another payment using credit that isn\'t finished. Finish it, or pay this one without credit.'},409);
       if(cr){data.credit=cr;w={...w,amount:w.amount-cr,label:(w.label||kind)+' (₦'+cr+' credit used)'}}
       const r=await ps(env,'/transaction/initialize',{method:'POST',body:JSON.stringify({email:u.email||('user'+u.phone+'@stall.app'),amount:w.amount*100,currency:'NGN',callback_url:url.origin+'/app',metadata:{kind,target,days,uid:u.id,level:w.level||null},...(w.split||{})})});
       if(!r.status)return J({error:r.message||'Could not start payment.'},502);
@@ -1486,20 +1524,20 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     return J({error:'Not found'},404)}
   // Paystack calls this when a payment succeeds, so payments finish even if the buyer never comes back to Stall.
   if(path==='paystack/webhook'&&request.method==='POST'){const raw=await request.text(),sig=request.headers.get('x-paystack-signature')||'';
-    if(!env.PAYSTACK_SECRET||sig!==await hmac512(env.PAYSTACK_SECRET,raw))return new Response('bad signature',{status:401});
-    let ev={};try{ev=JSON.parse(raw)}catch(e){}waitUntil(setK(env,'webhook_seen',Date.now()).catch(()=>{}));if(ev.event==='charge.success'&&ev.data&&ev.data.reference)waitUntil(fulfil(env,String(ev.data.reference)).catch(()=>{}));
+    if(!env.PAYSTACK_SECRET||!sameStr(sig,await hmac512(env.PAYSTACK_SECRET,raw)))return new Response('bad signature',{status:401});
+    let ev={};try{ev=JSON.parse(raw)}catch(e){}waitUntil(setK(env,'webhook_seen',Date.now()).catch(()=>{}));// A payment is finished before answering, so if it fails Paystack sends the event again later.
+    if(ev.event==='charge.success'&&ev.data&&ev.data.reference){const f=await fulfil(env,String(ev.data.reference)).catch(e=>({error:String(e&&e.message||e)}));if(f&&f.error&&!f.notPaid&&!/Unknown payment/.test(f.error))return new Response('retry',{status:500})}
+    if(/^refund\.failed$/.test(ev.event||'')&&ev.data)waitUntil(tg(env,'Paystack says a refund FAILED (transaction '+String((ev.data.transaction&&ev.data.transaction.reference)||ev.data.transaction_reference||ev.data.reference||'?')+'). Check the Paystack balance and refund it by hand.'));
     // Paystack reports how each seller payout ended.
     if(/^transfer\.(success|failed|reversed)$/.test(ev.event||'')&&ev.data&&ev.data.reference)waitUntil((async()=>{await ensure(env);const ok=ev.event==='transfer.success',ref=String(ev.data.reference);
-      const m=/^stallpay-(\d+)-\d+$/.exec(ref),p=await env.DB.prepare('SELECT * FROM payouts WHERE ref=? OR oid=?').bind(ref,m?+m[1]:-1).first();if(!p||p.status==='paid'||(!ok&&p.ref!==ref))return;const err=ok?null:'Paystack: transfer '+ev.event.split('.')[1]+(ev.data.reason?' ('+String(ev.data.reason).slice(0,120)+')':'');
+      const m=/^stallpay-(\d+)-\d+$/.exec(ref),p=await env.DB.prepare('SELECT * FROM payouts WHERE ref=? OR oid=?').bind(ref,m?+m[1]:-1).first();if(!p||(p.status==='paid'&&ev.event!=='transfer.reversed')||(!ok&&p.ref!==ref))return;const err=ok?null:'Paystack: transfer '+ev.event.split('.')[1]+(ev.data.reason?' ('+String(ev.data.reason).slice(0,120)+')':'');
       await env.DB.batch([env.DB.prepare('UPDATE payouts SET status=?,err=?,ref=?,updated=? WHERE oid=?').bind(ok?'paid':'failed',err,ref,Date.now(),p.oid),env.DB.prepare('UPDATE orders SET payout=? WHERE id=?').bind(ok?'paid':'failed',p.oid)]);
       if(!ok)await tg(env,'Seller payout failed for order #'+p.oid+' (₦'+p.amount+'). '+err+'\nRetry it in Admin → Seller pay.')})().catch(()=>{}));
     return new Response('ok')}
-  if(path==='checkout'&&request.method==='POST'){
-    const b=await request.json().catch(()=>({}));
-    if(b.kind!=='store')return J({error:'Invalid order'},400);
-    const r=await ps(env,'/transaction/initialize',{method:'POST',body:JSON.stringify({email:b.email,amount:500000,currency:'NGN',callback_url:url.origin+'/app',metadata:{kind:'store'}})});
-    return r.status?J({url:r.data.authorization_url,ref:r.data.reference}):J({error:r.message},502);
-  }
+  // Scheduled jobs. Pages can't run on a timer, so an outside scheduler (e.g. cron-job.org every 5 minutes) calls /api/cron?key=CRON_KEY.
+  // Without it, timers still run, but only when people use the app.
+  if(path==='cron'){if(!env.CRON_KEY||!sameStr(url.searchParams.get('key')||'',env.CRON_KEY))return J({error:'Not found'},404);
+    SWEPT=0;await sweep(env);await payJobs(env).catch(()=>{});await dailyCleanup(env);await weeklyMails(env);await setK(env,'cron_at',Date.now());return J({ok:true},200,{'cache-control':'no-store'})}
   if(path==='banks')return J({banks:Object.entries(BANKS).map(([code,name])=>({code,name}))});
   if(path==='bank/resolve'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
     const b=await request.json().catch(()=>({})),code=String(b.bank_code||''),acct=String(b.acct_no||'').replace(/\D/g,'');
@@ -1510,10 +1548,5 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     if(!r.status||!r.data||!r.data.account_name){await setK(env,'bank_last',JSON.stringify({t:Date.now(),ok:false,err:String(r.message||'No account name returned').slice(0,200),bank:BANKS[code]}));
       return J({error:/limit/i.test(r.message||'')?'Account checking is busy right now. Type the name on the account below instead.':'Could not verify that account. Check the number and bank.'},400)}
     await setK(env,'bank_last',JSON.stringify({t:Date.now(),ok:true}));return J({name:r.data.account_name})}
-  if(path==='verify'){
-    const ref=url.searchParams.get('ref')||'';if(!/^[\w-]{6,80}$/.test(ref))return J({paid:false},400);
-    const d=(await ps(env,'/transaction/verify/'+ref)).data||{};
-    return J({paid:d.status==='success',amount:(d.amount||0)/100,kind:(d.metadata||{}).kind});
-  }
   return J({error:'Not found'},404);
 }
