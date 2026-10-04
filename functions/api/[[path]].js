@@ -58,12 +58,13 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   for(const o of await all("SELECT * FROM orders WHERE status='disputed' AND disp_due<? AND disp_reply IS NULL LIMIT 5",now)){
     if(o.disp_by==='seller'){if(await release(env,o,'dispute').catch(()=>false))await strike(env,o.buyer,'no_response',o.id).catch(()=>{})}
     else{const r=await refund(env,o,'The seller didn\'t answer the buyer\'s report in time.').catch(()=>({error:1}));if(!r.error)await strike(env,o.seller,'no_response',o.id).catch(()=>{})}}
+  await env.DB.prepare('DELETE FROM trips WHERE started<? OR IFNULL(t,started)<?').bind(now-TRIP_MAX,now-36e5).run().catch(()=>{});
   const stale=(await env.DB.prepare("SELECT id FROM orders WHERE status='pending' AND deadline<?").bind(now).all()).results;
   if(!stale.length)return;const ids=stale.map(s=>s.id);
   await env.DB.batch(ids.map(id=>env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,id)));
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='24';
+const SCHEMA_V='25';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -109,7 +110,9 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'CREATE TABLE IF NOT EXISTS credit_log(id INTEGER PRIMARY KEY AUTOINCREMENT,uid INTEGER NOT NULL,amt INTEGER NOT NULL,why TEXT,t INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS credit_log_uid ON credit_log(uid,t)',
     'ALTER TABLE stores ADD COLUMN logo TEXT','ALTER TABLE stores ADD COLUMN logo_v INTEGER',
     'ALTER TABLE orders ADD COLUMN method TEXT','ALTER TABLE orders ADD COLUMN addr TEXT','ALTER TABLE orders ADD COLUMN dphone TEXT','ALTER TABLE orders ADD COLUMN dstage TEXT','ALTER TABLE orders ADD COLUMN track TEXT',
-    'CREATE INDEX IF NOT EXISTS listings_school ON listings(school_id,created)','CREATE INDEX IF NOT EXISTS listings_state ON listings(state,created)','CREATE INDEX IF NOT EXISTS listings_review ON listings(review)','CREATE INDEX IF NOT EXISTS stores_school ON stores(school_id)'])await env.DB.prepare(q).run().catch(()=>{});
+    'CREATE INDEX IF NOT EXISTS listings_school ON listings(school_id,created)','CREATE INDEX IF NOT EXISTS listings_state ON listings(state,created)','CREATE INDEX IF NOT EXISTS listings_review ON listings(review)','CREATE INDEX IF NOT EXISTS stores_school ON stores(school_id)',
+    'ALTER TABLE orders ADD COLUMN pin_lat REAL','ALTER TABLE orders ADD COLUMN pin_lng REAL',
+    'CREATE TABLE IF NOT EXISTS trips(oid INTEGER PRIMARY KEY,who TEXT NOT NULL,lat REAL,lng REAL,acc REAL,spd REAL,t INTEGER,started INTEGER NOT NULL,eta INTEGER,eta_t INTEGER,here_t INTEGER,near INTEGER NOT NULL DEFAULT 0,arrived INTEGER NOT NULL DEFAULT 0)'])await env.DB.prepare(q).run().catch(()=>{});
   if(!(await env.DB.prepare("SELECT v FROM settings WHERE k='mig_nationwide'").first())){
     await env.DB.batch(SCHOOLS.map(([n,sh,st,k])=>env.DB.prepare('INSERT OR IGNORE INTO schools(name,short,state,kind,active,created) VALUES(?,?,?,?,1,?)').bind(n,sh,st,k,Date.now())));
     // Everything created before going nationwide belonged to Ajayi Crowther University.
@@ -283,16 +286,28 @@ async function subFor(env,u){if(!u.bank_verified||!u.acct_no||!u.bank_code)retur
   await env.DB.prepare('INSERT OR IGNORE INTO ps_subs(k,code,created) VALUES(?,?,?)').bind(k,r.data.subaccount_code,Date.now()).run();return{code:r.data.subaccount_code}}
 const collOpen=c=>c&&c.status==='open'&&!(c.deadline&&Date.now()>c.deadline);
 const mask=m=>{m=String(m||'');return m.length>4?'•••'+m.slice(-4):m};
+// ---- Live delivery tracking. Whoever is moving (the seller for deliveries, the buyer for pickups) can share their location while Stall is open,
+// and the other side sees it on a map with an arrival time. Optional, and only for that order. Only the latest point is kept, never a trail,
+// and it's deleted when the trip ends (handover, refund, stop, 90 minutes, or an hour without an update).
+const TRIP_MAX=90*6e4,TRIP_STALE=2*6e4,NEAR_M=300,HERE_M=60;
+const metres=(a,b,c,d)=>{const r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2;return 2*6371e3*Math.asin(Math.sqrt(x))};
+const okLL=(a,b)=>Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a)<=90&&Math.abs(b)<=180&&!(a===0&&b===0);
+const moverOf=o=>o.method==='delivery'?'seller':'buyer';
+// Sharing is possible while a paid order is on its way (delivery) or waiting to be collected (pickup), until it's handed over.
+const tripOpen=o=>o.status==='verified'&&!o.handed_at&&(o.method==='delivery'?o.dstage==='on_way':true);
+// Minutes to go at the speed they've been moving (walking pace at least).
+const etaMin=(m,spd)=>Math.max(1,Math.ceil(m/Math.max(spd||0,1.3)/60));
 // Releases a held order to the seller. Only a paid (or disputed) order can be released, and only once.
 async function release(env,o,how){const now=Date.now();
   const ch=(await env.DB.prepare("UPDATE orders SET status='released',code_used=?,dstage='done',track=?,updated=? WHERE id=? AND status IN ('verified','disputed')").bind(how==='code'?1:0,track(o,'done',now),now,o.id).run()).meta.changes;
+  if(ch)await env.DB.prepare('DELETE FROM trips WHERE oid=?').bind(o.id).run().catch(()=>{});
   if(ch){if((o.sub!=null?o.sub:o.amount)>=REF_MIN){await refPay(env,o.buyer).catch(()=>{});await refPay(env,o.seller).catch(()=>{})}await payOut(env,o.id);const go=SITE(env)+'/app?go=selling';await notify(env,o.seller,'You’ve been paid '+NGN(o.amount-(o.fee||0))+': '+o.title,'Order complete',['<b>'+esc(o.title)+'</b> has been handed over. We\'re sending <b>₦'+Number(o.amount-(o.fee||0)).toLocaleString('en-NG')+'</b> to your bank now.'],'See your orders',go,await rcMail(env,o.id,'seller','See your orders',go))}return!!ch}
 // Gives the buyer their money back and puts the stock back. Orders not paid through Paystack are just cancelled.
 async function refund(env,o,why){if(!['verified','disputed','under_review'].includes(o.status))return{error:'This order can no longer be refunded.'};
   if(o.paid_via==='paystack'&&o.r_ref){const r=await ps(env,'/refund',{method:'POST',body:JSON.stringify({transaction:o.r_ref})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
     if(!r.status)return{error:'Paystack could not start the refund: '+(r.message||'unknown error')}}
   const ch=(await env.DB.prepare("UPDATE orders SET status='refunded',note=?,dstage=NULL,updated=? WHERE id=? AND status IN ('verified','disputed','under_review')").bind(why,Date.now(),o.id).run()).meta.changes;
-  if(ch){await restock(env,[o.id]);await notify(env,o.buyer,'Refund on its way: '+o.title,'You\'re being refunded',['Your order for <b>'+esc(o.title)+'</b> was cancelled. '+esc(why),'Your <b>₦'+Number(o.amount).toLocaleString('en-NG')+'</b> is going back to the card or account you paid with. It can take a few working days to show.'],'See your orders',SITE(env)+'/app?go=orders',await rcMail(env,o.id,'buyer','See your orders',SITE(env)+'/app?go=orders'))}await bumpVer(env);return{ok:true}}
+  if(ch){await env.DB.prepare('DELETE FROM trips WHERE oid=?').bind(o.id).run().catch(()=>{});await restock(env,[o.id]);await notify(env,o.buyer,'Refund on its way: '+o.title,'You\'re being refunded',['Your order for <b>'+esc(o.title)+'</b> was cancelled. '+esc(why),'Your <b>₦'+Number(o.amount).toLocaleString('en-NG')+'</b> is going back to the card or account you paid with. It can take a few working days to show.'],'See your orders',SITE(env)+'/app?go=orders',await rcMail(env,o.id,'buyer','See your orders',SITE(env)+'/app?go=orders'))}await bumpVer(env);return{ok:true}}
 // ---- Email (Resend). Secrets: RESEND_API_KEY, and EMAIL_FROM like "Stall <hello@yourdomain.ng>" once your domain is verified in Resend.
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // Brand header: the wordmark is a PNG (email apps don't show SVG); "Stall" shows if images are blocked.
@@ -924,7 +939,7 @@ async function route({request,env,params,waitUntil}){
   }
 const naira=n=>'₦'+Number(n||0).toLocaleString('en-NG');
 const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.acct_no,acctName:r.acct_name,status:r.status,deadline:r.deadline,code:r.status==='verified'?r.code:null,note:r.note,updated:r.updated,buyerName:r.buyer_name,buyerPhone:r.buyer_phone,sellerName:r.seller_name,sellerPhone:r.seller_phone,card:!!r.bank_ok&&!!env.PAYSTACK_SECRET,fee:r.fee!=null?r.fee:feeOf(r.amount),paidVia:r.paid_via||null,
-  sub:r.sub!=null?r.sub:r.amount,deliv:{on:!!r.d_on,fee:r.d_fee||0,note:r.d_note||''},pickup:r.pickup||'',method:r.method||null,addr:r.addr||'',dphone:r.dphone||'',stage:r.dstage||null,track:JSON.parse(r.track||'[]'),rated:r.rated||null,payout:r.payout||null,paidAt:r.paid_at||null,
+  sub:r.sub!=null?r.sub:r.amount,deliv:{on:!!r.d_on,fee:r.d_fee||0,note:r.d_note||''},pickup:r.pickup||'',method:r.method||null,addr:r.addr||'',dphone:r.dphone||'',stage:r.dstage||null,track:JSON.parse(r.track||'[]'),pin:r.pin_lat!=null?{lat:r.pin_lat,lng:r.pin_lng}:null,rated:r.rated||null,payout:r.payout||null,paidAt:r.paid_at||null,
   holdUntil:r.status==='verified'&&!r.handed_at&&MOVED.includes(r.dstage)?(r.staged_at||r.paid_at)+TM.pay:null,refundAt:r.status==='verified'&&!r.handed_at&&!MOVED.includes(r.dstage)&&r.paid_at?(r.staged_at||r.paid_at)+TM.send:null,
   handedAt:r.handed_at||null,handUntil:r.handed_at?r.handed_at+TM.hand:null,early:(r.dstage||'paid')==='paid',dispBy:r.disp_by||null,dispDue:r.status==='disputed'?r.disp_due||null:null,dispReply:r.disp_reply||null,brate:r.brate||null});
   if(path==='orders/create'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);if(!await allow(env,'ord:'+u.id,30,36e5))return slow();
@@ -1062,6 +1077,42 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:r.ac
     const now=Date.now();await env.DB.prepare('UPDATE orders SET dstage=?,track=?,updated=?,staged_at=?,reminded=NULL WHERE id=?').bind(nx,track(o,nx,now),now,now,o.id).run();
     const msg={packed:['Your order is packed','is packed and will be on its way soon.'],on_way:['Your order is on the way','is on the way to you. Have your release code ready, and only give it once you have the item.'],ready:['Ready for pickup','is ready for pickup'+(o.pickup?' at '+esc(o.pickup):'')+'. Bring your release code.']}[nx];
     if(msg)waitUntil(notify(env,o.buyer,msg[0]+': '+o.title,msg[0],['<b>'+esc(o.title)+'</b> '+msg[1]],'Track your order',SITE(env)+'/app?go=orders'));return J({ok:true,stage:nx})}
+  if(path.startsWith('orders/')&&['orders/pin','orders/live','orders/live/stop','orders/eta','orders/track'].includes(path)){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
+    const b=request.method==='POST'?await request.json().catch(()=>({})):{},o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(+(b.id||url.searchParams.get('id'))||0).first();
+    if(!o||(o.buyer!==u.id&&o.seller!==u.id))return J({error:'Order not found.'},404);
+    const side=o.buyer===u.id?'buyer':'seller',other=side==='buyer'?o.seller:o.buyer,mv=moverOf(o),now=Date.now(),go=SITE(env)+'/app?go='+(side==='buyer'?'selling':'orders');
+    const trip=await env.DB.prepare('SELECT * FROM trips WHERE oid=?').bind(o.id).first(),name=s=>String(s||'').split(' ')[0]||'They';
+    // The meeting spot: the buyer's delivery pin, or the seller's pickup pin.
+    if(path==='orders/pin'){if(side!==(o.method==='delivery'?'buyer':'seller'))return J({error:o.method==='delivery'?'The buyer sets the delivery spot.':'The seller sets the pickup spot.'},403);
+      if(o.status!=='verified')return J({error:'Only paid orders can have a meeting spot.'},400);
+      if(b.clear){await env.DB.prepare('UPDATE orders SET pin_lat=NULL,pin_lng=NULL WHERE id=?').bind(o.id).run();return J({ok:true})}
+      const la=+b.lat,ln=+b.lng;if(!okLL(la,ln))return J({error:'Choose a spot on the map.'},400);
+      await env.DB.prepare('UPDATE orders SET pin_lat=?,pin_lng=? WHERE id=?').bind(la,ln,o.id).run();return J({ok:true})}
+    if(path==='orders/live'||path==='orders/eta'||path==='orders/live/stop'){if(side!==mv)return J({error:mv==='seller'?'Only the seller shares on deliveries.':'Only the buyer shares on pickups.'},403);
+      if(path==='orders/live/stop'){await env.DB.prepare('DELETE FROM trips WHERE oid=?').bind(o.id).run();return J({ok:true})}
+      if(!tripOpen(o))return J({error:o.method==='delivery'&&o.status==='verified'&&!o.handed_at?'Mark the order as out for delivery first.':'This order is no longer on its way.',closed:true},400);
+      if(trip&&now-trip.started>TRIP_MAX){await env.DB.prepare('DELETE FROM trips WHERE oid=?').bind(o.id).run();return J({stopped:true,error:'Sharing stopped after 90 minutes. Start again if you\'re still on the way.'},400)}
+      const pin=o.pin_lat!=null?[o.pin_lat,o.pin_lng]:null,who=mv==='seller'?name(o.seller_name):name(o.buyer_name);
+      if(path==='orders/eta'){const here=!!b.here,min=Math.round(+b.min);if(!here&&!(min>=1&&min<=180))return J({error:'Choose how many minutes.'},400);
+        await env.DB.prepare('INSERT INTO trips(oid,who,started,eta,eta_t,here_t) VALUES(?,?,?,?,?,?) ON CONFLICT(oid) DO UPDATE SET eta=excluded.eta,eta_t=excluded.eta_t,here_t=excluded.here_t').bind(o.id,mv,now,here?0:min,now,here?now:null).run();
+        waitUntil(ping(env,other,here?who+' is here':who+' is about '+min+' min away',here?'They\'ve arrived for “'+o.title+'”. Have a look around.':'For “'+o.title+'”. Open Stall to follow along.',go,'trip'+o.id));return J({ok:true})}
+      const la=+b.lat,ln=+b.lng,acc=Math.min(5000,Math.max(0,+b.acc||0));if(!okLL(la,ln))return J({error:'Location not available.'},400);
+      if(trip&&trip.t&&now-trip.t<2500)return J({ok:true,skipped:true});
+      let spd=trip&&trip.spd||0;if(trip&&trip.lat!=null&&trip.t){const dt=(now-trip.t)/1e3,v=metres(trip.lat,trip.lng,la,ln)/dt;if(dt>=2&&v<25)spd=trip.spd?.6*trip.spd+.4*v:v}
+      const d=pin?metres(la,ln,pin[0],pin[1]):null,first=!trip||trip.lat==null,near=d!=null&&d<=NEAR_M,here=d!=null&&d<=HERE_M;
+      await env.DB.prepare('INSERT INTO trips(oid,who,lat,lng,acc,spd,t,started,near,arrived) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(oid) DO UPDATE SET lat=excluded.lat,lng=excluded.lng,acc=excluded.acc,spd=excluded.spd,t=excluded.t,near=MAX(near,excluded.near),arrived=MAX(arrived,excluded.arrived)')
+        .bind(o.id,mv,la,ln,acc,spd,now,now,near?1:0,here?1:0).run();
+      if(first)waitUntil(ping(env,other,mv==='seller'?'Track your order live':who+' is on the way to collect',mv==='seller'?who+' is sharing their location as they bring “'+o.title+'”.':'For “'+o.title+'”. See them on the map.',go,'trip'+o.id));
+      else if(here&&!(trip&&trip.arrived))waitUntil(ping(env,other,who+' has arrived','For “'+o.title+'”. They\'re at the meeting spot.',go,'trip'+o.id));
+      else if(near&&!(trip&&trip.near))waitUntil(ping(env,other,who+' is about '+etaMin(d,spd)+' min away','For “'+o.title+'”. Get ready to meet.',go,'trip'+o.id));
+      return J({ok:true,dist:d==null?null:Math.round(d),eta:d==null?null:here?0:etaMin(d,spd)})}
+    // orders/track: what both sides see. Live position only while it's fresh.
+    if(!tripOpen(o)){if(trip)await env.DB.prepare('DELETE FROM trips WHERE oid=?').bind(o.id).run();return J({open:false,mover:mv,me:side},200,{'cache-control':'no-store'})}
+    const pin=o.pin_lat!=null?{lat:o.pin_lat,lng:o.pin_lng}:null,live=trip&&trip.lat!=null&&now-trip.t<TRIP_STALE&&now-trip.started<TRIP_MAX?{lat:trip.lat,lng:trip.lng,acc:trip.acc,t:trip.t}:null;
+    const d=live&&pin?metres(live.lat,live.lng,pin.lat,pin.lng):null,man=trip&&trip.eta_t&&now-trip.eta_t<45*6e4?trip:null;
+    const here=(d!=null&&d<=HERE_M)||!!(man&&man.here_t),eta=here?0:d!=null?etaMin(d,trip.spd):man&&man.eta?Math.max(1,man.eta-Math.floor((now-man.eta_t)/6e4)):null;
+    return J({open:true,mover:mv,me:side,pin,spot:o.method==='delivery'?o.addr||'':o.pickup||'',live,dist:d==null?null:Math.round(d),eta,here,etaBy:d!=null?'live':man?'said':null,lastAt:live?live.t:man?man.eta_t:null,
+      who:mv==='seller'?o.seller_name:o.buyer_name},200,{'cache-control':'no-store'})}
   if(path==='orders/code'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
     const b=await request.json().catch(()=>({})),id=+b.id,code=String(b.code||'').trim().toUpperCase();
     const o=await env.DB.prepare('SELECT * FROM orders WHERE id=? AND seller=?').bind(id,u.id).first();

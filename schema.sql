@@ -89,8 +89,11 @@ CREATE TABLE IF NOT EXISTS orders(
   sub INTEGER,                             -- items total; amount = sub + delivery fee when delivered
   d_on INTEGER NOT NULL DEFAULT 0, d_fee INTEGER NOT NULL DEFAULT 0, d_note TEXT, pickup TEXT,  -- seller's delivery offer and pickup spot when ordered
   method TEXT, addr TEXT, dphone TEXT,     -- 'pickup' or 'delivery' (and where to), chosen at payment
-  dstage TEXT, track TEXT                  -- paid, packed, on_way / ready, done; track = JSON list of {s,t}
+  dstage TEXT, track TEXT,                 -- paid, packed, on_way / ready, done; track = JSON list of {s,t}
+  pin_lat REAL, pin_lng REAL               -- meeting spot on the map: buyer's delivery pin, or seller's pickup pin
 );
+-- Live delivery tracking: only the latest point of whoever is moving, deleted when the trip ends.
+CREATE TABLE IF NOT EXISTS trips(oid INTEGER PRIMARY KEY, who TEXT NOT NULL, lat REAL, lng REAL, acc REAL, spd REAL, t INTEGER, started INTEGER NOT NULL, eta INTEGER, eta_t INTEGER, here_t INTEGER, near INTEGER NOT NULL DEFAULT 0, arrived INTEGER NOT NULL DEFAULT 0);
 -- Paystack subaccount for each payout bank account ('bank_code:acct_no'), made the first time a buyer pays that seller.
 CREATE TABLE IF NOT EXISTS ps_subs(k TEXT PRIMARY KEY, code TEXT NOT NULL, name TEXT, created INTEGER);
 CREATE TABLE IF NOT EXISTS order_items(oid INTEGER NOT NULL, kind TEXT NOT NULL, ref_id INTEGER NOT NULL, title TEXT, price INTEGER, q INTEGER NOT NULL DEFAULT 1);
