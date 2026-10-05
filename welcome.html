@@ -57,7 +57,7 @@ img{display:block;max-width:100%}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border-radius:12px;border:1px solid transparent;font-weight:700;font-size:16px;text-decoration:none;cursor:pointer;transition:background .2s,border-color .2s,transform .2s var(--ease),box-shadow .2s;-webkit-tap-highlight-color:transparent;white-space:nowrap}
 .btn:active{transform:scale(.98)}
 .btn.acc{background:var(--acc);color:var(--acc-ink);box-shadow:0 8px 24px -10px rgba(200,240,60,.7)}
-.btn.acc:hover{background:#FFB040}
+.btn.acc:hover{background:#D6F55E}
 .btn.ghost{background:transparent;border-color:var(--line-2);color:var(--ink)}
 .btn.ghost:hover{background:rgba(255,255,255,.04);border-color:rgba(148,163,184,.4)}
 .btn.sm{min-height:40px;padding:0 16px;font-size:14px;border-radius:10px}
@@ -120,6 +120,43 @@ section{position:relative}
 .proof{display:flex;flex-wrap:wrap;gap:var(--s4);margin-top:var(--s5);padding-top:var(--s3);border-top:1px solid var(--line)}
 .proof div b{display:block;font-size:24px;font-weight:800;letter-spacing:-.02em}.proof div span{font-size:14px;color:var(--muted)}
 .proof .chk{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:var(--ink-2)}.proof .chk .ic{color:var(--ok)}
+/* hero: the stall booth, where the money is held until handover */
+.stage-stall{position:relative;display:grid;place-items:center;perspective:1600px}.stage-stall .rig{width:min(340px,100%)}
+.booth{position:relative;width:100%;transform:rotateY(-5deg) rotateX(2deg);transform-style:preserve-3d;filter:drop-shadow(0 40px 60px rgba(0,0,0,.55))}
+.awn{position:relative;display:flex;height:70px;padding-top:16px;z-index:2}
+.awn b{position:absolute;left:0;right:0;top:0;height:18px;border-radius:16px 16px 0 0;background:#26306E;box-shadow:inset 0 -1px 0 rgba(255,255,255,.06)}
+.awn span{flex:1;border-radius:0 0 999px 999px;transform-origin:50% 0;animation:flap 3.2s ease-in-out infinite}
+.awn span:nth-child(odd){background:#C8F03C}.awn span:nth-child(even){background:#26306E;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+.awn span:nth-child(3){animation-delay:-.4s}.awn span:nth-child(4){animation-delay:-.8s}.awn span:nth-child(5){animation-delay:-1.2s}.awn span:nth-child(6){animation-delay:-1.6s}.awn span:nth-child(7){animation-delay:-2s}
+@keyframes flap{50%{transform:scaleY(.84)}}
+.bbody{margin-top:-28px;padding:40px 18px 18px;background:#F6F1E7;color:#161A33;border-radius:0 0 4px 4px}
+.bedge{height:12px;background:radial-gradient(circle at 50% 0,#F6F1E7 8px,transparent 8.5px) 0 0/22px 12px repeat-x}
+.bhead{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:#5B6077;margin-bottom:12px}
+.bhead .live{display:inline-flex;align-items:center;gap:6px;color:#26306E;text-transform:uppercase;letter-spacing:.12em;font-size:10.5px}
+.bhead .live i{width:7px;height:7px;border-radius:50%;background:#16A34A;animation:ping2 2s infinite}
+@keyframes ping2{70%{box-shadow:0 0 0 6px rgba(22,163,74,0)}0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}}
+.htk{height:86px;position:relative}
+.htk .tkc{position:absolute;inset:0;display:flex;gap:12px;align-items:center;padding:12px;border-radius:16px;background:#fff;box-shadow:0 10px 24px -12px rgba(22,26,51,.35);opacity:0;transform:translateX(40px) rotate(2deg);transition:transform .6s var(--ease),opacity .45s}
+.htk .tkc.in{opacity:1;transform:none}.htk .tkc.out{opacity:0;transform:translateX(-40px) rotate(-2deg)}
+.htk .bub{width:48px;height:48px;border-radius:12px;display:grid;place-items:center;flex:none}.htk .bub svg{width:24px;height:24px}
+.htk small{display:block;font-size:11.5px;color:#5B6077;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.htk b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.htk .tkp{display:block;font-family:var(--display,inherit);font-weight:800;font-size:16px;color:#26306E;margin-top:1px}
+.flow{display:flex;align-items:center;gap:6px;margin:18px 2px 8px}
+.flow .who,.flow .vault{display:grid;justify-items:center;gap:4px;flex:none}.flow small{font-size:10.5px;font-weight:700;color:#5B6077;text-transform:uppercase;letter-spacing:.08em}
+.flow .av{position:relative;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;background:#E4E7F6;color:#26306E}
+.flow .sel .av{background:#26306E;color:#F6F1E7}
+.flow .av em{position:absolute;right:-4px;bottom:-4px;width:18px;height:18px;border-radius:50%;background:#16A34A;color:#fff;display:grid;place-items:center;transform:scale(0);transition:transform .35s var(--ease)}.flow .av em svg{width:11px;height:11px}
+.flow.paid .sel .av em{transform:scale(1)}
+.flow .vr{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;background:#26306E;color:#C8F03C;box-shadow:0 0 0 3px #C8F03C;transition:box-shadow .4s}.flow .vr svg{width:22px;height:22px}
+.flow.held .vr{animation:hold 1.2s ease-in-out infinite}.flow.held .coin{opacity:0;transform:scale(.4)}
+@keyframes hold{50%{box-shadow:0 0 0 3px #C8F03C,0 0 0 10px rgba(200,240,60,.35)}}
+.flow .rail{flex:1;height:4px;border-radius:2px;background:repeating-linear-gradient(90deg,#CFCBBE 0 6px,transparent 6px 11px);position:relative;align-self:center;margin-top:-18px}
+.flow .rail.r2{background:repeating-linear-gradient(90deg,#CFCBBE 0 6px,transparent 6px 11px)}
+.flow .coin{position:absolute;top:50%;left:-6px;width:26px;height:26px;margin-top:-13px;border-radius:50%;background:#C8F03C;color:#26306E;display:grid;place-items:center;box-shadow:0 4px 10px -2px rgba(38,48,110,.5);z-index:3;transition:left .9s var(--ease),opacity .3s,transform .3s}.flow .coin svg{width:15px;height:15px}
+.code{height:30px;display:flex;justify-content:center;align-items:center}
+.code span{font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:13px;letter-spacing:.08em;padding:5px 10px;border-radius:8px;background:#26306E;color:#C8F03C;transform:scale(.6);opacity:0;transition:transform .4s var(--ease),opacity .3s}
+.code span.on{transform:none;opacity:1}
+.state{text-align:center;font-size:14px;font-weight:700;color:#26306E;min-height:20px;transition:opacity .3s}
 /* phone */
 .stage-phone{position:relative;display:grid;place-items:center;perspective:1600px}
 .device{position:relative;width:290px;padding:10px;border-radius:44px;background:linear-gradient(145deg,#1F2942,#0B1120);box-shadow:0 0 0 1px rgba(255,255,255,.08) inset,0 50px 100px -30px rgba(0,0,0,.9),0 30px 60px -30px rgba(200,240,60,.25);transform:rotateY(-10deg) rotateX(4deg);transform-style:preserve-3d;transition:transform .6s var(--ease)}
@@ -204,7 +241,7 @@ section{position:relative}
 .pil{position:absolute;transform-style:preserve-3d;width:0;height:0}
 .pil .f{position:absolute;left:-6px;bottom:0;width:12px;height:var(--h);transform-origin:50% 100%;background:linear-gradient(to top,rgba(200,240,60,.08),rgba(200,240,60,.85))}
 .pil .f1{transform:rotateX(-90deg)}.pil .f2{transform:rotateZ(90deg) rotateX(-90deg)}
-.pil .top{position:absolute;left:-7px;top:-7px;width:14px;height:14px;border-radius:50%;background:#FFD9A3;transform:translateZ(var(--h));box-shadow:0 0 16px 3px rgba(255,170,60,.55)}
+.pil .top{position:absolute;left:-7px;top:-7px;width:14px;height:14px;border-radius:50%;background:#E6FA9A;transform:translateZ(var(--h));box-shadow:0 0 16px 3px rgba(200,240,60,.55)}
 .pil .ring{position:absolute;left:-24px;top:-24px;width:48px;height:48px;border-radius:50%;border:1.5px solid rgba(200,240,60,.55);animation:ring 3s ease-out infinite;animation-delay:var(--dl,0s)}
 @keyframes ring{from{transform:scale(.25);opacity:1}to{transform:scale(1.5);opacity:0}}
 .pil.flash .top{background:#fff;box-shadow:0 0 26px 8px rgba(110,231,183,.9)}
@@ -291,7 +328,7 @@ section{position:relative}
 @keyframes cin{from{opacity:0;transform:translateY(10px)}}
 .card .ph{aspect-ratio:4/3;border-radius:10px;display:grid;place-items:center}.card .ph svg{width:36px;height:36px}
 .card b{display:block;font-size:15px;margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card .pr{display:block;font-weight:800;margin-top:2px}.card em{font-style:normal;font-size:13px;color:var(--muted)}
-.range{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--ok),#FBBF24,var(--bad));margin:56px 8px 24px}
+.range{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--ok),#C8F03C,var(--bad));margin:56px 8px 24px}
 .range .pt{position:absolute;top:50%;width:18px;height:18px;margin:-9px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.15);transition:left .8s var(--ease)}
 .range .lb{position:absolute;bottom:20px;transform:translateX(-50%);text-align:center;font-weight:800;white-space:nowrap;transition:left .8s var(--ease)}.range .lb small{display:block;font-weight:600;font-size:12px;color:var(--muted)}
 /* ---------- reviews ---------- */
@@ -465,7 +502,7 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
 </defs></svg>
 
 <header class="nav" id="nav"><div class="w">
- <a class="logo" href="#top" aria-label="Stall, back to top"><svg class="lg" viewBox="18 20 84 78" width="32" height="30" aria-hidden="true"><path d="M20 30a8 8 0 0 1 8-8h64a8 8 0 0 1 8 8v8H20z" fill="currentColor"/><path d="M20 37h25.5v10a12.75 12.75 0 0 1-25.5 0z" fill="currentColor"/><path fill="currentColor" d="M47.3 37h25.4v10a12.7 12.7 0 0 1-25.4 0z"/><path d="M74.5 37H100v10a12.75 12.75 0 0 1-25.5 0z" fill="currentColor"/><circle fill="currentColor" cx="60" cy="85" r="11"/></svg><svg class="wm" viewBox="0 -760 1917 790" role="img" aria-label="Stall" fill="currentColor"><path d="M267 14Q214 14 168.5 3.5Q123 -7 89.5 -30.0Q56 -53 38.5 -91.5Q21 -130 24 -185L165 -197Q167 -164 180.0 -142.5Q193 -121 216.0 -111.0Q239 -101 272 -101Q303 -101 325.5 -111.5Q348 -122 348 -147Q348 -160 340.0 -168.5Q332 -177 310.5 -184.5Q289 -192 248 -202Q197 -215 156.0 -228.0Q115 -241 86.0 -259.0Q57 -277 42.0 -303.5Q27 -330 27 -369Q27 -424 56.5 -462.5Q86 -501 138.0 -521.5Q190 -542 258 -542Q319 -542 372.0 -523.0Q425 -504 455.5 -461.0Q486 -418 478 -347L340 -334Q343 -363 332.0 -383.5Q321 -404 300.0 -414.5Q279 -425 249 -425Q215 -425 196.5 -412.5Q178 -400 178 -381Q178 -366 189.5 -355.5Q201 -345 225.5 -337.5Q250 -330 289 -321Q323 -314 360.0 -303.0Q397 -292 429.0 -273.5Q461 -255 481.0 -225.0Q501 -195 501 -149Q501 -100 474.0 -63.0Q447 -26 395.0 -6.0Q343 14 267 14Z"></path><path d="M719 12Q626 12 580.5 -35.5Q535 -83 535 -183V-402H477V-504H480Q542 -512 568.0 -545.5Q594 -579 600 -647V-649H695V-528H816V-398H695V-198Q695 -160 713.5 -144.0Q732 -128 759 -128Q773 -128 788.0 -132.0Q803 -136 816 -143V-2Q785 7 761.0 9.5Q737 12 719 12Z"></path><path d="M970 14Q930 14 894.0 0.0Q858 -14 835.0 -45.5Q812 -77 812 -130Q812 -179 831.0 -209.5Q850 -240 882.0 -258.5Q914 -277 952.0 -286.5Q990 -296 1027 -303Q1079 -313 1105.0 -319.0Q1131 -325 1140.5 -333.0Q1150 -341 1150 -355Q1150 -384 1128.5 -399.0Q1107 -414 1072 -414Q1050 -414 1028.0 -406.0Q1006 -398 992.0 -377.5Q978 -357 979 -319L835 -329Q833 -392 854.0 -433.5Q875 -475 911.5 -498.5Q948 -522 991.5 -532.0Q1035 -542 1078 -542Q1157 -542 1208.0 -512.5Q1259 -483 1283.5 -427.5Q1308 -372 1308 -293V-199Q1308 -166 1308.0 -132.5Q1308 -99 1308.0 -66.0Q1308 -33 1308 0H1168Q1168 -36 1168.0 -73.0Q1168 -110 1168 -151H1162Q1158 -106 1132.5 -68.5Q1107 -31 1065.5 -8.5Q1024 14 970 14ZM1037 -104Q1054 -104 1073.5 -110.5Q1093 -117 1110.5 -132.0Q1128 -147 1139.0 -173.5Q1150 -200 1150 -239V-263L1177 -266Q1169 -253 1150.5 -245.0Q1132 -237 1109.0 -232.5Q1086 -228 1062.5 -223.5Q1039 -219 1019.0 -211.5Q999 -204 986.5 -191.5Q974 -179 974 -157Q974 -131 992.5 -117.5Q1011 -104 1037 -104Z"></path><path d="M1329 0V-700H1491V0Z"></path><path d="M1518 0V-700H1680V0Z"></path><path d="M1793 13Q1742 13 1716.5 -9.0Q1691 -31 1691 -77Q1691 -124 1716.5 -146.0Q1742 -168 1793 -168Q1845 -168 1871.0 -146.0Q1897 -124 1897 -77Q1897 13 1793 13Z"></path></svg></a>
+ <a class="logo" href="#top" aria-label="Stall, back to top"><svg class="wm" viewBox="-40 -800 1997 830" role="img" aria-label="Stall" fill="currentColor"><path d="M267 14Q214 14 168.5 3.5Q123 -7 89.5 -30.0Q56 -53 38.5 -91.5Q21 -130 24 -185L165 -197Q167 -164 180.0 -142.5Q193 -121 216.0 -111.0Q239 -101 272 -101Q303 -101 325.5 -111.5Q348 -122 348 -147Q348 -160 340.0 -168.5Q332 -177 310.5 -184.5Q289 -192 248 -202Q197 -215 156.0 -228.0Q115 -241 86.0 -259.0Q57 -277 42.0 -303.5Q27 -330 27 -369Q27 -424 56.5 -462.5Q86 -501 138.0 -521.5Q190 -542 258 -542Q319 -542 372.0 -523.0Q425 -504 455.5 -461.0Q486 -418 478 -347L340 -334Q343 -363 332.0 -383.5Q321 -404 300.0 -414.5Q279 -425 249 -425Q215 -425 196.5 -412.5Q178 -400 178 -381Q178 -366 189.5 -355.5Q201 -345 225.5 -337.5Q250 -330 289 -321Q323 -314 360.0 -303.0Q397 -292 429.0 -273.5Q461 -255 481.0 -225.0Q501 -195 501 -149Q501 -100 474.0 -63.0Q447 -26 395.0 -6.0Q343 14 267 14Z"></path><path d="M719 12Q626 12 580.5 -35.5Q535 -83 535 -183V-402H477V-504H480Q542 -512 568.0 -545.5Q594 -579 600 -647V-649H695V-528H816V-398H695V-198Q695 -160 713.5 -144.0Q732 -128 759 -128Q773 -128 788.0 -132.0Q803 -136 816 -143V-2Q785 7 761.0 9.5Q737 12 719 12Z"></path><path d="M970 14Q930 14 894.0 0.0Q858 -14 835.0 -45.5Q812 -77 812 -130Q812 -179 831.0 -209.5Q850 -240 882.0 -258.5Q914 -277 952.0 -286.5Q990 -296 1027 -303Q1079 -313 1105.0 -319.0Q1131 -325 1140.5 -333.0Q1150 -341 1150 -355Q1150 -384 1128.5 -399.0Q1107 -414 1072 -414Q1050 -414 1028.0 -406.0Q1006 -398 992.0 -377.5Q978 -357 979 -319L835 -329Q833 -392 854.0 -433.5Q875 -475 911.5 -498.5Q948 -522 991.5 -532.0Q1035 -542 1078 -542Q1157 -542 1208.0 -512.5Q1259 -483 1283.5 -427.5Q1308 -372 1308 -293V-199Q1308 -166 1308.0 -132.5Q1308 -99 1308.0 -66.0Q1308 -33 1308 0H1168Q1168 -36 1168.0 -73.0Q1168 -110 1168 -151H1162Q1158 -106 1132.5 -68.5Q1107 -31 1065.5 -8.5Q1024 14 970 14ZM1037 -104Q1054 -104 1073.5 -110.5Q1093 -117 1110.5 -132.0Q1128 -147 1139.0 -173.5Q1150 -200 1150 -239V-263L1177 -266Q1169 -253 1150.5 -245.0Q1132 -237 1109.0 -232.5Q1086 -228 1062.5 -223.5Q1039 -219 1019.0 -211.5Q999 -204 986.5 -191.5Q974 -179 974 -157Q974 -131 992.5 -117.5Q1011 -104 1037 -104Z"></path><rect x="1329" y="-615" width="162" height="615"></rect><rect x="1518" y="-615" width="162" height="615"></rect><path d="M1259 -754 a26 26 0 0 1 26 -26 h439 a26 26 0 0 1 26 26 v26 h-491z"></path><path d="M1259.0 -730 h156.7 v4 a78.3 78.3 0 0 1 -156.7 0z"></path><path d="M1429.7 -730 h149.7 v4 a74.8 74.8 0 0 1 -149.7 0z"></path><path d="M1593.3 -730 h156.7 v4 a78.3 78.3 0 0 1 -156.7 0z"></path><circle cx="1794" cy="-77" r="100"></circle></svg></a>
  <nav class="links" aria-label="Sections"><a href="#how">How it works</a><a href="#live">Live</a><a href="#features">Features</a><a href="#explore">Explore</a><a href="#faq">FAQ</a></nav>
  <div class="right"><span class="hi" id="hi" hidden></span><a class="btn ghost sm open-app" href="/app" id="openApp">Open Stall</a><a class="btn acc sm" href="#get">Get the app</a>
   <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false" aria-controls="sheet"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-menu"/></svg></button></div>
@@ -488,16 +525,27 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
    </div>
   </div>
   <div class="rv" style="--d:.1s">
-   <div class="stage-phone">
+   <div class="stage-stall">
     <div class="rig" id="rig"><div class="halo" aria-hidden="true"></div>
-    <div class="device" id="heroPhone"><div class="screen" id="shots" aria-live="off">
-     <img class="shot on" src="/site/home.webp" alt="Stall app: home screen" width="450" height="800" fetchpriority="high">
-     <img class="shot" data-src="/site/browse.webp" alt="Stall app: browsing items" width="450" height="800"><img class="shot" data-src="/site/item.webp" alt="Stall app: an item with delivery" width="450" height="800">
-     <img class="shot" data-src="/site/pay.webp" alt="Stall app: checkout" width="450" height="800"><img class="shot" data-src="/site/orders.webp" alt="Stall app: tracking an order" width="450" height="800"><img class="shot" data-src="/site/chat.webp" alt="Stall app: chatting with a seller" width="450" height="800">
-     <span class="cam"></span></div><span class="side"></span></div>
-    <div id="chips"></div><span class="pshadow" aria-hidden="true"></span></div>
+    <div class="booth" role="img" aria-label="How Stall works: the buyer pays in the app, Stall holds the money, and the seller is paid at handover">
+     <div class="awn" aria-hidden="true"><b></b><span></span><span></span><span></span><span></span><span></span><span></span></div>
+     <div class="bbody" aria-hidden="true">
+      <div class="bhead"><span class="live"><i></i>Live on campus</span><span>Pay safely</span></div>
+      <div class="htk" id="stTk"></div>
+      <div class="flow" id="stFlow">
+       <div class="who"><span class="av">B</span><small>Buyer</small></div>
+       <div class="rail"><i class="coin" id="stCoin"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-naira"/></svg></i></div>
+       <div class="vault"><span class="vr"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-lock"/></svg></span><small>Stall</small></div>
+       <div class="rail r2"></div>
+       <div class="who sel"><span class="av">S<em><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg></em></span><small>Seller</small></div>
+      </div>
+      <div class="code" id="stCode"></div>
+      <div class="state" id="stState"></div>
+     </div>
+     <div class="bedge" aria-hidden="true"></div>
+    </div>
+    <span class="pshadow" aria-hidden="true"></span></div>
    </div>
-   <div class="dots-nav" id="shotDots" role="tablist" aria-label="App screens"></div>
   </div>
  </div>
 </section>
@@ -577,7 +625,7 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
    <article class="tile w3 rv"><span class="ti"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-list"/></svg></span><span class="tag">For class reps</span><h3>Collect class dues without chasing anyone</h3><p>Share one link. Everyone pays in the app, and the list of who has paid updates itself. The money goes straight to your bank.</p>
     <div class="mock"><div class="row"><b>CSC 300L handout fee</b><span class="small">₦1,500 each</span></div><div class="prog"><i></i></div><div class="row" style="margin-top:8px"><span class="small"><b data-cnt="38" style="color:var(--ink)">38</b> of 52 paid</span><span class="small" style="color:var(--ok)">Updated just now</span></div></div></article>
    <article class="tile w3 rv" style="--d:.06s"><span class="ti"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-store"/></svg></span><span class="tag">For campus businesses</span><h3>Open a store, take orders between lectures</h3><p>Food, hair, printing, phone repairs: list your menu once, take paid orders and offer delivery across campus.</p>
-    <div class="mock"><div class="row"><span style="display:flex;gap:10px;align-items:center"><span style="width:32px;height:32px;border-radius:8px;background:#FEF3C7;color:#D97706;display:grid;place-items:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><use href="#i-food"/></svg></span><b>Jollof rice + chicken</b></span><b>₦2,500</b></div><div class="row"><span class="small">Delivery to hostels · 20 min</span><span class="small" style="color:var(--ok)"><span class="live-dot"></span>Open now</span></div></div></article>
+    <div class="mock"><div class="row"><span style="display:flex;gap:10px;align-items:center"><span style="width:32px;height:32px;border-radius:8px;background:#FDE2E4;color:#C2253D;display:grid;place-items:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><use href="#i-food"/></svg></span><b>Jollof rice + chicken</b></span><b>₦2,500</b></div><div class="row"><span class="small">Delivery to hostels · 20 min</span><span class="small" style="color:var(--ok)"><span class="live-dot"></span>Open now</span></div></div></article>
    <article class="tile w2 rv"><span class="ti"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-badge"/></svg></span><h3>Verified students</h3><p>Show your student ID once. Buyers choose verified sellers first.</p><div class="mock"><span class="badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><use href="#i-check"/></svg>Verified student</span></div></article>
    <article class="tile w2 rv" style="--d:.06s"><span class="ti"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chat"/></svg></span><h3>Chat and delivery</h3><p>Agree on pickup or delivery in the app, so there's a record if anything goes wrong.</p><div class="mock" style="display:grid;gap:8px;min-height:118px;align-content:start"><span class="bub them">Is it still available?</span><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span><span class="bub me">Yes! Meet at the faculty gate by 2?</span></div></article>
    <article class="tile w2 rv" style="--d:.12s"><span class="ti"><svg viewBox="0 0 24 24" class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-mic"/></svg></span><h3>Just say what you want</h3><p>Voice search in plain English, and fair price suggestions when you sell.</p><div class="mock"><div class="row"><span>"fairly used iPhone under 100k"</span><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span class="mic"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><use href="#i-mic"/></svg></span></div></div></article>
@@ -643,7 +691,7 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
 
 <footer><div class="w">
  <div class="fgrid">
-  <div><a class="logo" href="#top"><svg class="lg" viewBox="18 20 84 78" width="32" height="30" aria-hidden="true"><path d="M20 30a8 8 0 0 1 8-8h64a8 8 0 0 1 8 8v8H20z" fill="currentColor"/><path d="M20 37h25.5v10a12.75 12.75 0 0 1-25.5 0z" fill="currentColor"/><path fill="currentColor" d="M47.3 37h25.4v10a12.7 12.7 0 0 1-25.4 0z"/><path d="M74.5 37H100v10a12.75 12.75 0 0 1-25.5 0z" fill="currentColor"/><circle fill="currentColor" cx="60" cy="85" r="11"/></svg><svg class="wm" viewBox="0 -760 1917 790" role="img" aria-label="Stall" fill="currentColor"><path d="M267 14Q214 14 168.5 3.5Q123 -7 89.5 -30.0Q56 -53 38.5 -91.5Q21 -130 24 -185L165 -197Q167 -164 180.0 -142.5Q193 -121 216.0 -111.0Q239 -101 272 -101Q303 -101 325.5 -111.5Q348 -122 348 -147Q348 -160 340.0 -168.5Q332 -177 310.5 -184.5Q289 -192 248 -202Q197 -215 156.0 -228.0Q115 -241 86.0 -259.0Q57 -277 42.0 -303.5Q27 -330 27 -369Q27 -424 56.5 -462.5Q86 -501 138.0 -521.5Q190 -542 258 -542Q319 -542 372.0 -523.0Q425 -504 455.5 -461.0Q486 -418 478 -347L340 -334Q343 -363 332.0 -383.5Q321 -404 300.0 -414.5Q279 -425 249 -425Q215 -425 196.5 -412.5Q178 -400 178 -381Q178 -366 189.5 -355.5Q201 -345 225.5 -337.5Q250 -330 289 -321Q323 -314 360.0 -303.0Q397 -292 429.0 -273.5Q461 -255 481.0 -225.0Q501 -195 501 -149Q501 -100 474.0 -63.0Q447 -26 395.0 -6.0Q343 14 267 14Z"></path><path d="M719 12Q626 12 580.5 -35.5Q535 -83 535 -183V-402H477V-504H480Q542 -512 568.0 -545.5Q594 -579 600 -647V-649H695V-528H816V-398H695V-198Q695 -160 713.5 -144.0Q732 -128 759 -128Q773 -128 788.0 -132.0Q803 -136 816 -143V-2Q785 7 761.0 9.5Q737 12 719 12Z"></path><path d="M970 14Q930 14 894.0 0.0Q858 -14 835.0 -45.5Q812 -77 812 -130Q812 -179 831.0 -209.5Q850 -240 882.0 -258.5Q914 -277 952.0 -286.5Q990 -296 1027 -303Q1079 -313 1105.0 -319.0Q1131 -325 1140.5 -333.0Q1150 -341 1150 -355Q1150 -384 1128.5 -399.0Q1107 -414 1072 -414Q1050 -414 1028.0 -406.0Q1006 -398 992.0 -377.5Q978 -357 979 -319L835 -329Q833 -392 854.0 -433.5Q875 -475 911.5 -498.5Q948 -522 991.5 -532.0Q1035 -542 1078 -542Q1157 -542 1208.0 -512.5Q1259 -483 1283.5 -427.5Q1308 -372 1308 -293V-199Q1308 -166 1308.0 -132.5Q1308 -99 1308.0 -66.0Q1308 -33 1308 0H1168Q1168 -36 1168.0 -73.0Q1168 -110 1168 -151H1162Q1158 -106 1132.5 -68.5Q1107 -31 1065.5 -8.5Q1024 14 970 14ZM1037 -104Q1054 -104 1073.5 -110.5Q1093 -117 1110.5 -132.0Q1128 -147 1139.0 -173.5Q1150 -200 1150 -239V-263L1177 -266Q1169 -253 1150.5 -245.0Q1132 -237 1109.0 -232.5Q1086 -228 1062.5 -223.5Q1039 -219 1019.0 -211.5Q999 -204 986.5 -191.5Q974 -179 974 -157Q974 -131 992.5 -117.5Q1011 -104 1037 -104Z"></path><path d="M1329 0V-700H1491V0Z"></path><path d="M1518 0V-700H1680V0Z"></path><path d="M1793 13Q1742 13 1716.5 -9.0Q1691 -31 1691 -77Q1691 -124 1716.5 -146.0Q1742 -168 1793 -168Q1845 -168 1871.0 -146.0Q1897 -124 1897 -77Q1897 13 1793 13Z"></path></svg></a><p>The safe way to buy and sell on Nigerian campuses.</p></div>
+  <div><a class="logo" href="#top"><svg class="wm" viewBox="-40 -800 1997 830" role="img" aria-label="Stall" fill="currentColor"><path d="M267 14Q214 14 168.5 3.5Q123 -7 89.5 -30.0Q56 -53 38.5 -91.5Q21 -130 24 -185L165 -197Q167 -164 180.0 -142.5Q193 -121 216.0 -111.0Q239 -101 272 -101Q303 -101 325.5 -111.5Q348 -122 348 -147Q348 -160 340.0 -168.5Q332 -177 310.5 -184.5Q289 -192 248 -202Q197 -215 156.0 -228.0Q115 -241 86.0 -259.0Q57 -277 42.0 -303.5Q27 -330 27 -369Q27 -424 56.5 -462.5Q86 -501 138.0 -521.5Q190 -542 258 -542Q319 -542 372.0 -523.0Q425 -504 455.5 -461.0Q486 -418 478 -347L340 -334Q343 -363 332.0 -383.5Q321 -404 300.0 -414.5Q279 -425 249 -425Q215 -425 196.5 -412.5Q178 -400 178 -381Q178 -366 189.5 -355.5Q201 -345 225.5 -337.5Q250 -330 289 -321Q323 -314 360.0 -303.0Q397 -292 429.0 -273.5Q461 -255 481.0 -225.0Q501 -195 501 -149Q501 -100 474.0 -63.0Q447 -26 395.0 -6.0Q343 14 267 14Z"></path><path d="M719 12Q626 12 580.5 -35.5Q535 -83 535 -183V-402H477V-504H480Q542 -512 568.0 -545.5Q594 -579 600 -647V-649H695V-528H816V-398H695V-198Q695 -160 713.5 -144.0Q732 -128 759 -128Q773 -128 788.0 -132.0Q803 -136 816 -143V-2Q785 7 761.0 9.5Q737 12 719 12Z"></path><path d="M970 14Q930 14 894.0 0.0Q858 -14 835.0 -45.5Q812 -77 812 -130Q812 -179 831.0 -209.5Q850 -240 882.0 -258.5Q914 -277 952.0 -286.5Q990 -296 1027 -303Q1079 -313 1105.0 -319.0Q1131 -325 1140.5 -333.0Q1150 -341 1150 -355Q1150 -384 1128.5 -399.0Q1107 -414 1072 -414Q1050 -414 1028.0 -406.0Q1006 -398 992.0 -377.5Q978 -357 979 -319L835 -329Q833 -392 854.0 -433.5Q875 -475 911.5 -498.5Q948 -522 991.5 -532.0Q1035 -542 1078 -542Q1157 -542 1208.0 -512.5Q1259 -483 1283.5 -427.5Q1308 -372 1308 -293V-199Q1308 -166 1308.0 -132.5Q1308 -99 1308.0 -66.0Q1308 -33 1308 0H1168Q1168 -36 1168.0 -73.0Q1168 -110 1168 -151H1162Q1158 -106 1132.5 -68.5Q1107 -31 1065.5 -8.5Q1024 14 970 14ZM1037 -104Q1054 -104 1073.5 -110.5Q1093 -117 1110.5 -132.0Q1128 -147 1139.0 -173.5Q1150 -200 1150 -239V-263L1177 -266Q1169 -253 1150.5 -245.0Q1132 -237 1109.0 -232.5Q1086 -228 1062.5 -223.5Q1039 -219 1019.0 -211.5Q999 -204 986.5 -191.5Q974 -179 974 -157Q974 -131 992.5 -117.5Q1011 -104 1037 -104Z"></path><rect x="1329" y="-615" width="162" height="615"></rect><rect x="1518" y="-615" width="162" height="615"></rect><path d="M1259 -754 a26 26 0 0 1 26 -26 h439 a26 26 0 0 1 26 26 v26 h-491z"></path><path d="M1259.0 -730 h156.7 v4 a78.3 78.3 0 0 1 -156.7 0z"></path><path d="M1429.7 -730 h149.7 v4 a74.8 74.8 0 0 1 -149.7 0z"></path><path d="M1593.3 -730 h156.7 v4 a78.3 78.3 0 0 1 -156.7 0z"></path><circle cx="1794" cy="-77" r="100"></circle></svg></a><p>The safe way to buy and sell on Nigerian campuses.</p></div>
   <div><h4>Product</h4><a href="#how">How it works</a><a href="#features">Features</a><a href="#get">Get the app</a><a href="/app">Open Stall</a></div>
   <div><h4>Trust</h4><a href="/rules">Buyer protection &amp; rules</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/delete-account">Delete account</a></div>
   <div><h4>Contact</h4><span id="contact"><a href="#league">Bring Stall to your campus</a></span></div>
@@ -662,7 +710,7 @@ const naira=n=>'₦'+Number(n||0).toLocaleString('en-NG');
 const short=n=>n>=1e6?(n/1e6).toFixed(n>=1e7?0:1).replace(/\.0$/,'')+'M':n>=1e4?Math.round(n/1e3)+'k':Number(n).toLocaleString('en-NG');
 const ago=t=>{const m=Math.max(1,Math.round((Date.now()-t)/6e4));return m<60?m+' min ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago'};
 const icon=(k,cls='')=>`<svg viewBox="0 0 24 24" class="ic ${cls}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-${k}"/></svg>`;
-const CAT={books:['book','#FFEDD5','#C2410C'],tech:['tech','#DBEAFE','#1D4ED8'],fashion:['fashion','#FCE7F3','#BE185D'],hostel:['hostel','#DCFCE7','#15803D'],food:['food','#FEF3C7','#B45309'],services:['services','#EDE9FE','#6D28D9']};
+const CAT={books:['book','#EEF8C8','#4E6106'],tech:['tech','#DBEAFE','#1D4ED8'],fashion:['fashion','#FCE7F3','#BE185D'],hostel:['hostel','#DCFCE7','#15803D'],food:['food','#FDE2E4','#C2253D'],services:['services','#EDE9FE','#6D28D9']};
 const cat=c=>CAT[c]||['bag','#E2E8F0','#3D4160'];
 const toast=m=>{const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2600)};
 const getJ=u=>fetch(u).then(r=>r.ok?r.json():Promise.reject(r.status));
@@ -680,18 +728,27 @@ const watch=()=>$$('.rv:not(.in)').forEach(x=>IO.observe(x));watch();
 const countUp=(el,to,fmt=short)=>{if(RM){el.textContent=fmt(to);return}const t0=performance.now(),d=1200;const f=t=>{const p=Math.min(1,(t-t0)/d),e=1-Math.pow(1-p,3);el.textContent=fmt(Math.round(to*e));if(p<1)requestAnimationFrame(f)};requestAnimationFrame(f)};
 const onView=(el,fn,th=.3)=>new IntersectionObserver((es,o)=>es.forEach(e=>{if(e.isIntersecting){fn();o.disconnect()}}),{threshold:th}).observe(el);
 
-// ---- hero: the real app, screen by screen (with dots you can tap)
-(function(){const S=$$('#shots .shot'),D=$('#shotDots');let i=0,timer=null;
- const load=()=>S.forEach(s=>{if(s.dataset.src){s.src=s.dataset.src;delete s.dataset.src}});
- D.innerHTML=S.map((s,k)=>`<button role="tab" aria-label="${esc(s.alt)}" aria-selected="${k===0}" class="${k===0?'on':''}"></button>`).join('');
- const go=k=>{load();S[i].classList.remove('on');D.children[i].classList.remove('on');D.children[i].setAttribute('aria-selected',false);i=k;S[i].classList.add('on');D.children[i].classList.add('on');D.children[i].setAttribute('aria-selected',true)};
- [...D.children].forEach((b,k)=>b.addEventListener('click',()=>{go(k);clearInterval(timer)}));
- addEventListener('load',()=>setTimeout(load,800));
- if(!RM)timer=setInterval(()=>{if(!document.hidden&&scrollY<innerHeight)go((i+1)%S.length)},3600);
- })();
-function drawChips(items){const L=items.filter(x=>x.k!=='joined').slice(0,2);
- const lk=`<div class="chip-card c2" style="--z:150px" aria-hidden="true"><div class="in" style="--fd:-2s"><span class="lk">${icon('lock')}</span><span><small>Held safely by Stall</small><b>Paid. Waiting for handover</b><span class="meter"><i></i></span></span></div></div>`;
- $('#chips').innerHTML=lk+(L.length<2?'':L.map((x,i)=>{const[k,bg,fg]=cat(x.cat);return`<div class="chip-card c${i}" style="--z:${i?110:70}px" aria-hidden="true"><div class="in" style="--fd:${-i*3}s"><span class="bub" style="background:${bg};color:${fg}">${icon(k)}</span><span style="min-width:0"><small>${x.k==='sold'?'Just sold':'Just listed'} · ${esc(x.school||'')}</small><b>${esc(x.title)}</b><span class="pr">${naira(x.price)}</span></span></div></div>`}).join(''))}
+// ---- hero: a stall under the awning. Items arrive, the buyer's money is held by Stall, then released to the seller at handover.
+const HERO=[{title:'Wireless earbuds',price:14000,cat:'tech',school:'ACU'},{title:'Jollof rice and chicken',price:2500,cat:'food',school:'UI'},{title:'Scientific calculator',price:9000,cat:'books',school:'Covenant'},{title:'Rechargeable fan',price:18500,cat:'hostel',school:'Babcock'},{title:'Thrift denim jacket',price:7000,cat:'fashion',school:'UNILAG'}];
+let heroQ=HERO.slice();
+function drawChips(items){const L=items.filter(x=>x.k!=='joined'&&x.title&&x.price).slice(0,6).map(x=>({title:x.title,price:x.price,cat:x.cat,school:x.school,k:x.k}));if(L.length>=2)heroQ=L.concat(HERO).slice(0,8)}
+(function(){const tk=$('#stTk'),fl=$('#stFlow'),coin=$('#stCoin'),code=$('#stCode'),st=$('#stState');let i=0;
+ const rail2=()=>fl.querySelector('.r2'),vault=()=>fl.querySelector('.vault');
+ // the coin rides from the buyer to the vault, then on to the seller
+ const at=p=>{const r=fl.getBoundingClientRect(),c=p==='b'?fl.querySelector('.who'):p==='v'?vault():fl.querySelector('.sel'),q=c.getBoundingClientRect(),rr=fl.querySelector('.rail').getBoundingClientRect();coin.style.left=(q.left+q.width/2-rr.left-13)+'px'};
+ const ids='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+ function run(){const x=heroQ[i++%heroQ.length],[k,bg,fg]=cat(x.cat);
+  const old=tk.querySelector('.tkc');if(old){old.classList.replace('in','out');setTimeout(()=>old.remove(),600)}
+  const c=document.createElement('div');c.className='tkc';c.innerHTML=`<span class="bub" style="background:${bg};color:${fg}">${icon(k)}</span><span style="min-width:0;flex:1"><small>${x.k==='sold'?'Just sold':'Just listed'}${x.school?' · '+esc(x.school):''}</small><b>${esc(x.title)}</b><span class="tkp">${naira(x.price)}</span></span>`;tk.appendChild(c);
+  fl.className='flow';code.innerHTML='';coin.style.transition='none';coin.style.opacity=1;at('b');coin.offsetWidth;coin.style.transition='';
+  requestAnimationFrame(()=>c.classList.add('in'));
+  st.textContent='Buyer pays '+naira(x.price)+' in the app';
+  if(RM){at('v');fl.classList.add('held');st.textContent='Held safely by Stall until handover';return}
+  setTimeout(()=>{at('v');st.textContent='Held safely by Stall';setTimeout(()=>fl.classList.add('held'),800)},1400);
+  setTimeout(()=>{const cd='STALL-'+Array.from({length:4},()=>ids[Math.random()*ids.length|0]).join('');code.innerHTML=`<span>${cd}</span>`;requestAnimationFrame(()=>code.firstChild.classList.add('on'));st.textContent='Handover: the buyer shares the code'},3300);
+  setTimeout(()=>{fl.classList.remove('held');at('s');st.textContent='Released to the seller';setTimeout(()=>fl.classList.add('paid'),850)},5000);
+  setTimeout(()=>{if(!document.hidden)run();else addEventListener('visibilitychange',function v(){if(!document.hidden){removeEventListener('visibilitychange',v);run()}})},7600)}
+ run()})();
 // the whole stage turns gently with the mouse (or the phone's tilt), and as you scroll past
 (function(){if(RM)return;const rig=$('#rig');let tx=0,ty=0,sp=0;const set=()=>rig.style.transform=`rotateY(${tx-sp*10}deg) rotateX(${ty+sp*4}deg)`;
  addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;tx=(e.clientX/innerWidth-.5)*14;ty=-(e.clientY/innerHeight-.5)*10;set()},{passive:true});
