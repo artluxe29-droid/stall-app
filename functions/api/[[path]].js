@@ -368,7 +368,8 @@ const nightAt=t=>{const h=new Date((t||Date.now())+36e5).getUTCHours();return h>
 const doneAt=o=>(JSON.parse(o.track||'[]').find(x=>x.s==='done')||{}).t||o.updated;
 // Monday 00:00 in Lagos (UTC+1) of the week holding t, and that week's ISO number.
 const weekStart=t=>{const l=new Date((t||Date.now())+36e5);return Date.UTC(l.getUTCFullYear(),l.getUTCMonth(),l.getUTCDate()-(l.getUTCDay()+6)%7)-36e5};
-const isoWeek=ws=>{const th=new Date(ws+36e5+3*864e5);return 1+Math.floor((th-Date.UTC(th.getUTCFullYear(),0,1))/(7*864e5))};
+// The statement's week as dates in Nigerian time, e.g. '29 Sep – 5 Oct' (Monday to Sunday).
+const wkRange=ws=>{const f=t=>{const d=new Date(t+36e5);return d.getUTCDate()+' '+'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')[d.getUTCMonth()]};return f(ws)+' – '+f(ws+6*864e5)};
 // What goes on an order's receipt, for the buyer or the seller. null when there's nothing to show yet.
 async function receiptFor(env,o,side){
   const its=(await env.DB.prepare('SELECT title,price,IFNULL(q,1) q FROM order_items WHERE oid=?').bind(o.id).all()).results,sub=o.sub!=null?o.sub:o.amount,dl=Math.max(0,o.amount-sub);
@@ -394,7 +395,7 @@ async function weekOf(env,uid,ws){const days=[0,0,0,0,0,0,0];let n=0,total=0,fee
   for(const r of (await env.DB.prepare("SELECT amount,fee,track,updated FROM orders WHERE seller=? AND status='released' AND updated>=?").bind(uid,ws).all()).results){
     const t=doneAt(r);if(t<ws||t>=ws+7*864e5)continue;n++;total+=r.amount;fees+=r.fee||0;days[Math.floor((t-ws)/864e5)]+=r.amount}
   const u=await env.DB.prepare('SELECT rating_sum,rating_n FROM users WHERE id=?').bind(uid).first();
-  return{theme:'weekly',week:isoWeek(ws),label:ws===weekStart()?'Your sales this week':'Your sales last week',n,total,fees,days,rating:u?rat(u):{avg:0,n:0},subject:'Your Stall week: '+NGN(total)+' in sales'}}
+  return{theme:'weekly',week:wkRange(ws),label:ws===weekStart()?'Your sales this week':'Your sales last week',n,total,fees,days,rating:u?rat(u):{avg:0,n:0},subject:'Your Stall week: '+NGN(total)+' in sales'}}
 const rcImg=(b,n,w,h,st='')=>`<img src="${b}/icons/receipt/${n}.png" width="${w}" height="${h}" alt="" style="display:block;border:0;${st}">`;
 // Short labels and values stay on one line; long ones (item names, reasons) wrap.
 const rcNw=(x,n)=>String(x).replace(/<[^>]+>|&[a-z#0-9]+;/g,'.').length<=n?';white-space:nowrap':'';
@@ -409,7 +410,7 @@ function rcHtml(m,b){
     <div style="background:#FFFFFF;border-radius:16px;border:1px solid #E5E5EC;padding:10px 14px;margin-top:12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${m.info.map(r=>rcRow(r[0],r[1],'#26306E','#5B6077',r[2],13)).join('')}</table></div></td></tr>`,b,'edge-white');
   if(m.theme==='weekly'){const mx=Math.max(...m.days,1),top=m.days.indexOf(Math.max(...m.days));
     return rcWrap(`<tr><td style="background:#26306E;border-radius:22px 22px 0 0;padding:24px;color:#F6F1E7">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="text-align:left">${rcImg(b,'lockup-cream',85,24)}</td><td style="text-align:right;font-size:11px;font-weight:700;letter-spacing:.14em;color:#9AA1C9">WEEK ${m.week}</td></tr></table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="text-align:left">${rcImg(b,'wm-cream',58,24)}</td><td style="text-align:right;font-size:11px;font-weight:700;letter-spacing:.14em;color:#9AA1C9;text-transform:uppercase;white-space:nowrap">${m.week}</td></tr></table>
     <div style="font-size:13px;color:#CDD2F0;margin-top:16px">${m.label}</div><div style="${RH};font-size:40px;font-weight:800;letter-spacing:-.02em;line-height:1.1">${NGN(m.total)}</div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px"><tr>${m.days.map((v,i)=>`<td style="height:112px;vertical-align:bottom;padding:0 3px;text-align:center"><div style="height:${Math.max(4,Math.round(v/mx*92))}px;background:${i===top&&v?'#C8F03C':'#3A46A0'};border-radius:6px 6px 2px 2px;font-size:0;line-height:0">&nbsp;</div><div style="font-size:10px;color:#9AA1C9;padding-top:4px">${'MTWTFSS'[i]}</div></td>`).join('')}</tr></table>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rcRule('#3A4470')}${rcRow('Orders delivered',String(m.n),'#F6F1E7','#9AA1C9',1)}${rcRow('Stall fees',NGN(-m.fees),'#F6F1E7','#9AA1C9')}${rcRow('Paid out',NGN(m.total-m.fees),'#C8F03C','#9AA1C9',1,16)}${m.rating.n?rcRow('Rating',m.rating.avg+' ★ from '+m.rating.n+' buyer'+(m.rating.n>1?'s':''),'#F6F1E7','#9AA1C9'):''}</table></td></tr>`,b,'edge-indigo')}
@@ -426,7 +427,7 @@ function rcHtml(m,b){
    <div style="border-top:1.5px dashed ${c.rule};margin-top:14px;padding-top:14px">${rcImg(b,c.wm,63,26,'margin:0 auto')}<div style="font-size:11px;color:${c.mut};margin-top:6px">${m.tag}</div></div></td></tr>`,b,c.edge)}
 // Plain-text version, for sharing from the app.
 const rcText=m=>{const t=s=>String(s).replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"');
-  if(m.theme==='weekly')return`Stall weekly statement (week ${m.week})\n${m.label}: ${NGN(m.total)}\nOrders delivered: ${m.n}\nStall fees: ${NGN(-m.fees)}\nPaid out: ${NGN(m.total-m.fees)}`;
+  if(m.theme==='weekly')return`Stall weekly statement (${m.week})\n${m.label}: ${NGN(m.total)}\nOrders delivered: ${m.n}\nStall fees: ${NGN(-m.fees)}\nPaid out: ${NGN(m.total-m.fees)}`;
   return['Stall receipt',t(m.label)+': '+NGN(m.amount),m.pill?t(m.pill):'',...(m.rows||[]).map(r=>t(r[0])+': '+t(r[1])),m.total?t(m.total[0])+': '+t(m.total[1]):'',...m.info.map(r=>t(r[0])+': '+t(r[1]))].filter(Boolean).join('\n')};
 const mailReceipt=(m,btn,url)=>`<div style="background:#ECEAF4;padding:24px 12px;${RF}">${rcHtml(m,mailOrigin(url))}
   ${btn?`<p style="text-align:center;margin:22px 0 6px"><a href="${url}" style="background:#26306E;color:#fff;text-decoration:none;padding:12px 20px;border-radius:12px;font-weight:700;display:inline-block">${esc(btn)}</a></p>`:''}
@@ -448,7 +449,7 @@ const sampleReceipts=()=>{const now=Date.now(),ws=weekStart();return[
   {theme:'awning',subject:'Receipt: Ankara two-piece',eyebrow:'RECEIPT',label:'Paid to Tobi’s Closet',amount:9800,pill:'Held safely until you have it',rows:[['Order','#1107',1],['Ankara two-piece, M','₦9,800']],total:['Total','₦9,800'],info:[['Pickup','Faculty of Arts gate'],['Paid',dtime(now)]],tag:'Your money is safe until you have it.'},
   {theme:'night',subject:'Receipt: Jollof rice + chicken',eyebrow:'LATE-NIGHT ORDER',label:'Paid to Mama T’s Kitchen',amount:6200,pill:'Held safely until you have it',rows:[['Order','#1112',1],['Jollof rice + chicken × 2','₦5,000'],['Fried plantain','₦500'],['Bottled water × 2','₦400'],['Delivery','₦300']],total:['Total','₦6,200'],info:[['Delivering to','Moremi Hall, Room B14'],['Paid',dtime(now)]],tag:'Open late. Still safe.'},
   {theme:'dots',subject:'Refund on its way: Ankara two-piece',label:'Refund on its way',amount:9800,info:[['Order','#1107',1],['Item','Ankara two-piece, M'],['Why','Not sent within 24 hours'],['Back to','The card or account you paid with'],['Usually','1 to 5 working days']]},
-  {theme:'weekly',week:isoWeek(ws),label:'Your sales last week',n:23,total:86400,fees:4320,days:[9800,16200,12000,21000,27400,0,0],rating:{avg:4.9,n:21},subject:'Your Stall week: ₦86,400 in sales'}]};
+  {theme:'weekly',week:wkRange(ws),label:'Your sales last week',n:23,total:86400,fees:4320,days:[9800,16200,12000,21000,27400,0,0],rating:{avg:4.9,n:21},subject:'Your Stall week: ₦86,400 in sales'}]};
 // Emails a receipt for an order, if it has one for that side.
 async function mailOrderReceipt(env,oid,side){try{const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(oid).first();if(!o)return;const m=await receiptFor(env,o,side);if(!m)return;
   await mailTo(env,side==='buyer'?o.buyer:o.seller,m.subject,mailReceipt(m,'See your orders',SITE(env)+'/app?go='+(side==='buyer'?'orders':'selling')))}catch(e){}}
