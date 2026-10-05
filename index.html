@@ -186,7 +186,7 @@ dialog.adm[open]{display:flex;flex-direction:column}
 .rules{margin:8px 0;padding-left:18px;font-size:14px;line-height:1.5}.rules li{margin:4px 0}
 .ev{background:var(--bg2);border-radius:12px;padding:10px 12px;margin:8px 0}.ev img{display:block;max-width:100%;border-radius:10px;margin-top:8px}.ev.s{border-left:3px solid var(--acc)}.ev.b{border-left:3px solid var(--green,#16a34a)}
 .rrep{margin:6px 0 0 12px;padding:6px 10px;border-left:3px solid var(--line);font-size:14px}
-.rjf select,.rjf input,.codebox input{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg2)}
+[data-codeform] input{min-width:0;font-family:ui-monospace,Menlo,monospace;letter-spacing:.04em}.rjf select,.rjf input,.codebox input,[data-codeform] input{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg2)}
 .pager{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:16px;font-size:14px;color:var(--muted)}
 .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:8px}
 .stat{background:var(--bg2);border-radius:16px;padding:14px 16px;text-align:left;border:0;width:100%}
@@ -1153,7 +1153,7 @@ async function renderOrders(){setTimeout(checkMilestones,1200);const r=await fet
   $('#orderList').querySelectorAll('[data-payid]').forEach(b=>b.onclick=async()=>{const o=(L).find(x=>x.id==b.dataset.payid);PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)});
   $('#orderList').querySelectorAll('[data-showcode]').forEach(b=>b.onclick=async()=>{const o=(L).find(x=>x.id==b.dataset.showcode);PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)})}
 async function renderSelling(){setTimeout(checkMilestones,1200);const [r,w]=await Promise.all([fetchJ('/api/orders/selling').catch(()=>({})),fetchJ('/api/orders/weekly').catch(()=>({}))]);const L=r.orders||[],up=updBox('sell');markSeen('s');WEEK=w&&w.n?w:null;
-  $('#sellingList').innerHTML=up+(WEEK?`<button class="wkcard" data-weekly><span><small>Your sales this week</small><b>${naira(WEEK.total)}</b><small>${WEEK.n} order${WEEK.n>1?'s':''} delivered</small></span><span class="go">See statement →</span></button>`:'')+(L.length?L.map(o=>orderCard(o,true)).join(''):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>Orders for things you sell show up here.</p></div>`);
+  $('#sellingList').innerHTML=up+(WEEK?`<button class="wkcard" data-weekly><span><small>${esc(WEEK.label||'Your sales this week')}</small><b>${naira(WEEK.total)}</b><small>${WEEK.n} order${WEEK.n>1?'s':''} delivered</small></span><span class="go">See statement →</span></button>`:'')+(L.length?L.map(o=>orderCard(o,true)).join(''):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>Orders for things you sell show up here.</p></div>`);
   $('#sellingList').querySelectorAll('[data-brateform]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();if(!f.elements.stars.value)return toast('Tap the stars to rate');
     const r=await apiPost('orders/rate-buyer',{id:+f.dataset.brateform,stars:+f.elements.stars.value});if(r.error)return toast(r.error);toast('Thanks for rating the buyer');renderSelling()});
   $('#sellingList').querySelectorAll('[data-codeform]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();const r=await apiPost('orders/code',{id:f.dataset.codeform,code:f.elements.code.value});

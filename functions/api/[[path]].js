@@ -1066,7 +1066,9 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
     const rs=(await env.DB.prepare("SELECT p.ref,p.kind,p.label,p.amount,p.data,y.created FROM pending_pay p JOIN payments y ON y.ref=p.ref WHERE p.uid=? AND p.done=1 AND p.kind!='order' ORDER BY y.created DESC LIMIT 50").bind(u.id).all()).results;
     return J({pays:rs.map(r=>({ref:r.ref,kind:r.kind,label:({boost:'Featured: ',reach:'Store reach: '}[r.kind]||'')+String(r.label||r.kind).replace(/ \(₦\d+ credit used\)$/,''),paid:String(r.ref).startsWith('CR')?0:r.amount,credit:String(r.ref).startsWith('CR')?r.amount:(JSON.parse(r.data||'{}').credit||0),t:r.created}))},200,{'cache-control':'no-store'})}
   if(path==='orders/weekly'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
-    const w=await weekOf(env,u.id,weekStart());return J({n:w.n,total:w.total,html:w.n?rcHtml(w,''):'',text:w.n?rcText(w):''},200,{'cache-control':'no-store'})}
+    // This week's statement; early in a quiet week (e.g. on Monday) show last week's instead, so it never just disappears.
+    let w=await weekOf(env,u.id,weekStart());if(!w.n)w=await weekOf(env,u.id,weekStart()-7*864e5);
+    return J({n:w.n,total:w.total,label:w.label,html:w.n?rcHtml(w,''):'',text:w.n?rcText(w):''},200,{'cache-control':'no-store'})}
   if(path==='orders/selling'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await sweep(env);
     const rs=(await env.DB.prepare('SELECT * FROM orders WHERE seller=? ORDER BY created DESC LIMIT 100').bind(u.id).all()).results,bids=[...new Set(rs.map(r=>r.buyer))];
     const br={};if(bids.length)for(const x of (await env.DB.prepare('SELECT id,brating_sum,brating_n FROM users WHERE id IN ('+bids.map(()=>'?').join(',')+')').bind(...bids).all()).results)br[x.id]=rat({rating_sum:x.brating_sum,rating_n:x.brating_n});
