@@ -751,7 +751,8 @@ async function route({request,env,params,waitUntil}){
       env.DB.prepare("UPDATE reviews SET buyer_name='Deleted user' WHERE buyer=?").bind(u.id),
       env.DB.prepare("UPDATE orders SET buyer_name='Deleted user',buyer_phone='',addr=NULL,dphone=NULL WHERE buyer=?").bind(u.id),env.DB.prepare("UPDATE orders SET seller_name='Deleted user',seller_phone='' WHERE seller=?").bind(u.id),
       env.DB.prepare("UPDATE users SET name='Deleted user',matric=NULL,email=NULL,phone=?,place=NULL,biz=NULL,bank_code=NULL,bank_name=NULL,acct_no=NULL,acct_name=NULL,deliv_on=0,deliv_note=NULL,pw=?,salt=?,status='deleted',verified=0 WHERE id=?").bind('deleted-'+u.id,rnd(16),rnd(8),u.id)]);
-    await bumpVer(env);await logA(env,null,'account','deleted their account','#'+u.id,{who:'Deleted user #'+u.id});
+    await bumpVer(env);const why={problem:'had a problem with an order or payment',unused:'does not use Stall anymore',privacy:'privacy concerns',other:'something else'}[b.why]||'no reason given';
+    await logA(env,null,'account','deleted their account ('+why+')','#'+u.id,{who:'Deleted user #'+u.id});waitUntil(tg(env,'An account was deleted. Reason: '+why+'.'));
     return J({ok:true},200,{'set-cookie':'stall_s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'})}
   if(path==='password'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);
     const b=await request.json().catch(()=>({})),pw=String(b.password||'');
