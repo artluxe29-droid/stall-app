@@ -1499,7 +1499,7 @@ function openAccount(){const u=S.user,d=$('#accDlg');if(!u)return;const ns=NEWS.
   const tile=(id,ic,l,sub,n)=>`<button class="aqt" type="button" id="${id}"><span class="i">${ico(ic)}</span>${n?`<span class="dot">${n>99?'99+':n}</span>`:''}<b>${l}</b><small>${sub}</small></button>`;
   const chip=(t,k)=>`<span class="achip ${k||''}">${t}</span>`;
   d.innerHTML=`<div class="pad acc2">
-   <div class="acch"><div class="sav">${esc((u.name||'?')[0])}</div><div class="t"><h2>${esc(u.name)}</h2><p class="meta">${u.role==='vendor'?'Campus vendor'+(u.biz?' · '+esc(u.biz):''):esc(u.matric||'')}${sch?' · '+esc(sch.short||sch.name):''}</p>
+   <div class="acch"><div class="sav">${esc((u.name||'?')[0])}</div><div class="t"><h2>${esc(u.name)}</h2><p class="meta">${u.role==='vendor'?'Campus vendor'+(u.biz?' · '+esc(u.biz):''):(u.matric?esc(u.matric):u.matricClaim?'Matric '+esc(u.matricClaim)+' · verify to confirm':'')}${sch?' · '+esc(sch.short||sch.name):''}</p>
      <div class="abadges">${u.verified?VB:''}${stu&&(u.vlevel||0)>=2?SB(2):stu&&(u.vlevel||0)===1?SB(1):''}</div></div></div>
    ${u.admin||u.reviewer?`<button class="aadmin" type="button" id="accAdmin">${ico('sliders')}<span><b>${u.admin?'Admin dashboard':'Review payments'}</b><small>${u.admin?'Orders, payouts, earnings and settings':'Payments waiting for a decision'}</small></span><span class="go">›</span></button>`:''}
    <div class="aqk">${tile('accMsgs','chat','Messages',CHATN?CHATN+' unread':'Buyers and sellers',CHATN)}${tile('accSelling','box','Orders to fulfil',ns?ns+' new':'What people bought',ns)}${stu?tile('accClass','list','Collections','Collect money from a group'):''}${tile('accInvite','gift','Invite & credit',u.credit?naira(u.credit)+' credit':'Earn when friends order')}${tile('accPays','wallet','Payments','Receipts for featuring and more')}${tile('accBadges','badge','Badges','Share your milestones')}</div>
@@ -1511,6 +1511,14 @@ function openAccount(){const u=S.user,d=$('#accDlg');if(!u)return;const ns=NEWS.
    <div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;d.showModal();d.querySelector('.pad').scrollTop=0;if(document.activeElement&&d.contains(document.activeElement))document.activeElement.blur();
   $('#accHelp').innerHTML=$('#helpLinks').innerHTML.split(' · ').map(x=>`<div class="hl">${x}</div>`).join('');
   pushState().then(st=>{const e=$('#pushSt');if(e)e.textContent={on:'On for this phone',off:'Off · tap to turn on',denied:'Blocked in browser settings',unsupported:'Not available in this browser'}[st]})}
+// Right after sign-up: confirm the email with a code, and if someone else already typed this matric number, explain how to claim it.
+function afterSignup(claim){const d=$('#accDlg'),u=S.user;
+  d.innerHTML=`<div class="pad"><h2>${claim?'One more step':'Confirm your email'}</h2>
+   ${claim?`<div class="lnudge" style="margin:8px 0 14px"><span class="aic">${ico('shield')}</span><div><b>Your matric number is already in use</b><p class="meta">Another account typed ${esc(u.matricClaim)}. If it's yours, verify with your student ID or another school document and it moves to you. Until then your account works for buying.</p></div><button class="pill sm" type="button" id="asVer">Verify</button></div>`:''}
+   ${CFG.emailOn&&u.email&&!u.emailVerified?`${claim?'<p class="lb" style="margin-top:4px">Confirm your email</p>':''}<div id="asEm"></div>`:''}
+   <div class="acts"><button class="pill alt" type="button" data-close>Later</button></div></div>`;
+  if(!d.open)d.showModal();const v=$('#asVer');if(v)v.onclick=()=>openStudentVerify();
+  const el=$('#asEm');if(el){emailCodeForm(el,u.email,()=>{toast('Email confirmed ✓');d.close()});const f=$('#emF');if(f)f.requestSubmit()}}
 // Email code flow, shared by student verification and email updates. done(r) runs after the code is confirmed.
 function emailCodeForm(el,email,done){el.innerHTML=`<form id="emF"><label>Email address<input name="email" type="email" required value="${esc(email||'')}" placeholder="you@school.edu.ng"></label><span class="err" id="emErr"></span><div class="acts"><button class="pill" type="submit">Send code</button></div></form>`;
   $('#emF').onsubmit=async e=>{e.preventDefault();const em=e.target.elements.email.value.trim(),sb=e.target.querySelector('[type=submit]');sb.disabled=true;const r=await apiPost('verify/email/start',{email:em});sb.disabled=false;if(r.error)return $('#emErr').textContent=r.error;
@@ -1784,6 +1792,9 @@ document.querySelectorAll('[data-phint]').forEach(box=>{const f=box.closest('for
 window.earnAll=()=>document.querySelectorAll('[data-earn]').forEach(n=>earnShow(n.closest('form')));
 document.querySelectorAll('[data-earn]').forEach(n=>{const f=n.closest('form');f.elements.price.addEventListener('input',()=>earnShow(f));f.addEventListener('reset',()=>setTimeout(()=>earnShow(f)));earnShow(f)});
 const SCHOOL={matric:/^[A-Za-z0-9\/-]{4,16}$/};
+// Same rule as the server: an 11-digit Nigerian mobile number, not an obviously made-up one.
+const phoneErr=v=>{let d=String(v||'').replace(/\D/g,'');if(d.startsWith('234')&&d.length===13)d='0'+d.slice(3);if(!/^0[789][01]\d{8}$/.test(d))return 'Enter your 11-digit WhatsApp number, like 0803 123 4567.';const t=d.slice(3);
+  if(/(\d)\1{6,}/.test(t)||'01234567890123456789'.includes(t)||'98765432109876543210'.includes(t))return 'That doesn\'t look like a real number. Enter the one buyers and sellers can reach you on.';return ''};
 // Schools across Nigeria, for sign-up, the school switcher and store locations.
 let SCH=[],STATES=[],CFG={name:'Stall',phone:'',email:''};const schLabel=x=>x.name+(x.short?' ('+x.short+')':'')+' — '+x.state;
 fetch('/api/schools').then(r=>r.json()).then(r=>{SCH=r.schools||[];STATES=r.states||[];$('#schoolList').innerHTML=SCH.map(x=>`<option value="${esc(schLabel(x))}">`).join('');document.querySelectorAll('select[name=school_state]').forEach(fillStates)}).catch(()=>{});
@@ -1875,7 +1886,7 @@ function vendorGate(g){
     const sb0=schoolBody(f);if(sb0.error)er.school=sb0.error;
     if(v('biz').length<2)er.biz='Enter your business name.';
     if(v('name').length<3)er.name='Enter your full name.';
-    if(ph.length<10||ph.length>14)er.phone='Enter a valid WhatsApp number.';
+    if(phoneErr(ph))er.phone=phoneErr(ph);
     if(v('where').length<3)er.where='Where on campus is your shop?';
     if(f.elements.pw.value.length<8)er.pw='Use at least 8 characters.';
     if(!f.elements.ok.checked)er.ok='Please confirm to continue.';
@@ -2259,7 +2270,7 @@ function aVendor(x){const[l,kk]={active:['Approved','ok'],pending:['Waiting for 
    <div class="aacts">${x.status==='active'?`<button class="pill sm alt" data-avs="${x.id}" data-to="suspended">Suspend</button>`:`<button class="pill sm" data-avs="${x.id}" data-to="active">${x.status==='pending'?'Approve':'Reactivate'}</button>`}</div></div>`}
 function aUser(x){const st=x.role==='vendor';
   return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(st&&x.biz?x.biz+' ('+x.name+')':x.name)}</b>${bdg(st?'Vendor':'Student')}${x.is_admin?bdg('Admin','ok'):''}${x.reviewer?bdg('Reviewer','ok'):''}${x.verified?bdg('✓ Verified','ok'):''}${x.status&&x.status!=='active'?bdg(x.status==='pending'?'Waiting for approval':'Suspended','warn'):''}</div>
-   <small>${x.matric?esc(x.matric)+' · ':''}${wa(x.phone)}${x.email?' · '+esc(x.email):''}${x.place?' · '+esc(x.place):''}</small><small>Joined ${aAgo(x.created)}</small></div>
+   <small>${x.matric?esc(x.matric)+' · ':''}${wa(x.phone)}${x.email?' · '+esc(x.email):''}${x.place?' · '+esc(x.place):''}</small>${x.oddPhone?'<small class="flag">⚠ This phone number looks unusual. Check it\'s real before trusting the account.</small>':''}${x.matric_claim?`<small class="flag">Signed up with matric ${esc(x.matric_claim)}, which another account already has. It moves to them if they verify with a school document.</small>`:''}<small>Joined ${aAgo(x.created)}</small></div>
    <div class="aacts">${x.is_admin?'':`<button class="pill sm alt" data-arv="${esc(x.phone)}" data-add="${x.reviewer?0:1}">${x.reviewer?'Remove reviewer':'Make reviewer'}</button>${x.verified?`<button class="pill sm alt" data-unv="${x.id}">Remove badge</button>`:''}<button class="pill sm alt" data-apw="${x.id}" data-nm="${esc(x.name)}" data-ph="${esc(x.phone)}">Reset password</button>${x.status==='suspended'?`<button class="pill sm" data-avs="${x.id}" data-to="active">Reactivate</button>`:`<button class="pill sm red" data-avs="${x.id}" data-to="suspended">Suspend</button>`}`}</div></div>`}
 function aVer(x){const[l,kk]={pending:['Waiting','warn'],approved:['Approved, not paid','ok'],paid:['Verified','ok'],rejected:['Not approved','bad']}[x.status]||[x.status,''],p=x.status==='pending';
   return `<div class="arow"><img class="rimg" data-zoom src="/api/admin/verify-photo/${x.uid}?t=${x.updated}" alt="ID photo" loading="lazy"><div class="t"><div class="ttl"><b>${esc(x.biz?x.biz+' ('+x.name+')':x.name)}</b>${bdg(x.role==='vendor'?'Vendor':'Student')}${bdg(l,kk)}</div>
@@ -2283,10 +2294,10 @@ function aCode(x){const[l,kk]=x.biz?['Used by '+x.biz,'ok']:x.active?['Not used 
    <div class="aacts">${x.active&&!x.biz?`<button class="pill sm alt" data-copy="${esc(x.code)}">Copy</button><button class="pill sm alt" data-aoff="${esc(x.code)}">Turn off</button>`:''}</div></div>`}
 function aIdc(x){const[l,k]={pending:['Waiting','warn'],approved:['Approved','ok'],rejected:['Rejected','bad']}[x.status]||[x.status,''];
   return `<div class="arow"><img class="rimg" data-zoom src="/api/admin/id-photo/${x.uid}" alt="Document from ${esc(x.name)}" loading="lazy"><div class="t"><div class="ttl"><b>${esc(x.name)}</b>${bdg(l,k)}</div>
-   <small>${({admission:'Admission letter',courseform:'Course registration form',fees:'School fees receipt'})[x.kind]||'Student ID'} · ${esc(x.school||'')} · matric ${esc(x.matric||'')}</small><small>${wa(x.phone)}${x.email?' · '+esc(x.email)+(x.email_verified?' ✓':''):''}</small>
+   <small>${({admission:'Admission letter',courseform:'Course registration form',fees:'School fees receipt'})[x.kind]||'Student ID'} · ${esc(x.school||'')} · matric ${esc(x.matric||x.matric_claim||'')}${x.matric_claim?' (claimed from another account)':''}</small><small>${wa(x.phone)}${x.email?' · '+esc(x.email)+(x.email_verified?' ✓':''):''}</small>
    ${x.ai&&x.ai!=='yes'?`<small class="flag">Automatic check: ${esc(x.ai)}</small>`:''}${x.reason?`<small>Reason: ${esc(x.reason)}</small>`:''}<small>${aAgo(x.updated)}</small></div>
    ${x.status==='pending'?`<div class="aacts"><button class="pill sm" data-idok="${x.uid}">Approve</button><button class="pill sm alt" data-idno="${x.uid}">Reject</button></div>`:''}</div>`}
-function aPay(x){const[l,k]={paid:['Paid','ok'],processing:['Sending','warn'],queued:['Queued','warn'],failed:['Failed','bad']}[x.status]||[x.status,''];
+function aPay(x){const[l,k]=x.status==='failed'&&/^Held:/.test(x.err||'')?['Held: name check','warn']:{paid:['Paid','ok'],processing:['Sending','warn'],queued:['Queued','warn'],failed:['Failed','bad']}[x.status]||[x.status,''];
   return `<div class="arow"><div class="t"><div class="ttl"><b>${naira(x.amount)} to ${esc(x.sellerName)}</b>${bdg(l,k)}</div><small>Order #${x.oid} · ${esc(x.title)}</small><small>${esc(x.bank||'')} ${esc(x.acct||'')} (${esc(x.acctName||'')}) ${wa(x.sellerPhone)}</small>
    ${x.err?`<small class="flag">${esc(x.err)}</small>`:''}<small>${x.how==='manual'?'Marked paid by hand · ':''}${x.tries} attempt${x.tries===1?'':'s'} · ${aAgo(x.updated)}</small></div>
    ${x.status==='failed'?`<div class="aacts"><button class="pill sm" data-pretry="${x.oid}">Retry</button><button class="pill sm alt" data-pmanual="${x.oid}">I paid by hand</button></div>`:''}</div>`}
@@ -2294,7 +2305,8 @@ function aBank(x){return `<div class="arow"><div class="t"><div class="ttl"><b>$
    <div class="aacts"><button class="pill sm" data-abank="${x.kind}:${x.id}">Confirm</button></div></div>`}
 async function regSend(f,body){const b=f.querySelector('[type=submit]');b.disabled=true;let ref='';try{ref=localStorage.getItem('stall:ref')||''}catch(e){}const r=await apiPost('register',{...body,ref});b.disabled=false;
   if(r.error){f.querySelectorAll('[data-e]').forEach(x=>x.textContent='');(f.querySelector('[data-e="'+r.field+'"]')||f.querySelector('[data-e="ok"]')).textContent=r.error;return}
-  S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();loadPub();view('shop');toast('Welcome to Stall, '+(S.user.biz||S.user.name.split(' ')[0]))}
+  S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();loadPub();view('shop');toast('Welcome to Stall, '+(S.user.biz||S.user.name.split(' ')[0]));
+  if(S.user.role!=='vendor'&&(r.claim||(CFG.emailOn&&S.user.email&&!S.user.emailVerified)))setTimeout(()=>afterSignup(!!r.claim),900)}
 function loginGate(g){g.innerHTML=`<div class="gin" style="text-align:left"><h1 style="font-size:36px">Sign in</h1><p style="margin-bottom:6px">Use your matric number or phone number.</p>
    <form id="lg" novalidate><label>Matric number or phone<input name="id" autocapitalize="characters" autocomplete="username"></label>
     <label>Password<input name="pw" type="password" autocomplete="current-password"><span class="err" data-e="id"></span></label>
@@ -2305,7 +2317,7 @@ function loginGate(g){g.innerHTML=`<div class="gin" style="text-align:left"><h1 
     if(r.error){f.querySelector('[data-e=id]').textContent=r.error;return}
     S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();loadPub();view('shop');toast('Welcome back, '+(S.user.biz||S.user.name.split(' ')[0]))}}
 function gate(){drawGuide();
-  const g=$('#gate');$('#who').textContent=S.user?`Signed in as ${S.user.name} (${S.user.role==='vendor'?'campus vendor':S.user.matric}).`:'';$('#signOut').hidden=!S.user;$('#pwBtn').hidden=!S.user;$('#verifyBtn').hidden=!S.user||!!S.user.verified;$('#adminBtn').hidden=!(S.user&&(S.user.admin||S.user.reviewer));$('#adminBtn').textContent=S.user&&S.user.admin?'Admin':'Review orders';
+  const g=$('#gate');$('#who').textContent=S.user?`Signed in as ${S.user.name} (${S.user.role==='vendor'?'campus vendor':S.user.matric||'matric not confirmed yet'}).`:'';$('#signOut').hidden=!S.user;$('#pwBtn').hidden=!S.user;$('#verifyBtn').hidden=!S.user||!!S.user.verified;$('#adminBtn').hidden=!(S.user&&(S.user.admin||S.user.reviewer));$('#adminBtn').textContent=S.user&&S.user.admin?'Admin':'Review orders';
   const isV=!!S.user&&S.user.role==='vendor';$('#sellBtn').hidden=isV;$('#sellHero').hidden=isV;
   if(S.user&&S.user.role==='vendor'&&S.user.status&&S.user.status!=='active'){g.hidden=false;g.scrollTo(0,0);const sus=S.user.status==='suspended';
     g.innerHTML=`<div class="gin"><h1>${sus?'Account suspended':'Waiting for approval'}</h1><p>${sus?'Your shop has been suspended. Message the Stall team to find out why.':'Thanks for signing up, '+esc(S.user.biz)+'. The Stall team has been told and will approve your shop shortly. Tap below to check again.'}</p><div class="acts"><button class="pill" id="pendRefresh">Check again</button></div><p style="margin-top:14px"><button class="link" id="pendOut">Sign out</button></p></div>`;return}
@@ -2333,7 +2345,7 @@ function gate(){drawGuide();
     if(v('name').length<3)er.name='Enter your full name.';
     if(!SCHOOL.matric.test(v('matric')))er.matric='Enter your matric number as it appears on your student ID.';
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(v('email')))er.email='Enter a valid email address.';
-    if(ph.length<10||ph.length>14)er.phone='Enter a valid WhatsApp number.';
+    if(phoneErr(ph))er.phone=phoneErr(ph);
     if(f.elements.pw.value.length<8)er.pw='Use at least 8 characters.';
     if(v('where').length<2)er.where='Enter your hostel or where you stay, so buyers and sellers can meet you.';
     if(!f.elements.ok.checked)er.ok='Please confirm to continue.';
