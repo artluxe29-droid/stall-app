@@ -1,4 +1,4 @@
-import json,re,sys
+import json,re,sys,os
 src=open('../../index.html').read()
 I={k:v for k,v in re.findall(r"(\w+):'(<[^']*)'",src[src.index('const ICO='):src.index('const ico=')])}
 I['search']='<circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>';I['sun']='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';I['tag']='<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>';I['user']='<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>';I['mic']='<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'
@@ -32,7 +32,7 @@ for ep in sys.argv[1:]:
   h=open('shell.html').read().replace('%SCREENS%',open(ep+'.screens.html').read())
   if ep=='e1':h=h.replace('%HOME%',home.replace('class="s"','class="s" style="z-index:2"'))
   elif ep in('e2','e4'):h=h.replace('%HOME%',home.replace('class="s"','class="s on"'))
-  for k,v in {'%EP%':ep,'%NUM%':n,'%TITLE%':words,'%SUB%':sub,'%OUTRO%':outro,'%NEXT%':nxt,'%GRID%':grid,'%RES%':res,'%TABS%':tabs(False),'%CODE%':''.join(f'<span>{c}</span>' for c in 'STALL-7K2Q9M'),'%AWN6%':'<i></i>'*6,'%AWN%':'<i></i>'*8,'%DOMAIN%':'stall-app.pages.dev'}.items():h=h.replace(k,v)
+  for k,v in {'%EP%':ep,'%NUM%':n,'%TITLE%':words,'%SUB%':sub,'%OUTRO%':outro,'%NEXT%':nxt,'%GRID%':grid,'%RES%':res,'%TABS%':tabs(False),'%CODE%':''.join(f'<span>{c}</span>' for c in 'STALL-7K2Q9M'),'%AWN6%':'<i></i>'*6,'%AWN%':'<i></i>'*8,'%DOMAIN%':os.environ.get('STALL_LINK','Get the Stall app')}.items():h=h.replace(k,v)
   h=re.sub(r'\$\{(\w+?)(\d*)\}',lambda m:svg(m.group(1),int(m.group(2) or 14)),h)
   open(ep+'.built.html','w').write(h)
 print('built')
