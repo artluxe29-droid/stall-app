@@ -1,0 +1,79 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<script src="icons.js"></script><script src="engine.js"></script>
+</head><body><div id="stage">
+<div class="awn top">%AWN%</div>
+<!-- intro -->
+<div id="intro"><span class="pill">STALL HOW-TO · EPISODE 1</span><h1><span class="w">How</span> <span class="w">to</span> <span class="w">buy</span> <span class="w hl">safely</span> <span class="w">on</span> <span class="w">Stall</span></h1><p>6 quick steps · under a minute</p></div>
+<div id="caps"></div>
+<!-- phone -->
+<div id="phone"><div class="scr">
+ <section id="s-home" class="s on">
+  <div class="sb"><b>9:41</b><span>●●● ▮</span></div>
+  <div class="hd"><img src="wm-indigo.svg"><span class="hi">${bag}</span></div>
+  <div class="hero"><b>Everything you need,</b><b class="l">right on campus.</b><small>From students at your school</small></div>
+  <div class="srch" id="hSearch">${search}<span>Search textbooks, food, gadgets…</span></div>
+  <div class="chips"><i class="on">All</i><i>Books</i><i>Food</i><i>Tech</i><i>Fashion</i></div>
+  <div class="grid">%GRID%</div>
+  <div class="tabbar">%TABS%</div>
+ </section>
+ <section id="s-search" class="s">
+  <div class="sb"><b>9:41</b><span>●●● ▮</span></div>
+  <div class="hd2"><span class="bk">←</span><div class="srch act">${search}<span id="typed"></span></div></div>
+  <p class="lbl">Results near you</p>
+  <div id="res">%RES%</div>
+ </section>
+ <section id="s-item" class="s">
+  <div class="itile"><span class="bk2">←</span>${book48}<em class="left">Only 2 left</em></div>
+  <div class="ipad"><h3>Casio fx-991ES Plus calculator</h3><div class="pr">₦8,500</div>
+   <div class="sell" id="seller"><span class="av">AO</span><div><b>Ada Okafor</b><small>Hall B · ★ 4.9 (31)</small></div><em class="vb">✓ Verified student</em></div>
+   <p class="meta">${pin} Pick up at Hall B · Delivery ₦300</p></div>
+  <button class="btn" id="addBag">Add to bag</button>
+ </section>
+ <section id="s-pay" class="s">
+  <div class="sb"><b>9:41</b><span>●●● ▮</span></div>
+  <div class="ppad"><h3>Pay Ada Okafor</h3>
+   <div class="opt on"><i class="rd"></i><div><b>Pick up</b><small>At Hall B. Free.</small></div></div>
+   <div class="opt"><i class="rd"></i><div><b>Delivery · ₦300</b><small>The seller brings it to you.</small></div></div>
+   <div class="tot"><span>Total</span><b>₦8,500</b></div>
+   <p class="meta">Stall holds your money until you have your order, and gives you a release code for the seller.</p>
+   <button class="btn" id="payBtn">Pay ₦8,500 securely</button><p class="meta c">Complete payment within <b>19:58</b></p></div>
+ </section>
+ <section id="s-ps" class="s">
+  <div class="sb"><b>9:41</b><span>●●● ▮</span></div>
+  <div class="ppad"><div class="secure">${lock} Secure checkout</div><div class="amt">₦8,500</div><small class="meta">To Stall · held for Ada Okafor</small>
+   <div class="way on">💳 <span>Card</span></div><div class="way">🏦 <span>Bank transfer</span></div><div class="way">#️⃣ <span>USSD</span></div>
+   <button class="btn" id="psBtn">Pay</button></div>
+  <div class="spin" id="spin"><i></i></div>
+ </section>
+ <section id="s-code" class="s">
+  <div class="sb"><b>9:41</b><span>●●● ▮</span></div>
+  <div class="cpad"><svg class="ok" viewBox="0 0 72 72"><circle cx="36" cy="36" r="30"/><path d="M23 37l9 9 18-20"/></svg>
+   <h3>Payment verified ✓</h3><p class="meta">Your release code</p>
+   <div class="code" id="code">%CODE%</div>
+   <p class="meta">Show this to Ada when you collect your calculator.</p>
+   <div class="held" id="held">${lock} Stall is holding your ₦8,500</div>
+   <button class="btn alt">Send code on WhatsApp</button></div>
+ </section>
+ <section id="s-hand" class="s">
+  <div class="sb"><b>9:41</b><span>●●● ▮</span></div>
+  <div class="hpad">
+   <div class="who" id="sellerC"><span class="av">AO</span><div><b>Ada · seller</b><small id="sst">Waiting for your code</small></div><em id="paid">Paid ₦8,075 ✓</em></div>
+   <div class="got" id="got">${book}<div><b>Calculator in your hands</b><small>Checked it? It works?</small></div><i>✓</i></div>
+   <div class="fly" id="fly">STALL-7K2Q9M</div>
+   <div class="who me" id="me"><span class="av b">You</span><div><b>You · buyer</b><small>Give the code only when you have it</small></div></div>
+   <div class="done" id="done">Order complete ✓</div>
+  </div>
+ </section>
+ <div class="dim" id="dim"></div>
+ <div class="sheet" id="sheet"><i class="grab"></i><h3>Your bag</h3>
+  <div class="line">${book}<div><b>Casio fx-991ES Plus</b><small>Ada Okafor</small></div><span>₦8,500</span></div>
+  <div class="tot"><span>Total</span><b>₦8,500</b></div>
+  <div class="agree" id="agree"><i class="cb" id="cb"><s>✓</s></i><span>I agree Stall holds my payment until I have my order.</span></div>
+  <button class="btn" id="cont">Continue</button></div>
+</div></div>
+<div id="outro"><img src="wm-indigo.svg" class="owm"><h2>No more stalling.<br><span class="hl">Stall it.</span></h2><p>Your money is held until it's in your hands.</p><span class="url">%DOMAIN%</span></div>
+<div class="foot" id="foot"><img src="wm-indigo.svg"></div>
+</div>
+<script src="ep1.js"></script>
+</body></html>
