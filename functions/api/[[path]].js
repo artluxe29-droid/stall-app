@@ -75,7 +75,7 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   for(const s0 of stale)if((await env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,s0.id).run()).meta.changes)ids.push(s0.id);
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='28';
+const SCHEMA_V='29';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -119,7 +119,7 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'ALTER TABLE users ADD COLUMN ref_code TEXT','ALTER TABLE users ADD COLUMN referred_by INTEGER','ALTER TABLE users ADD COLUMN ref_paid INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN credit INTEGER NOT NULL DEFAULT 0',
     'CREATE UNIQUE INDEX IF NOT EXISTS users_ref_code ON users(ref_code)','CREATE INDEX IF NOT EXISTS users_referred_by ON users(referred_by)',
     'CREATE TABLE IF NOT EXISTS credit_log(id INTEGER PRIMARY KEY AUTOINCREMENT,uid INTEGER NOT NULL,amt INTEGER NOT NULL,why TEXT,t INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS credit_log_uid ON credit_log(uid,t)',
-    'ALTER TABLE stores ADD COLUMN logo TEXT','ALTER TABLE stores ADD COLUMN founding INTEGER','CREATE INDEX IF NOT EXISTS stores_founding ON stores(school_id,founding)','ALTER TABLE stores ADD COLUMN logo_v INTEGER',
+    'ALTER TABLE stores ADD COLUMN logo TEXT','ALTER TABLE stores ADD COLUMN founding INTEGER',"UPDATE collect_pays SET matric=NULL WHERE matric=(SELECT phone FROM users WHERE users.id=collect_pays.uid)",'CREATE INDEX IF NOT EXISTS stores_founding ON stores(school_id,founding)','ALTER TABLE stores ADD COLUMN logo_v INTEGER',
     'ALTER TABLE orders ADD COLUMN method TEXT','ALTER TABLE orders ADD COLUMN addr TEXT','ALTER TABLE orders ADD COLUMN dphone TEXT','ALTER TABLE orders ADD COLUMN dstage TEXT','ALTER TABLE orders ADD COLUMN track TEXT',
     'CREATE INDEX IF NOT EXISTS listings_school ON listings(school_id,created)','CREATE INDEX IF NOT EXISTS listings_state ON listings(state,created)','CREATE INDEX IF NOT EXISTS listings_review ON listings(review)','CREATE INDEX IF NOT EXISTS stores_school ON stores(school_id)',
     'ALTER TABLE orders ADD COLUMN pin_lat REAL','ALTER TABLE orders ADD COLUMN pin_lng REAL',
@@ -649,7 +649,7 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
         if(!x.res.dup&&!x.res.again)await env.DB.prepare('INSERT OR IGNORE INTO payments(ref,uid,kind,target,label,days,amount,created) VALUES(?,?,?,?,?,?,?,?)').bind(ref+'/'+x.res.oid,u.id,'commission','O'+x.res.oid,x.label,null,x.res.fee||0,now).run()}
       res={oids,status:all?'verified':'mixed'};act='paid '+oids.length+' orders in one payment (#'+oids.join(', #')+')'}
     else if(p.kind==='collect'){const c=await env.DB.prepare('SELECT * FROM collections WHERE id=?').bind(d.cid).first();if(!c)throw new Error('collection missing');
-      const ins=await env.DB.prepare('INSERT OR IGNORE INTO collect_pays(cid,uid,name,matric,amount,fee,ref,created) VALUES(?,?,?,?,?,?,?,?)').bind(c.id,u.id,u.name,u.matric||u.phone,d.amount,d.fee||0,ref,now).run();
+      const ins=await env.DB.prepare('INSERT OR IGNORE INTO collect_pays(cid,uid,name,matric,amount,fee,ref,created) VALUES(?,?,?,?,?,?,?,?)').bind(c.id,u.id,u.name,u.matric||null,d.amount,d.fee||0,ref,now).run();
       if(!ins.meta.changes)await tg(env,'Paid twice for a class collection: '+u.name+' ('+u.phone+') paid again for "'+c.title+'" (reference '+ref+'). The money went to the class rep; ask them to refund it.');
       res={code:c.code,title:c.title};act='paid into a class collection';label='Class: '+c.title}
     else if(p.kind==='verify'){await env.DB.prepare('UPDATE users SET verified=1 WHERE id=?').bind(u.id).run();await env.DB.prepare("UPDATE verify_requests SET status='paid',updated=? WHERE uid=?").bind(now,u.id).run();act='paid for verified badge'}
@@ -1271,6 +1271,9 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
         waitUntil(notify(env,o.seller,'Buyer accepted: '+o.title,'Your report was accepted',['The buyer accepted your report on <b>'+esc(o.title)+'</b>, so you\'re being paid.'],...go))}
       return J({ok:true})}
     if(path==='orders/cancel'){
+      // Not paid yet: the buyer can simply drop it. The stock goes back; nobody gets a strike.
+      if(o.status==='pending'&&side==='buyer'){if(!(await env.DB.prepare("UPDATE orders SET status='expired',note='You cancelled this order before paying.',updated=? WHERE id=? AND status='pending'").bind(Date.now(),o.id).run()).meta.changes)return J({error:'This order is no longer waiting for payment.'},400);
+        await restock(env,[o.id]);await bumpVer(env);return J({ok:true})}
       if(o.status!=='verified')return J({error:'Only paid orders waiting for delivery can be cancelled.'},400);
       const early=(o.dstage||'paid')==='paid';
       if(side==='buyer'){
