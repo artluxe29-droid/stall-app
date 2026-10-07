@@ -32,7 +32,5 @@ node render.mjs e1 30                    # → e1.mp4 with the voice-over
 ```
 
 The ending shows "Get the Stall app". Once Stall has its own domain, put it there instead: `STALL_LINK=stall.ng python3 build2.py e1 e2 e3 e4`, then render again.
-```
-```
 
 To change the wording, edit the script and run the four steps again; the animation re-times itself to the new speech.
