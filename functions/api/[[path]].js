@@ -305,6 +305,13 @@ async function earnRows(env,from,to){
   const back=(await env.DB.prepare("SELECT o.id,o.title,o.updated t,o.buyer_name,p.ref,p.amount FROM orders o JOIN payments p ON p.kind='commission' AND p.target='O'||o.id WHERE o.status='refunded' AND o.updated>=? AND o.updated<? AND p.amount>0").bind(from,to).all()).results;
   return[...pays.map(r=>({t:r.t,ref:r.ref,cat:r.kind==='boost'?(String(r.target||'')[0]==='S'?'boostS':'boostL'):r.kind,label:r.kind==='commission'?'Sale fee: '+(r.label||r.target||''):r.label||r.kind,who:r.name?r.name+' ('+r.phone+')':'',amount:r.amount})),
     ...back.map(r=>({t:r.t,ref:r.ref+'-R',cat:'refund',label:'Refunded order #'+r.id+': '+r.title,who:r.buyer_name||'',amount:-r.amount}))].sort((a,b)=>a.t-b.t)}
+// Money moved through Stall (not Stall's earnings): every order buyers paid, every collection payment and every payment for Stall's own services.
+const VOL_CATS=[['orders','Orders paid by buyers'],['collect','Group collection payments'],['services','Stall services (stores, featuring, badges)']];
+async function volRows(env,from,to){
+  const o=(await env.DB.prepare("SELECT paid_at t,amount,status FROM orders WHERE paid_at>=? AND paid_at<? AND paid_via='paystack'").bind(from,to).all()).results;
+  const c=(await env.DB.prepare('SELECT created t,amount+fee amount FROM collect_pays WHERE created>=? AND created<?').bind(from,to).all().catch(()=>({results:[]}))).results;
+  const p=(await env.DB.prepare("SELECT created t,amount FROM payments WHERE created>=? AND created<? AND amount>0 AND kind<>'commission' AND kind<>'collect'").bind(from,to).all()).results;
+  return[...o.map(r=>({t:r.t,amount:r.amount||0,cat:'orders',refunded:r.status==='refunded'})),...c.map(r=>({t:r.t,amount:r.amount||0,cat:'collect'})),...p.map(r=>({t:r.t,amount:r.amount||0,cat:'services'}))]}
 const sumCats=rows=>EARN_CATS.map(([k,l])=>{const x=rows.filter(r=>r.cat===k);return{key:k,label:l,n:x.length,amt:x.reduce((a,r)=>a+r.amount,0)}}).filter(c=>c.n||c.key!=='refund');
 // Text that starts like a formula (= + - @) is prefixed with ' so spreadsheet apps show it as text instead of running it.
 const csvCell=v=>{let t=String(v==null?'':v);if(/^[=+\-@\t\r]/.test(t)&&!/^-?\d+(\.\d+)?$/.test(t))t="'"+t;return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t};
@@ -674,7 +681,8 @@ async function route({request,env,params,waitUntil}){
       if(t('code')&&!await env.DB.prepare('SELECT 1 FROM vendor_codes WHERE code=? AND active=1 AND used_by IS NULL').bind(t('code').toUpperCase()).first())return bad('code','That invite code is not valid or was already used. Ask the Stall team for one.');
     }else{matric=t('matric').toUpperCase();email=t('email').toLowerCase();
       if(!/^[A-Z0-9\/\-]{4,16}$/.test(matric))return bad('matric','Enter your matric number as it appears on your student ID.');
-      if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email))return bad('email','Enter a valid email address.');}
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email))return bad('email','Enter a valid email address.');
+      if(t('where').length<2)return bad('where','Enter your hostel or where you stay.');}
     const salt=rnd(16);
     try{const r=await env.DB.prepare('INSERT INTO users(role,name,matric,email,phone,place,biz,cat,salt,pw,created,status,school_id,state) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(vendor?'vendor':'student',name,matric,email,phone,t('where').slice(0,40),biz,cat,salt,await pbk(pass,salt),Date.now(),vendor&&!t('code')?'pending':'active',sc.id,sc.state).run();
       if(vendor&&t('code'))await env.DB.prepare('UPDATE vendor_codes SET used_by=? WHERE code=?').bind(r.meta.last_row_id,t('code').toUpperCase()).run();
@@ -1431,11 +1439,12 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       await logA(env,a,'other',b.id?'approved/updated school':'added school',n+' · '+st);return J({ok:true})}
     // Wipes everything people made while testing, before going live. Test Paystack keys only; admins, settings and schools stay.
     if(path==='admin/clear-test'){if(!/^sk_test_/.test(env.PAYSTACK_SECRET||''))return J({error:'Clearing is only possible while Stall uses a Paystack test key, so real data can\'t be wiped by mistake.'},403);
-      const T=['orders','order_items','payouts','payments','pending_pay','threads','msgs','reviews','strikes','evidence','collections','collect_pays','listings','photos','store_items','stores','verify_requests','id_checks','push_subs','notes','credit_log','attempts','codes','vendor_codes','ps_recips','ps_subs'];
+      const T=['orders','order_items','payouts','payments','pending_pay','threads','msgs','reviews','strikes','evidence','collections','collect_pays','listings','photos','store_items','stores','verify_requests','id_checks','push_subs','notes','credit_log','attempts','codes','vendor_codes','ps_recips','ps_subs','reports','blocks','trips','bank_seen'];
       const cnt=async q=>(await env.DB.prepare(q).first().catch(()=>({c:0}))).c;
       const what={users:await cnt('SELECT COUNT(*) c FROM users WHERE IFNULL(is_admin,0)=0'),orders:await cnt('SELECT COUNT(*) c FROM orders'),listings:await cnt('SELECT COUNT(*) c FROM listings'),stores:await cnt('SELECT COUNT(*) c FROM stores'),payments:await cnt('SELECT COUNT(*) c FROM payments'),chats:await cnt('SELECT COUNT(*) c FROM threads'),collections:await cnt('SELECT COUNT(*) c FROM collections')};
       if(request.method!=='POST')return J({what},200,{'cache-control':'no-store'});
       if(!a.is_admin)return J({error:'Not allowed'},403);if(b.confirm!=='CLEAR')return J({error:'Type CLEAR to confirm.'},400);
+      if(env.PHOTOS){const sl=(await env.DB.prepare('SELECT id FROM stores WHERE logo IS NOT NULL').all()).results;for(const x of sl)await env.PHOTOS.delete('logo/'+x.id).catch(()=>{})}
       if(env.PHOTOS){const lids=(await env.DB.prepare('SELECT DISTINCT lid FROM photos').all()).results.map(r=>r.lid);for(let i=0;i<lids.length;i+=50)await delPhotos(env,lids.slice(i,i+50)).catch(()=>{})}
       for(const t of T)await env.DB.prepare('DELETE FROM '+t).run().catch(()=>{});
       await env.DB.prepare("DELETE FROM sessions WHERE uid NOT IN (SELECT id FROM users WHERE is_admin=1)").run();
@@ -1479,6 +1488,19 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       return J({range:Object.keys({'7d':1,'30d':1,'90d':1,'6m':1,'12m':1,all:1}).find(k=>k===url.searchParams.get('range'))||'30d',unit:R[1],from:dayK(from),to:dayK(now),buckets:keys.map(k=>bk[k]),cats:sumCats(rows),
         total:rows.reduce((a,r)=>a+r.amount,0),count:rows.filter(r=>r.amount>0).length,
         quick:{today:tot(d0,now+1),yesterday:tot(d0-864e5,d0),week:tot(d0-6*864e5,now+1),month:tot(watMs(Y,M-1,1),now+1),lastMonth:tot(lm,watMs(Y,M-1,1))}})}
+    if(path==='admin/volume'&&request.method==='GET'){if(!a.is_admin)return J({error:'Only admins can see money figures.'},403);
+      const now=Date.now(),[Y,M,D]=dayK(now).split('-').map(Number),rk=url.searchParams.get('range'),R={'7d':[7,'day'],'30d':[30,'day'],'90d':[90,'day'],'6m':[6,'month'],'12m':[12,'month'],'all':[0,'year']}[rk]||[30,'day'];
+      const first=Math.min(...(await Promise.all([env.DB.prepare("SELECT MIN(paid_at) t FROM orders WHERE paid_via='paystack'").first(),env.DB.prepare('SELECT MIN(created) t FROM payments').first(),env.DB.prepare('SELECT MIN(created) t FROM collect_pays').first().catch(()=>null)])).map(x=>x&&x.t||now));
+      const all=await volRows(env,first,now+1),keys=[],len=R[1]==='day'?10:R[1]==='month'?7:4;let from;
+      if(R[1]==='day'){from=watMs(Y,M-1,D-R[0]+1);for(let t=from;t<=now;t+=864e5)keys.push(dayK(t))}
+      else if(R[1]==='month'){from=watMs(Y,M-R[0],1);const[y0,m0]=dayK(from).split('-').map(Number);for(let y=y0,m=m0;y<Y||(y===Y&&m<=M);m===12?(y++,m=1):m++)keys.push(y+'-'+String(m).padStart(2,'0'))}
+      else{const y0=+dayK(first).slice(0,4);from=watMs(y0,0,1);for(let y=y0;y<=Y;y++)keys.push(String(y))}
+      const rows=all.filter(r=>r.t>=from),bk=Object.fromEntries(keys.map(k=>[k,{k,amt:0,n:0}]));for(const r of rows){const b=bk[dayK(r.t).slice(0,len)];if(b){b.amt+=r.amount;b.n++}}
+      const d0=watMs(Y,M-1,D),dow=(new Date(d0+WAT).getUTCDay()+6)%7,tot=f=>{const x=all.filter(r=>r.t>=f);return{amt:x.reduce((a,r)=>a+r.amount,0),n:x.length}};
+      return J({range:['7d','30d','90d','6m','12m','all'].includes(rk)?rk:'30d',unit:R[1],from:dayK(from),to:dayK(now),buckets:keys.map(k=>bk[k]),
+        cats:VOL_CATS.map(([k,l])=>{const x=rows.filter(r=>r.cat===k);return{key:k,label:l,n:x.length,amt:x.reduce((a,r)=>a+r.amount,0)}}),
+        refunded:rows.filter(r=>r.refunded).reduce((a,r)=>a+r.amount,0),total:rows.reduce((a,r)=>a+r.amount,0),count:rows.length,
+        quick:{today:tot(d0),week:tot(d0-dow*864e5),month:tot(watMs(Y,M-1,1)),year:tot(watMs(Y,0,1)),all:tot(0)}})}
     if(path==='admin/earnings.csv'&&request.method==='GET'){if(!a.is_admin)return J({error:'Only admins can download earnings.'},403);
       const pd=x=>/^\d{4}-\d{2}-\d{2}$/.test(x||'')?x.split('-').map(Number):null,f=pd(url.searchParams.get('from')),t=pd(url.searchParams.get('to'));
       if(!f||!t)return J({error:'Pick a start and end date.'},400);const from=watMs(f[0],f[1]-1,f[2]),to=watMs(t[0],t[1]-1,t[2]+1);if(to<=from)return J({error:'The end date must be on or after the start date.'},400);

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>try{var t=localStorage.getItem("stall:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 <title>Stall – buy and sell on campus</title>
-<meta name="description" content="Buy and sell with students at your school, across your state, or anywhere in Nigeria. Stall holds your money until you have your order."><meta property="og:title" content="Stall – buy and sell on campus"><meta property="og:description" content="Textbooks, gadgets, fashion, hostel gear and food from students near you. Payments held until you have your order."><meta property="og:image" content="/icons/icon-512-v3.png"><meta property="og:type" content="website"><meta name="twitter:card" content="summary">
+<meta name="description" content="Buy and sell with students at your school, across your state, or anywhere in Nigeria. Stall holds your money until you have your order."><meta property="og:title" content="Stall – buy and sell on campus"><meta property="og:description" content="Textbooks, gadgets, fashion, hostel gear and food from students near you. Payments held until you have your order."><meta property="og:image" content="/icons/og-default.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:type" content="website"><meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml"><link rel="icon" href="/icons/favicon-48-v3.png" sizes="48x48"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#F6F2EA" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#0F1330" media="(prefers-color-scheme: dark)"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Stall"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="apple-touch-icon" href="/icons/apple-touch-icon-v3.png">
 <link rel="preload" href="/brand/fonts/figtree-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/brand/fonts.css">
 <style>
@@ -304,6 +304,12 @@ html.dark-ui input:not([type=checkbox]):not([type=radio]):not([type=range]),html
 .vb{display:inline-block;font-size:12px;font-weight:600;color:var(--green);white-space:nowrap}
 .fsb{display:inline-flex;align-items:center;gap:5px;background:#C8F03C;color:#1C2457;font-size:12.5px;font-weight:800;padding:4px 11px 4px 8px;border-radius:99px;border:0;white-space:nowrap;font-family:inherit}.fsb .ic{width:15px;height:15px}.fsb.sm{font-size:11px;padding:2px 8px 2px 6px;margin:2px 0 4px}.fsb.sm .ic{width:13px;height:13px}button.fsb{cursor:pointer}
 .kitseg{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:0 0 12px}.kcap{border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;margin-top:8px;display:flex;gap:10px;align-items:flex-start}.kcap p{margin:0;flex:1;font-size:13.5px}
+.ogh{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:6px 0 10px;display:flex;align-items:center;gap:8px}.ogh span{background:var(--acc);color:var(--acc-ink);border-radius:99px;padding:1px 8px;font-size:12px;letter-spacing:0}
+.onone{display:flex;align-items:center;gap:10px;border:1.5px dashed var(--line);border-radius:16px;padding:14px 16px;color:var(--muted);font-weight:600;margin-bottom:12px}.onone .ic{width:20px;height:20px}
+.opast{margin-top:18px;border:1.5px solid var(--line);border-radius:18px;overflow:hidden}.opast summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px}
+.opast summary::-webkit-details-marker{display:none}.opast summary b{display:block;font-size:16px}.opast summary small{color:var(--muted);font-size:13px}.opast summary em{font-style:normal;font-weight:800;color:var(--ink)}
+.opast .chev{width:10px;height:10px;border-right:2.5px solid currentColor;border-bottom:2.5px solid currentColor;transform:rotate(45deg);transition:transform .25s;margin-right:4px}.opast[open] .chev{transform:rotate(-135deg)}
+.opast .opl{padding:0 12px 6px;animation:opIn .3s ease}@keyframes opIn{from{opacity:0;transform:translateY(-6px)}}
 .sb{display:inline-block;font-size:12px;font-weight:600;color:#2563EB;white-space:nowrap}.vstep{border:1.5px solid var(--line);border-radius:16px;padding:14px;margin-top:12px}.vstep.done{border-color:var(--green)}.vstep h3{margin:0 0 4px;font-size:16px}
 .boost{background:var(--bg2);border-radius:16px;padding:14px 16px;margin-top:16px}
 .boost .acts{margin-top:10px}
@@ -448,87 +454,97 @@ html.naija .pill.acc{background:#fff;color:#00563A}html.naija .pill.ghost{backgr
 small.flag,b.flag,span.flag{width:auto;height:auto;border-radius:0;box-shadow:none;vertical-align:baseline}
 @media (prefers-reduced-motion:reduce){.flag.wave,html.naija .promo::before{animation:none}}
 /* ===== Onboarding ===== */
-#gate.obg{padding:0;background:#070B16;overflow:hidden}
-.ob{position:fixed;inset:0;color:#fff;overflow:hidden;display:flex;flex-direction:column;touch-action:pan-y;user-select:none;-webkit-user-select:none;background:#0F1330}
-.blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;animation:blob 16s ease-in-out infinite alternate;pointer-events:none}
-.b1{width:70vmax;height:70vmax;left:-25vmax;top:-30vmax;background:radial-gradient(circle,#C8F03C 0,transparent 65%)}
-.b2{width:60vmax;height:60vmax;right:-25vmax;top:10vmax;background:radial-gradient(circle,#4C5BD4 0,transparent 65%);animation-duration:19s}
-.b3{width:55vmax;height:55vmax;left:5vmax;bottom:-30vmax;background:radial-gradient(circle,#26306E 0,transparent 65%);animation-duration:23s}
-.ob-naija .b1,.ob-naija .b3{background:radial-gradient(circle,#00A862 0,transparent 65%)}.ob-naija .b2{background:radial-gradient(circle,#E8F5EE 0,transparent 60%);opacity:.25}
-@keyframes blob{50%{transform:translate(8vmax,6vmax) scale(1.12)}100%{transform:translate(-6vmax,10vmax) scale(.95)}}
-.obtop{position:relative;z-index:3;display:flex;align-items:center;gap:12px;padding:calc(14px + env(safe-area-inset-top,0px)) 18px 0}
-.bars{flex:1;display:flex;gap:6px}.bars i{flex:1;height:3.5px;border-radius:3px;background:rgba(255,255,255,.22);overflow:hidden}
-.bars i b{display:block;height:100%;width:0;background:#fff;border-radius:3px}.bars i.done b{width:100%}
+#gate.obg{padding:0;background:#26306E;overflow:hidden}
+/* Onboarding in the Stall look: flat indigo, cream and lime, a swinging awning, cards that land with a little bounce. */
+.ob{position:fixed;inset:0;color:#F6F1E7;overflow:hidden;display:flex;flex-direction:column;touch-action:pan-y;user-select:none;-webkit-user-select:none;background:#26306E;font-family:Figtree,system-ui,sans-serif}
+.ob:before{content:"";position:absolute;left:-10%;right:-10%;bottom:-1px;height:44%;background:#1C2457;border-radius:50% 50% 0 0/14% 14% 0 0;pointer-events:none}
+.obawn{position:relative;z-index:4;display:flex;height:calc(30px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);background:#1C2457}
+.obawn i{flex:1;height:30px;border-radius:0 0 30px 30px;transform-origin:50% 0;transform:scaleY(0);animation:awnIn .7s cubic-bezier(.3,1.5,.5,1) calc(var(--i) * .06s) forwards,awnSw 3.6s ease-in-out calc(1s + var(--i) * .25s) infinite}
+.obawn i:nth-child(odd){background:#C8F03C}.obawn i:nth-child(even){background:#F6F1E7}
+@keyframes awnIn{to{transform:scaleY(1)}}@keyframes awnSw{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.84)}}
+.obtop{position:relative;z-index:3;display:flex;align-items:center;gap:12px;padding:14px 18px 0}
+.obtop img{height:22px;width:auto;flex:none}
+.bars{flex:1;display:flex;gap:6px}.bars i{flex:1;height:4px;border-radius:4px;background:rgba(246,241,231,.2);overflow:hidden}
+.bars i b{display:block;height:100%;width:0;background:#C8F03C;border-radius:4px}.bars i.done b{width:100%}
 .bars i.run b{animation:bar 5.5s linear forwards}.ob.hold .bars i.run b{animation-play-state:paused}@keyframes bar{to{width:100%}}
-.obskip{background:rgba(255,255,255,.12);border:0;color:#fff;font-weight:700;font-size:14px;padding:7px 14px;border-radius:999px}
-.obtrack{position:relative;z-index:2;flex:1;display:flex;transition:transform .7s cubic-bezier(.7,0,.2,1)}
-.obs{flex:0 0 100%;display:flex;flex-direction:column;justify-content:center;padding:10px 26px;min-height:0}
-.obscene{flex:1;display:grid;place-items:center;min-height:0;transform:scale(.88);opacity:0;transition:transform .9s cubic-bezier(.2,.8,.2,1),opacity .6s}
+.obskip{background:#1C2457;border:0;color:#F6F1E7;font-weight:700;font-size:14px;padding:7px 14px;border-radius:999px}
+.obtrack{position:relative;z-index:2;flex:1;display:flex;transition:transform .75s cubic-bezier(.7,0,.2,1);min-height:0}
+.obs{flex:0 0 100%;display:flex;flex-direction:column;justify-content:center;padding:6px 26px;min-height:0}
+.obscene{flex:1;display:grid;place-items:center;min-height:0;transform:translateY(26px) scale(.92);opacity:0;transition:transform .9s cubic-bezier(.2,.9,.25,1.15),opacity .5s}
 .obs.on .obscene{transform:none;opacity:1}
-.obtxt{max-width:520px;margin:0 auto;width:100%;padding-bottom:8px}
-.obtxt h1{font-size:clamp(34px,9vw,52px);line-height:1.02;letter-spacing:-.045em;font-weight:800;opacity:0;transform:translateY(24px);transition:all .7s cubic-bezier(.2,.8,.2,1) .15s}
-.obtxt h1 em{font-style:normal;background:linear-gradient(90deg,#C8F03C,#9ED11F 50%,#E4F7A8);-webkit-background-clip:text;background-clip:text;color:transparent}
-.ob-naija .obtxt h1 em{background:linear-gradient(90deg,#7CF29A,#FFFFFF 60%,#7CF29A);-webkit-background-clip:text;background-clip:text}
-.obtxt p{color:rgba(255,255,255,.72);font-size:17px;line-height:1.45;margin-top:14px;opacity:0;transform:translateY(18px);transition:all .7s cubic-bezier(.2,.8,.2,1) .3s}
+.obtxt{max-width:520px;margin:0 auto;width:100%;padding-bottom:6px}
+.obtxt h1{font-family:'Bricolage Grotesque',Figtree,sans-serif;font-size:clamp(34px,9.4vw,54px);line-height:1;letter-spacing:-.035em;font-weight:800;color:#F6F1E7;opacity:0;transform:translateY(24px);transition:all .7s cubic-bezier(.2,.8,.2,1) .15s}
+.obtxt h1 em{font-style:normal;color:#C8F03C;display:inline-block;position:relative}
+.obtxt p{color:#CCCACF;font-size:17px;line-height:1.45;margin-top:14px;opacity:0;transform:translateY(18px);transition:all .7s cubic-bezier(.2,.8,.2,1) .3s}
 .obs.on .obtxt h1,.obs.on .obtxt p{opacity:1;transform:none}
 .obbot{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;gap:12px;padding:10px 26px calc(22px + env(safe-area-inset-bottom,0px))}
-.obgo{width:min(520px,100%);padding:17px;font-size:17px;background:#fff;color:#161A33;border-radius:18px;transition:transform .2s,background .3s,box-shadow .3s}
-.ob.last .obgo{background:linear-gradient(90deg,#C8F03C,#9ED11F);color:#1C2457;box-shadow:0 12px 40px rgba(200,240,60,.45);animation:pulse 1.8s ease-in-out infinite}
-.ob-naija.last .obgo{background:linear-gradient(90deg,#00A862,#0B6E3F);color:#fff;box-shadow:0 12px 40px rgba(0,168,98,.45)}
-@keyframes pulse{50%{transform:scale(1.03)}}.obin{color:rgba(255,255,255,.8);font-weight:600}
-/* scene: campus orbit */
-.sc{position:relative;width:min(340px,82vw);aspect-ratio:1}
-.sc-campus .ring{position:absolute;inset:8%;border:1.5px dashed rgba(255,255,255,.18);border-radius:50%;animation:spin 26s linear infinite}
-.sc-campus .r2{inset:24%;animation-duration:18s;animation-direction:reverse}
-.sc-campus .ring span{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px;border-radius:50%;display:grid;place-items:center;box-shadow:0 10px 30px rgba(0,0,0,.35);
-  transform:rotate(var(--a)) translate(calc(min(340px,82vw)*.42)) rotate(calc(-1*var(--a)))}
-.sc-campus .r2 span{transform:rotate(var(--a)) translate(calc(min(340px,82vw)*.26)) rotate(calc(-1*var(--a)))}
-.sc-campus .ring span .ic{width:26px;height:26px;animation:spin 26s linear infinite reverse}.sc-campus .r2 span .ic{animation-duration:18s;animation-direction:normal}
+.obgo{width:min(520px,100%);padding:17px;font-size:17px;font-weight:800;background:#F6F1E7;color:#1C2457;border-radius:999px;transition:transform .2s,background .3s}
+.obgo:active{transform:scale(.97)}
+.ob.last .obgo{background:#C8F03C;color:#1C2457;animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.03)}}.obin{color:#F6F1E7;font-weight:600;opacity:.85}
+/* shared bits */
+.ob .tl{border-radius:20px;display:grid;place-items:center;box-shadow:0 6px 0 #1C2457}
+.ob .crd{background:#F6F1E7;color:#1C2457;border-radius:18px;box-shadow:0 6px 0 #1C2457}
+@keyframes land{0%{opacity:0;transform:translateY(-40px) rotate(var(--r,0deg)) scale(.8)}70%{opacity:1;transform:translateY(4px) rotate(var(--r,0deg))}100%{opacity:1;transform:rotate(var(--r,0deg))}}
+@keyframes rise{to{opacity:1;transform:none}}@keyframes bob{50%{transform:translateY(-6px) rotate(var(--r,0deg))}}
 @keyframes spin{to{transform:rotate(360deg)}}
-.core{position:absolute;left:50%;top:50%;width:96px;height:96px;margin:-48px;border-radius:28px;display:grid;place-items:center;font-weight:800;font-size:48px;letter-spacing:-.05em;
-  background:linear-gradient(145deg,#323D86,#26306E);box-shadow:0 0 0 1px rgba(255,255,255,.12),0 0 60px rgba(200,240,60,.45);animation:glow 3s ease-in-out infinite}
-.core i{font-style:normal;color:#C8F03C}.ob-naija .core i,.ob-naija .core .cg{color:#00A862;fill:#00A862}@keyframes glow{50%{box-shadow:0 0 0 1px rgba(255,255,255,.2),0 0 90px rgba(200,240,60,.7)}}
-.chipf{position:absolute;font-size:11px;font-weight:800;letter-spacing:.04em;padding:5px 9px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);
-  left:var(--x);top:var(--y);animation:drift 7s ease-in-out calc(var(--i) * -.9s) infinite alternate}
-@keyframes drift{to{transform:translate(10px,-14px)}}
+/* scene: campus — a little stall with category tiles landing around it and school tags drifting */
+.sc{position:relative;width:min(330px,80vw);aspect-ratio:1}
+.sc-campus .orb{position:absolute;inset:6%;border:2px dashed rgba(246,241,231,.18);border-radius:50%;animation:spin 40s linear infinite}
+.sc-campus .stl{position:absolute;left:50%;top:50%;width:132px;margin:-74px 0 0 -66px}
+.sc-campus .stl .aw{display:flex;height:34px;padding-top:10px;background:none;position:relative}
+.sc-campus .stl .aw:before{content:"";position:absolute;left:0;right:0;top:0;height:12px;border-radius:10px 10px 0 0;background:#1C2457}
+.sc-campus .stl .aw i{flex:1;border-radius:0 0 30px 30px;transform-origin:50% 0;animation:awnSw 2.8s ease-in-out calc(var(--i) * -.35s) infinite}
+.sc-campus .stl .aw i:nth-child(odd){background:#C8F03C}.sc-campus .stl .aw i:nth-child(even){background:#F6F1E7}
+.sc-campus .stl .ct{height:92px;background:#F6F1E7;border-radius:0 0 18px 18px;box-shadow:0 8px 0 #1C2457;display:grid;place-items:center;color:#26306E}
+.sc-campus .stl .ct b{font:800 22px/1 'Bricolage Grotesque',sans-serif;letter-spacing:-.02em}
+.sc-campus .stl .ct small{display:block;font-size:11px;font-weight:700;color:#5B6077;margin-top:4px;text-align:center}
+.sc-campus .tl{position:absolute;width:56px;height:56px;opacity:0;left:var(--x);top:var(--y)}
+.sc-campus .tl .ic{width:27px;height:27px}
+.obs.on .sc-campus .tl{animation:land .7s cubic-bezier(.2,.9,.3,1.2) calc(.35s + var(--i) * .12s) forwards,bob 3.6s ease-in-out calc(1.3s + var(--i) * .3s) infinite}
+.chipf{position:absolute;font-size:11px;font-weight:800;letter-spacing:.04em;padding:5px 10px;border-radius:999px;background:#1C2457;color:#C8F03C;left:var(--x);top:var(--y);opacity:0}
+.obs.on .chipf{animation:rise .5s calc(1.1s + var(--i) * .1s) forwards,drift 6s ease-in-out calc(var(--i) * -.9s) infinite alternate}
+@keyframes drift{to{transform:translate(8px,-10px)}}
 /* scene: find */
-.sc-find{display:flex;flex-direction:column;gap:14px;justify-content:center;aspect-ratio:auto;height:100%;max-height:380px}
-.sbar{display:flex;align-items:center;gap:10px;background:#fff;color:#161A33;border-radius:18px;padding:15px 16px;font-weight:600;box-shadow:0 20px 50px rgba(0,0,0,.35)}
-.sbar .ic{color:#9AA1C9}.caret{width:2px;height:20px;background:#C8F03C;animation:blink 1s steps(1) infinite}@keyframes blink{50%{opacity:0}}
-.pc{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:18px;padding:10px;
-  opacity:0;transform:translateY(30px) scale(.96)}
-.obs.on .pc{animation:rise .7s cubic-bezier(.2,.8,.2,1) calc(.5s + var(--i) * .18s) forwards,bob 4s ease-in-out calc(1.4s + var(--i) * .4s) infinite}
-@keyframes rise{to{opacity:1;transform:none}}@keyframes bob{50%{transform:translateY(-5px)}}
+.sc-find{display:flex;flex-direction:column;gap:14px;justify-content:center;aspect-ratio:auto;height:100%;max-height:390px}
+.sbar{display:flex;align-items:center;gap:10px;padding:15px 16px;font-weight:700}
+.sbar .ic{color:#26306E}.caret{width:2px;height:20px;background:#26306E;animation:blink 1s steps(1) infinite}@keyframes blink{50%{opacity:0}}
+.pc{display:flex;align-items:center;gap:12px;padding:10px;opacity:0;transform:translateX(60px) rotate(3deg)}
+.obs.on .pc{animation:rise .7s cubic-bezier(.2,.9,.3,1.15) calc(.5s + var(--i) * .16s) forwards}
 .pc .pi,.lcard .pi{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;flex:none}.pc .pi .ic,.lcard .pi .ic{width:28px;height:28px}
-.pc b,.lcard b{display:block;font-size:15px}.pc span,.lcard span{font-size:14px;color:rgba(255,255,255,.75);font-weight:700}
+.pc b,.lcard b{display:block;font-size:15px;color:#1C2457}.pc span,.lcard span{font-size:14px;color:#26306E;font-weight:800}
 .pc em{display:inline-block;margin-left:8px;font-style:normal;font-size:11px;font-weight:800;color:#1C2457;background:#C8F03C;border-radius:6px;padding:2px 6px}
-/* scene: safe */
-.sc-safe{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
-.paid{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:999px;padding:9px 16px;font-size:14px;opacity:0}
-.paid b{font-size:17px}.paid i{font-style:normal;font-weight:800;color:#4ADE80}.obs.on .paid{animation:rise .6s .3s forwards}
-.shield{width:132px;height:132px;stroke:#4ADE80;filter:drop-shadow(0 0 24px rgba(74,222,128,.55))}
-.shield .sh{stroke-dasharray:70;stroke-dashoffset:70}.shield .tk{stroke-dasharray:14;stroke-dashoffset:14;stroke-width:2.2}
+/* scene: safe — the money waits in the middle until the code is handed over */
+.sc-safe{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.paid{display:flex;align-items:center;gap:10px;padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;transform:translateY(-20px)}
+.paid b{font-size:17px}.paid i{font-style:normal;font-weight:800;color:#1C2457;background:#C8F03C;border-radius:99px;padding:2px 8px;font-size:12px}.obs.on .paid{animation:rise .6s .3s cubic-bezier(.2,.9,.3,1.2) forwards}
+.vault{position:relative;width:132px;height:132px;border-radius:36px;background:#1C2457;display:grid;place-items:center}
+.vault:before{content:"";position:absolute;inset:-8px;border-radius:42px;border:2px dashed #C8F03C;opacity:.6;animation:spin 18s linear infinite}
+.shield{width:84px;height:84px;stroke:#C8F03C}
+.shield .sh{stroke-dasharray:70;stroke-dashoffset:70}.shield .tk{stroke-dasharray:14;stroke-dashoffset:14;stroke-width:2.4}
 .obs.on .shield .sh{animation:draw 1.1s .7s cubic-bezier(.6,0,.2,1) forwards}.obs.on .shield .tk{animation:draw .5s 1.7s forwards}@keyframes draw{to{stroke-dashoffset:0}}
-.code{display:flex;gap:4px}.code span{width:22px;height:32px;display:grid;place-items:center;border-radius:8px;background:#fff;color:#161A33;font-weight:800;font-size:17px;opacity:0;transform:rotateX(90deg)}
+.code{display:flex;gap:4px}.code span{width:22px;height:32px;display:grid;place-items:center;border-radius:8px;background:#F6F1E7;color:#1C2457;font-weight:800;font-size:17px;opacity:0;transform:rotateX(90deg)}
 .obs.on .code span{animation:flip .45s calc(2.1s + var(--i) * .07s) cubic-bezier(.2,.8,.2,1) forwards}@keyframes flip{to{opacity:1;transform:none}}
-.code span:nth-child(-n+6){background:#C8F03C;color:#1C2457}.ob-naija .code span:nth-child(-n+6){background:#00A862;color:#fff}
-.codecap{font-size:13px;color:rgba(255,255,255,.6);opacity:0}.obs.on .codecap{animation:rise .5s 3s forwards}
+.code span:nth-child(-n+6){background:#C8F03C}
+.codecap{font-size:13px;color:#CCCACF;opacity:0}.obs.on .codecap{animation:rise .5s 3s forwards}
 /* scene: sell */
-.sc-sell{display:flex;flex-direction:column;justify-content:center;gap:14px;aspect-ratio:auto}
-.earn{background:linear-gradient(135deg,rgba(255,255,255,.14),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.16);border-radius:22px;padding:18px 20px}
-.earn span{font-size:13px;color:rgba(255,255,255,.7);font-weight:600}.earn b{display:block;font-size:40px;letter-spacing:-.04em;font-weight:800;font-variant-numeric:tabular-nums}
-.lcard{position:relative;display:flex;align-items:center;gap:12px;background:#fff;color:#161A33;border-radius:18px;padding:10px;opacity:0;transform:translateY(24px)}
-.lcard span{color:#5B6077}.obs.on .lcard{animation:rise .6s .5s forwards}
-.feat{position:absolute;right:10px;top:-10px;font-style:normal;font-size:11px;font-weight:800;background:#C8F03C;color:#1C2457;border-radius:8px;padding:4px 8px;transform:scale(0) rotate(-12deg)}
+.sc-sell{display:flex;flex-direction:column;justify-content:center;gap:16px;aspect-ratio:auto}
+.earn{background:#C8F03C;color:#1C2457;border-radius:22px;padding:18px 20px;box-shadow:0 6px 0 #1C2457;opacity:0;transform:scale(.9)}
+.obs.on .earn{animation:rise .6s .2s cubic-bezier(.2,.9,.3,1.3) forwards}
+.earn span{font-size:13px;font-weight:700}.earn b{display:block;font:800 42px/1.05 'Bricolage Grotesque',sans-serif;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.lcard{position:relative;display:flex;align-items:center;gap:12px;padding:10px;opacity:0;transform:translateY(24px)}
+.obs.on .lcard{animation:rise .6s .6s cubic-bezier(.2,.9,.3,1.2) forwards}
+.feat{position:absolute;right:10px;top:-10px;font-style:normal;font-size:11px;font-weight:800;background:#1C2457;color:#C8F03C;border-radius:8px;padding:4px 8px;transform:scale(0) rotate(-12deg)}
 .obs.on .feat{animation:pop2 .5s 1.6s cubic-bezier(.3,1.6,.5,1) forwards}@keyframes pop2{to{transform:scale(1) rotate(-6deg)}}
-.vbadge{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;background:rgba(74,222,128,.14);color:#4ADE80;border:1px solid rgba(74,222,128,.4);border-radius:999px;padding:7px 12px;font-weight:800;font-size:14px;transform:scale(0)}
+.vbadge{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;background:#1C2457;color:#F6F1E7;border-radius:999px;padding:7px 12px;font-weight:800;font-size:14px;transform:scale(0)}
+.vbadge .ic{color:#C8F03C}
 .obs.on .vbadge{animation:pop3 .5s 2.1s cubic-bezier(.3,1.6,.5,1) forwards}@keyframes pop3{to{transform:scale(1)}}
-.spark{position:absolute;width:8px;height:8px;border-radius:50%;background:#C8F03C;opacity:0}.s1{left:8%;top:12%}.s2{right:10%;top:40%;background:#4ADE80}.s3{left:40%;bottom:6%;background:#F472B6}
-.obs.on .spark{animation:twinkle 2.4s ease-in-out infinite}.obs.on .s2{animation-delay:.8s}.obs.on .s3{animation-delay:1.6s}@keyframes twinkle{30%{opacity:1;transform:scale(1.6)}60%{opacity:0;transform:scale(.6)}}
-@media (min-width:900px){.obs{flex-direction:row;align-items:center;gap:40px;padding:10px 8vw}.obscene{flex:1}.obtxt{flex:1}}
-@media (max-height:700px){.sc{width:min(260px,70vw)}.obtxt h1{font-size:30px}.obtxt p{font-size:15px;margin-top:8px}}
-@media (prefers-reduced-motion:reduce){.blob,.ring,.core,.chipf,.pc,.caret,.spark,.ob.last .obgo{animation:none!important}.obtrack{transition:none}
-  .pc,.paid,.lcard,.codecap,.code span,.feat,.vbadge{opacity:1!important;transform:none!important}.shield .sh,.shield .tk{stroke-dashoffset:0}}
+.spark{position:absolute;width:10px;height:10px;border-radius:3px;background:#C8F03C;opacity:0}.s1{left:4%;top:8%}.s2{right:6%;top:42%;background:#F6F1E7}.s3{left:44%;bottom:4%}
+.obs.on .spark{animation:twinkle 2.4s ease-in-out infinite}.obs.on .s2{animation-delay:.8s}.obs.on .s3{animation-delay:1.6s}@keyframes twinkle{30%{opacity:1;transform:scale(1.5) rotate(45deg)}60%{opacity:0;transform:scale(.6)}}
+@media (min-width:900px){.obs{flex-direction:row;align-items:center;gap:40px;padding:10px 8vw}.obscene{flex:1}.obtxt{flex:1}.ob:before{height:30%}}
+@media (max-height:700px){.sc{width:min(250px,68vw)}.obtxt h1{font-size:30px}.obtxt p{font-size:15px;margin-top:8px}.sc-campus .stl{transform:scale(.8)}}
+@media (prefers-reduced-motion:reduce){.obawn i,.orb,.chipf,.pc,.caret,.spark,.ob.last .obgo,.sc-campus .tl,.sc-campus .stl .aw i,.vault:before{animation:none!important}.obtrack{transition:none}
+  .obawn i{transform:none}.sc-campus .tl,.chipf,.pc,.paid,.lcard,.earn,.codecap,.code span,.feat,.vbadge{opacity:1!important;transform:none!important}.shield .sh,.shield .tk{stroke-dashoffset:0}}
 /* home refresh: tighter hero, category cards, compact trust row on phones */
 .promo{border-radius:32px;isolation:isolate}
 .promo::after{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background-image:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1px);background-size:18px 18px;-webkit-mask-image:linear-gradient(90deg,transparent 30%,#000);mask-image:linear-gradient(90deg,transparent 30%,#000)}
@@ -1230,14 +1246,21 @@ function sellerConsent(){return new Promise(res=>{let d=$('#sellOkDlg');if(!d){d
    <label class="agree"><input type="checkbox" required><span>I agree to these rules, the <a href="/rules" target="_blank">seller rules</a> and the <a href="/terms" target="_blank">Terms</a>.</span></label>
    <div class="acts"><button class="pill" value="ok">I agree</button><button class="pill alt" type="button" data-no>Not now</button></div></form>`;
   let ok=false;d.querySelector('form').onsubmit=()=>{ok=true};d.querySelector('[data-no]').onclick=()=>d.close();d.addEventListener('close',()=>res(ok),{once:true});d.showModal()})}
+// Orders still moving stay open at the top; finished ones (completed, refunded, rejected, expired) fold into "Past orders".
+const OPEN_ST=['pending','under_review','verified','disputed','refunding'],OPAST={};
+function orderGroups(L,seller){const now=L.filter(o=>OPEN_ST.includes(o.status)),past=L.filter(o=>!OPEN_ST.includes(o.status)),k=seller?'s':'b';
+  const rate=past.filter(o=>o.status==='released'&&!(seller?o.brate:o.rated)).length;
+  return (now.length?`<p class="ogh">In progress <span>${now.length}</span></p>${now.map(o=>orderCard(o,seller)).join('')}`:`<div class="onone">${ico('badge')}<span>Nothing in progress right now.</span></div>`)
+   +(past.length?`<details class="opast" data-opast="${k}"${OPAST[k]?' open':''}><summary><span><b>Past orders</b><small>${past.length} finished${rate?` · <em>${rate} to rate</em>`:''}</small></span><i class="chev"></i></summary><div class="opl">${past.map(o=>orderCard(o,seller)).join('')}</div></details>`:'')}
+document.addEventListener('toggle',e=>{const d=e.target;if(d.dataset&&d.dataset.opast)OPAST[d.dataset.opast]=d.open},true);
 async function renderOrders(){setTimeout(checkMilestones,1200);const r=await fetchJ('/api/orders/mine').catch(()=>({}));const L=r.orders||[],up=updBox('buy');markSeen('b');
-  $('#orderList').innerHTML=(L.length?nudgeHtml('order'):'')+up+(L.length?L.map(o=>orderCard(o,false)).join(''):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>When you buy something, it shows up here.</p><div class="acts" style="justify-content:center"><button class="pill" id="toShop">Start shopping</button></div></div>`);
+  $('#orderList').innerHTML=(L.length?nudgeHtml('order'):'')+up+(L.length?orderGroups(L,false):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>When you buy something, it shows up here.</p><div class="acts" style="justify-content:center"><button class="pill" id="toShop">Start shopping</button></div></div>`);
   drawNudges();$('#orderList').querySelectorAll('[data-rateform]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();if(!f.elements.stars.value)return toast('Tap the stars to rate');
     const r=await apiPost('orders/rate',{id:+f.dataset.rateform,stars:+f.elements.stars.value,text:f.elements.text.value});if(r.error)return toast(r.error);toast('Thanks for rating');renderOrders()});
   $('#orderList').querySelectorAll('[data-payid]').forEach(b=>b.onclick=async()=>{const o=(L).find(x=>x.id==b.dataset.payid);PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)});
   $('#orderList').querySelectorAll('[data-showcode]').forEach(b=>b.onclick=async()=>{const o=(L).find(x=>x.id==b.dataset.showcode);PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)})}
 async function renderSelling(){setTimeout(checkMilestones,1200);const [r,w]=await Promise.all([fetchJ('/api/orders/selling').catch(()=>({})),fetchJ('/api/orders/weekly').catch(()=>({}))]);const L=r.orders||[],up=updBox('sell');markSeen('s');WEEK=w&&w.n?w:null;
-  $('#sellingList').innerHTML=up+(WEEK?`<button class="wkcard" data-weekly><span><small>${esc(WEEK.label||'Your sales this week')}</small><b>${naira(WEEK.total)}</b><small>${WEEK.n} order${WEEK.n>1?'s':''} delivered</small></span><span class="go">See statement →</span></button>`:'')+(L.length?L.map(o=>orderCard(o,true)).join(''):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>Orders for things you sell show up here.</p></div>`);
+  $('#sellingList').innerHTML=up+(WEEK?`<button class="wkcard" data-weekly><span><small>${esc(WEEK.label||'Your sales this week')}</small><b>${naira(WEEK.total)}</b><small>${WEEK.n} order${WEEK.n>1?'s':''} delivered</small></span><span class="go">See statement →</span></button>`:'')+(L.length?orderGroups(L,true):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>Orders for things you sell show up here.</p></div>`);
   $('#sellingList').querySelectorAll('[data-brateform]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();if(!f.elements.stars.value)return toast('Tap the stars to rate');
     const r=await apiPost('orders/rate-buyer',{id:+f.dataset.brateform,stars:+f.elements.stars.value});if(r.error)return toast(r.error);toast('Thanks for rating the buyer');renderSelling()});
   $('#sellingList').querySelectorAll('[data-codeform]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();const r=await apiPost('orders/code',{id:f.dataset.codeform,code:f.elements.code.value});
@@ -1394,10 +1417,10 @@ const RW=[['need','#C8F03C'],['love','#F472B6'],['want','#38BDF8'],['sell','#4AD
   RWN=[['need','#FFFFFF'],['love','#7CF29A'],['celebrate','#FFFFFF'],['sell','#7CF29A'],['want','#FFFFFF'],['cherish','#7CF29A']],CALM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let rwi=0;function rotateWord(){const el=$('#rw');if(!el||document.hidden||$('#shop').hidden)return;const L=NAIJA?RWN:RW;rwi=(rwi+1)%L.length;
   el.classList.add('out');setTimeout(()=>{el.textContent=L[rwi][0];el.style.color=L[rwi][1];el.classList.remove('out');el.classList.add('in');setTimeout(()=>el.classList.remove('in'),460)},300)}
-// ---- Independence Day (1 October): automatic from 30 Sept to 7 Oct, Nigerian time. Add ?naija=1 to preview.
+// ---- Independence Day (1 October): automatic from 30 Sept to 2 Oct, Nigerian time. Add ?naija=1 to preview.
 const NGT=()=>new Date(Date.now()+36e5),FORCE=/[?&]naija=1/.test(location.search);
 const naijaState=()=>{if(/[?&]naija=0/.test(location.search))return null;const d=NGT(),m=d.getUTCMonth(),dd=d.getUTCDate(),y=d.getUTCFullYear(),n=y-1960;
-  if(m===8&&dd===30)return{pre:true,n,at:Date.UTC(y,9,1)-36e5};if(m===9&&dd>=1&&dd<=7)return{day:dd,n};return FORCE?{day:1,n}:null};
+  if(m===8&&dd===30)return{pre:true,n,at:Date.UTC(y,9,1)-36e5};if(m===9&&dd>=1&&dd<=2)return{day:dd,n};return FORCE?{day:1,n}:null};
 const NAIJA=naijaState(),ord=n=>n+(['th','st','nd','rd'][(n%100-20)%10]||['th','st','nd','rd'][n%100]||'th');
 function naijaTick(){if(!NAIJA)return;const el=$('#naijaLine');el.hidden=false;
   if(NAIJA.pre&&NAIJA.at>Date.now()){const t=NAIJA.at-Date.now(),h=Math.floor(t/36e5),m=Math.floor(t/6e4)%60,sx=Math.floor(t/1e3)%60,p=x=>String(x).padStart(2,'0');
@@ -1552,7 +1575,7 @@ function openCollectNew(bank){const d=$('#accDlg'),bo=($('#form [name=bank_code]
     toast('Collection created. Share the link with your class');refreshMe();openCollect(r.code)}}
 async function openCollect(code){const d=$('#accDlg');d.innerHTML='<div class="pad"><h2>Class collection</h2><p class="meta">Loading…</p></div>';if(!d.open)d.showModal();
   const r=await fetchJ('/api/collect/view?code='+encodeURIComponent(code));if(r.error){d.querySelector('.meta').textContent=r.error;return}
-  const c=r.c,link=location.origin+'/?collect='+c.code,msg=`${c.title}${c.cls?' ('+c.cls+')':''}: ${naira(c.amount)} per person. Pay here on Stall:`,pct=c.expected?Math.min(100,Math.round(r.n/c.expected*100)):0;
+  const c=r.c,link=location.origin+'/c/'+c.code,msg=`💸 *${c.title}*${c.cls?'\n'+c.cls:''}\n*${naira(c.amount)}* per person${c.deadline?' · closes '+cDate(c.deadline):''}\n\nPay safely on Stall and see who has paid 👇\n`,pct=c.expected?Math.min(100,Math.round(r.n/c.expected*100)):0;
   d.innerHTML=`<div class="pad"><p class="meta" style="margin:0">Collection${c.cls?' · '+esc(c.cls):''}</p><h2 style="margin-top:2px">${esc(c.title)}</h2>
    <p class="meta">Collected by <b>${esc(c.rep)}</b>${c.repVerified?' <span class="vb">✓ Verified student</span>':''}${c.school?' · '+esc(c.school):''}</p>${c.descr?`<p style="margin:8px 0 0">${esc(c.descr)}</p>`:''}
    <div class="cbig"><span class="amt">${naira(c.amount)}</span> <span class="meta">per person</span>
@@ -1560,7 +1583,7 @@ async function openCollect(code){const d=$('#accDlg');d.innerHTML='<div class="p
     <small><b>${r.n}${c.expected?' of '+c.expected:''}</b> paid · <b>${naira(r.total)}</b> collected${c.open?(c.deadline?' · closes '+cDate(c.deadline):''):' · <b>closed</b>'}</small></div>
    ${r.mine?`<div class="cdone">✓ You paid on ${cTime(r.mine.t)}</div>`:''}
    ${!r.owner&&!r.mine&&c.open?`<button class="pill" type="button" id="cPay" style="width:100%">Pay ${naira(c.total)}</button><p class="meta" style="margin-top:6px">${naira(c.amount)} plus ${naira(c.charge)} for payment processing and Stall. The money goes straight to ${esc(c.rep.split(' ')[0])}'s bank account through Paystack; Stall never holds it. <b>Only pay if you know who is collecting.</b> Questions about what it covers or refunds go to them.</p>`:''}
-   ${r.owner?`<div class="acts" style="flex-wrap:wrap"><a class="pill" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg+' '+link)}">Share on WhatsApp</a><button class="pill alt" type="button" data-copy="${esc(link)}">Copy link</button>
+   ${r.owner?`<div class="acts" style="flex-wrap:wrap"><a class="pill" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg+link)}">Share on WhatsApp</a><button class="pill alt" type="button" data-copy="${esc(link)}">Copy link</button>
      <a class="pill alt" href="/api/collect/csv?code=${c.code}">Download list</a><button class="pill alt" type="button" id="cOpen">${c.status==='open'?'Close collection':'Reopen'}</button></div>
      <label class="opt" style="display:flex;gap:10px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="cPub" ${c.publicList?'checked':''} style="width:auto;margin-top:3px"> <span><b>Let people with the link see who has paid</b><br><small class="meta">${c.publicList?'On: they see names and the last 4 digits of matric numbers.':'Off: only you can see the list.'}</small></span></label>`:''}
    <p class="lb" style="margin-top:16px">Who has paid (${r.n})</p>${r.owner&&r.n>8?'<input class="search" id="cFind" type="search" placeholder="Find a name or matric number" style="margin:6px 0 4px">':''}
@@ -1714,21 +1737,22 @@ const SL=[
  {k:'safe',h:'Pay safe.<br><em>Collect on campus.</em>',p:'Stall confirms every payment and gives you a release code. Hand it over only when the item is in your hands.'},
  {k:'sell',h:'Sell anything.<br><em>Get paid.</em>',p:'List in a minute, open a store, get verified, and let buyers from your school find you.'}];
 const OB_SCENES={
- campus:()=>`<div class="sc sc-campus"><div class="ring r1">${['book','headphones','shirt'].map((k,i)=>`<span style="--a:${i*120}deg;background:${CATS[i].c};color:${CATS[i].k}">${ico(k)}</span>`).join('')}</div>
-   <div class="ring r2">${['bed','bowl','scissors'].map((k,i)=>`<span style="--a:${i*120+60}deg;background:${CATS[i+3].c};color:${CATS[i+3].k}">${ico(k)}</span>`).join('')}</div>
-   <div class="core"><svg viewBox="18 20 84 78" width="58" height="54" aria-hidden="true"><path d="M20 30a8 8 0 0 1 8-8h64a8 8 0 0 1 8 8v8H20z" fill="#F6F1E7"/><path d="M20 37h25.5v10a12.75 12.75 0 0 1-25.5 0z" fill="#F6F1E7"/><path class="cg" d="M47.3 37h25.4v10a12.7 12.7 0 0 1-25.4 0z" fill="#C8F03C"/><path d="M74.5 37H100v10a12.75 12.75 0 0 1-25.5 0z" fill="#F6F1E7"/><circle class="cg" cx="60" cy="85" r="11" fill="#C8F03C"/></svg></div>${[['UNILAG',0,3],['OAU',78,1],['UNN',2,52],['ABU',82,46],['UNIBEN',4,90],['LASU',74,92]].map(([x,l,t],i)=>`<b class="chipf" style="--i:${i};--x:${l}%;--y:${t}%">${x}</b>`).join('')}</div>`,
- find:()=>`<div class="sc sc-find"><div class="sbar">${ico('book')}<span class="typed"></span><i class="caret"></i></div>
-   <div class="pcards">${[['book','Engineering Maths (Stroud)','₦6,500','Only 2 left',0],['headphones','Wireless earbuds','₦14,000','',1],['bowl','Jollof & chicken','₦2,500','Hot now',3]].map(([k,t,pr,tag,c],i)=>`<div class="pc" style="--i:${i}"><div class="pi" style="background:${CATS[c].c};color:${CATS[c].k}">${ico(k)}</div><div><b>${t}</b><span>${pr}</span>${tag?`<em>${tag}</em>`:''}</div></div>`).join('')}</div></div>`,
- safe:()=>`<div class="sc sc-safe"><div class="paid"><span>Payment</span><b>₦12,500</b><i>Confirmed</i></div>
-   <svg class="shield" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path class="sh" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path class="tk" d="m8.5 12 2.5 2.5 4.5-5"/></svg>
+ campus:()=>`<div class="sc sc-campus"><div class="orb"></div>
+   ${[['book',0,'2%','36%',-8],['headphones',1,'16%','6%',6],['shirt',2,'70%','4%',-5],['bed',3,'82%','40%',8],['bowl',4,'64%','78%',-6],['scissors',5,'10%','74%',5]].map(([k,c,x,y,r],i)=>`<span class="tl" style="--i:${i};--x:${x};--y:${y};--r:${r}deg;background:${CATS[c].c};color:${CATS[c].k}">${ico(k)}</span>`).join('')}
+   <div class="stl"><div class="aw">${[0,1,2,3,4].map(i=>`<i style="--i:${i}"></i>`).join('')}</div><div class="ct"><div><b>Your stall</b><small>Open on campus</small></div></div></div>
+   ${[['UNILAG',30,-4],['OAU',66,92],['UNN',-6,58],['ABU',74,22],['UNIBEN',2,94],['LASU',42,96]].map(([t,x,y],i)=>`<b class="chipf" style="--i:${i};--x:${x}%;--y:${y}%">${t}</b>`).join('')}</div>`,
+ find:()=>`<div class="sc sc-find"><div class="sbar crd">${ico('book')}<span class="typed"></span><i class="caret"></i></div>
+   <div class="pcards">${[['book','Engineering Maths (Stroud)','₦6,500','Only 2 left',0],['headphones','Wireless earbuds','₦14,000','',1],['bowl','Jollof & chicken','₦2,500','Hot now',3]].map(([k,t,pr,tag,c],i)=>`<div class="pc crd" style="--i:${i}"><div class="pi" style="background:${CATS[c].c};color:${CATS[c].k}">${ico(k)}</div><div><b>${t}</b><span>${pr}</span>${tag?`<em>${tag}</em>`:''}</div></div>`).join('')}</div></div>`,
+ safe:()=>`<div class="sc sc-safe"><div class="paid crd"><span>Payment</span><b>₦12,500</b><i>Confirmed</i></div>
+   <div class="vault"><svg class="shield" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path class="sh" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path class="tk" d="m8.5 12 2.5 2.5 4.5-5"/></svg></div>
    <div class="code">${'STALL-7K2Q9M'.split('').map((c,i)=>`<span style="--i:${i}">${c}</span>`).join('')}</div><p class="codecap">Your release code</p></div>`,
  sell:()=>`<div class="sc sc-sell"><div class="earn"><span>Earned this month</span><b class="count">₦0</b></div>
-   <div class="lcard"><div class="pi" style="background:${CATS[2].c};color:${CATS[2].k}">${ico('shirt')}</div><div><b>Vintage denim jacket</b><span>₦9,000 · 12 available</span></div><em class="feat">Featured</em></div>
+   <div class="lcard crd"><div class="pi" style="background:${CATS[2].c};color:${CATS[2].k}">${ico('shirt')}</div><div><b>Vintage denim jacket</b><span>₦9,000 · 12 available</span></div><em class="feat">Featured</em></div>
    <div class="vbadge">${ico('badge')} Verified seller</div><div class="spark s1"></div><div class="spark s2"></div><div class="spark s3"></div></div>`};
 let obI=0,obT=null,obHold=false;const OB_MS=5500;
 function onboard(g){g.classList.add('obg');
-  g.innerHTML=`<div class="ob${NAIJA?' ob-naija':''}"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
-   <div class="obtop"><div class="bars">${SL.map((_,k)=>`<i><b></b></i>`).join('')}</div><button class="obskip" id="gSkip">Skip</button></div>
+  g.innerHTML=`<div class="ob"><div class="obawn">${[0,1,2,3,4,5,6,7].map(i=>`<i style="--i:${i}"></i>`).join('')}</div>
+   <div class="obtop"><img src="/icons/wordmark-plain-cream.svg" alt="Stall"><div class="bars">${SL.map((_,k)=>`<i><b></b></i>`).join('')}</div><button class="obskip" id="gSkip">Skip</button></div>
    <div class="obtrack">${SL.map((x,k)=>`<section class="obs" data-k="${k}"><div class="obscene">${OB_SCENES[x.k]()}</div><div class="obtxt"><h1>${x.h}</h1><p>${x.p}</p></div></section>`).join('')}</div>
    <div class="obbot"><button class="pill obgo" id="obNext">Next</button><button class="link obin" id="toIn">I already have an account</button></div></div>`;
   const ob=g.querySelector('.ob'),track=ob.querySelector('.obtrack');
@@ -1937,7 +1961,7 @@ function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json(
 const AD={tab:'overview',st:{},sum:{},n:0},OST={pending:['Waiting for payment',''],under_review:['Needs review','warn'],disputed:['Problem reported','bad'],refunded:['Refunded',''],verified:['Paid, awaiting delivery','warn'],released:['Delivered','ok'],expired:['Expired',''],rejected:['Rejected','bad']};
 // Admin sections, grouped for the sidebar: [key, label, icon, short description, summary count to badge].
 const AG=[['Home',[['overview','Overview','home','Today at a glance'],['health','System health','pulse','Payments, email, AI and storage']]],
- ['Orders & money',[['payments','Flagged orders','flag','Problems and payments waiting for your decision','review'],['orders','All orders','box','Every order and where it is'],['sellerpay','Seller payouts','wallet','Money sent to sellers after delivery','payoutsFailed'],['money','Earnings','money','Fees and services Stall has earned']]],
+ ['Orders & money',[['payments','Flagged orders','flag','Problems and payments waiting for your decision','review'],['orders','All orders','box','Every order and where it is'],['sellerpay','Seller payouts','wallet','Money sent to sellers after delivery','payoutsFailed'],['money','Money & earnings','money','How much moved through Stall, and what Stall earned']]],
  ['People',[['users','People','users','Students and campus vendors'],['vendors','Vendor applications','store','Approve campus shops','vendorsPending'],['ids','Student IDs','id','Check school documents','idsPending'],['verify','Verified badges','badge','Paid verified-seller requests','verifyPending'],['payouts','Bank details','lock','Confirm hand-typed payout accounts','banks'],['codes','Vendor codes','key','Invite codes for campus shops']]],
  ['Marketplace',[['items','Photo check','image','New listings the AI wasn\'t sure about','itemsReview'],['schools','Schools','school','Schools and requests to add one','schoolsPending']]],
  ['System',[['log','Activity','list','Who did what, and when'],['settings','Settings','gear','Business details, verification and the Android app']]]];
@@ -2040,15 +2064,15 @@ function adminTab(k){AD.tab=k;const S0=ast(k),m=AMETA[k];document.querySelectorA
      <label>Package name<input name="android_pkg" maxlength="100" value="${esc(CFG.androidPkg||'')}" placeholder="app.stall.twa"></label><label>SHA-256 fingerprint(s)<textarea name="android_sha" rows="3" placeholder="AB:CD:EF:…">${esc((CFG.androidSha||'').split(',').join(',\n'))}</textarea></label>
      <p class="meta">Check it: <a class="link" href="/.well-known/assetlinks.json" target="_blank" rel="noopener">/.well-known/assetlinks.json</a></p><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>`;const ff=$('#feeForm');ff.oninput=()=>feePrev(ff);feePrev(ff);return}
   $('#ab').innerHTML=(k==='schools'?`<form id="schAdd" class="atools"><input class="search" name="name" maxlength="90" placeholder="Add a school: full name" required><input class="search" name="short" maxlength="16" placeholder="Short name (optional)" style="flex:0 1 180px"><select name="state" class="sort" required><option value="">State…</option>${STATES.map(x=>`<option>${x}</option>`).join('')}</select><button class="pill sm" type="submit">Add</button></form>`:'')+(k==='codes'?`<form id="codeForm" class="atools"><input class="search" name="label" maxlength="40" placeholder="New code for which shop or vendor?" required><button class="pill sm" type="submit">Create code</button></form><span class="err" id="codeErr"></span><div id="codeOut"></div>`:'')
-   +(k==='money'?'<div id="edash"><p class="meta">Loading earnings…</p></div><p class="lb" style="margin-top:20px">Every payment</p>':'')
+   +(k==='money'?'<p class="lb">Money moved through Stall</p><div id="vdash"><p class="meta">Loading…</p></div><p class="lb" style="margin-top:20px">What Stall earned</p><div id="edash"><p class="meta">Loading earnings…</p></div><p class="lb" style="margin-top:20px">Every payment</p>':'')
    +(AQ[k]?`<div class="atools"><input class="search asearch" type="search" placeholder="${AQ[k]}" value="${esc(S0.q)}"></div>`:'')
    +(AF[k]?`<div class="fchips">${AF[k].map(([v,l])=>`<button class="fchip" data-af="${v}" aria-pressed="${S0.f===v}">${l}</button>`).join('')}</div>`:'')
-   +'<div id="alist"><p class="meta">Loading...</p></div>';if(k==='money')earnDash();
+   +'<div id="alist"><p class="meta">Loading...</p></div>';if(k==='money'){volDash();earnDash()}
   $('#ab').scrollTop=0;adminLoad()}
 // Earnings dashboard: quick figures, a chart for the chosen period, a breakdown by type, and CSV downloads for accounting.
 const EARN_R=[['7d','7 days'],['30d','30 days'],['90d','90 days'],['6m','6 months'],['12m','12 months'],['all','All time']];
 const nk=n=>{const a=Math.abs(n),s=n<0?'−':'';return s+(a>=1e6?'₦'+(+(a/1e6).toFixed(a>=1e7?0:1))+'m':a>=1e3?'₦'+(+(a/1e3).toFixed(a>=1e4?0:1))+'k':'₦'+a)};
-const ekey=(k,unit,long)=>{const[y,m,d]=k.split('-').map(Number),dt=new Date(Date.UTC(y,m-1,d||1));return unit==='day'?dt.toLocaleDateString('en-NG',{timeZone:'UTC',...(long?{weekday:'short'}:{}),day:'numeric',month:'short'}):dt.toLocaleDateString('en-NG',{timeZone:'UTC',month:long?'long':'short',year:'numeric'})};
+const ekey=(k,unit,long)=>{if(unit==='year')return k;const[y,m,d]=k.split('-').map(Number),dt=new Date(Date.UTC(y,m-1,d||1));return unit==='day'?dt.toLocaleDateString('en-NG',{timeZone:'UTC',...(long?{weekday:'short'}:{}),day:'numeric',month:'short'}):dt.toLocaleDateString('en-NG',{timeZone:'UTC',month:long?'long':'short',year:'numeric'})};
 const nairaS=n=>n<0?'−'+naira(-n):naira(n);
 async function earnDash(range){const box=()=>$('#edash');if(!box())return;range=range||AD.erange||'30d';AD.erange=range;
   const r=await fetchJ('/api/admin/earnings?range='+range);if(!box()||AD.erange!==range)return;if(r.error){box().innerHTML='<p class="err">'+esc(r.error)+'</p>';return}
@@ -2070,6 +2094,23 @@ async function earnDash(range){const box=()=>$('#edash');if(!box())return;range=
     if(b.dataset.er){box().querySelectorAll('[data-er]').forEach(x=>x.setAttribute('aria-pressed',x===b));earnDash(b.dataset.er);return}
     const f=$('#eFrom').value,t=$('#eTo').value;if(!f||!t)return toast('Pick a start and end date');if(f>t)return toast('The start date must be before the end date');
     location.href='/api/admin/earnings.csv?'+new URLSearchParams({type:b.dataset.edl,from:f,to:t})}}
+// Money moved through Stall: everything buyers and payers paid (orders, group collections, Stall services), separate from what Stall earned.
+const VOL_R=[['7d','7 days'],['30d','30 days'],['90d','90 days'],['6m','6 months'],['12m','12 months'],['all','By year']];
+async function volDash(range){const box=()=>$('#vdash');if(!box())return;range=range||AD.vrange||'30d';AD.vrange=range;
+  const r=await fetchJ('/api/admin/volume?range='+range);if(!box()||AD.vrange!==range)return;if(r.error){box().innerHTML='<p class="err">'+esc(r.error)+'</p>';return}
+  const q=r.quick,rl=VOL_R.find(x=>x[0]===range)[1],mx=Math.max(1,...r.cats.map(c=>c.amt)),U={day:'Day',month:'Month',year:'Year'}[r.unit];
+  box().innerHTML=`<div class="eq">${[['Today',q.today],['This week',q.week],['This month',q.month],['This year',q.year],['All time',q.all]].map(([l,v])=>`<div><b>${naira(v.amt)}</b><span>${l} · ${v.n} payment${v.n===1?'':'s'}</span></div>`).join('')}</div>
+   <div class="ecard"><div class="ehead"><div><p class="meta">${range==='all'?'Moved through Stall since the start':'Moved through Stall in the last '+rl}</p><b class="ehero">${naira(r.total)}</b><p class="meta">${r.count} payment${r.count===1?'':'s'} · ${ekey(r.from,'day')} – ${ekey(r.to,'day')} · by ${U.toLowerCase()}</p></div>
+    <div class="fchips">${VOL_R.map(([k,l])=>`<button class="fchip" data-vr="${k}" aria-pressed="${k===range}">${l}</button>`).join('')}</div></div>
+    <div class="echart" id="vChart" role="img" aria-label="Money moved through Stall per ${U.toLowerCase()}"></div>
+    <p style="margin:8px 0 0"><button class="link" id="vTblBtn" type="button">Show as table</button></p><div id="vTbl" hidden><table class="etbl"><tr><th>${U}</th><th>Payments</th><th>Amount</th></tr>${r.buckets.slice().reverse().map(b=>`<tr><td>${ekey(b.k,r.unit,1)}</td><td>${b.n}</td><td>${naira(b.amt)}</td></tr>`).join('')}</table></div></div>
+   <div class="ecard"><b>What moved</b><p class="meta" style="margin:2px 0 6px">This is the full amount people paid, not Stall's earnings. Most of it goes to sellers and collectors.${r.refunded?` ${naira(r.refunded)} of the orders were later refunded.`:''}</p>
+    ${r.cats.map(c=>`<div class="erow"><span>${c.label}</span><span class="n">${c.n}</span><span class="a">${naira(c.amt)}</span>${c.amt>0?`<span class="sh"><i style="width:${Math.round(c.amt/mx*100)}%"></i></span>`:''}</div>`).join('')}
+    <div class="erow tot"><span>Total</span><span class="n">${r.count}</span><span class="a">${naira(r.total)}</span></div></div>`;
+  r.empty='No payments in this period yet.';earnChart($('#vChart'),r);
+  box().onclick=e=>{const b=e.target.closest('[data-vr],#vTblBtn');if(!b)return;
+    if(b.id==='vTblBtn'){const t=$('#vTbl');t.hidden=!t.hidden;b.textContent=t.hidden?'Show as table':'Hide table';return}
+    box().querySelectorAll('[data-vr]').forEach(x=>x.setAttribute('aria-pressed',x===b));volDash(b.dataset.vr)}}
 // Bar chart, one bar per day or month: 4px rounded ends, square at the zero line, hairline grid, a tooltip on hover or tap.
 function earnChart(el,r){const B=r.buckets,W=Math.max(280,el.clientWidth||600),H=210,pl=46,pr=8,pt=10,pb=24,n=B.length,vals=B.map(b=>b.amt);
   const nice=v=>{if(v<=0)return 0;const p=10**Math.floor(Math.log10(v)),f=v/p;return(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p};
@@ -2081,7 +2122,7 @@ function earnChart(el,r){const B=r.buckets,W=Math.max(280,el.clientWidth||600),H
    ${B.map((b,i)=>bar(i,b.amt)).join('')}
    ${B.map((b,i)=>i%every===0||i===n-1&&n-1-(n-1)%every>=every/2?`<text x="${pl+band*i+band/2}" y="${H-6}" text-anchor="middle">${ekey(b.k,r.unit)}</text>`:'').join('')}
    ${B.map((b,i)=>`<rect class="hit" data-i="${i}" x="${pl+band*i}" y="${pt}" width="${band}" height="${H-pt-pb}"/>`).join('')}</svg>
-   ${vals.every(v=>!v)?'<p class="meta" style="position:absolute;inset:40% 0 auto;text-align:center">No earnings in this period yet.</p>':''}<div class="etip" hidden></div>`;
+   ${vals.every(v=>!v)?'<p class="meta" style="position:absolute;inset:40% 0 auto;text-align:center">'+(r.empty||'No earnings in this period yet.')+'</p>':''}<div class="etip" hidden></div>`;
   const tip=el.querySelector('.etip'),svg=el.querySelector('svg'),off=()=>{tip.hidden=true;el.classList.remove('hov');el.querySelectorAll('.bar.on').forEach(x=>x.classList.remove('on'))};
   const on=e=>{const h=e.target.closest('.hit');if(!h)return off();const i=+h.dataset.i,b=B[i],k=svg.getBoundingClientRect().width/W;off();el.classList.add('hov');const m=el.querySelector('.bar[data-i="'+i+'"]');if(m)m.classList.add('on');
     tip.innerHTML=`<b>${nairaS(b.amt)}</b>${ekey(b.k,r.unit,1)} · ${b.n} payment${b.n===1?'':'s'}`;tip.hidden=false;tip.style.left=Math.min(Math.max((pl+band*i+band/2)*k,70),el.clientWidth-70)+'px';tip.style.top=(Math.min(y(b.amt),y0))*k+'px'};
@@ -2206,7 +2247,7 @@ function gate(){drawGuide();
     <label>Email address<input name="email" type="email" autocomplete="email" placeholder="you@gmail.com"><span class="err" data-e="email"></span></label>
     <label>WhatsApp number<input name="phone" inputmode="tel" placeholder="080..."><span class="err" data-e="phone"></span></label>
     <label>Create a password<input name="pw" type="password" autocomplete="new-password" placeholder="At least 8 characters"><span class="err" data-e="pw"></span></label>
-    <label>Hostel or where you stay (optional)<input name="where" maxlength="40"></label>
+    <label>Hostel or where you stay<input name="where" maxlength="40" placeholder="e.g. Hall B, Room 214"><span class="err" data-e="where"></span></label>
     <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span>I'm 16 or older, I'm a current student at the school above, and I agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label><span class="err" data-e="ok"></span>
     <div class="acts"><button class="pill" type="submit">Create account</button></div></form><p style="margin-top:14px"><button class="link" type="button" id="toIn">Already have an account? Sign in</button></p></div>`;
   $('#reg').onsubmit=e=>{e.preventDefault();const f=e.target,v=n=>f.elements[n].value.trim(),er={};
@@ -2217,6 +2258,7 @@ function gate(){drawGuide();
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(v('email')))er.email='Enter a valid email address.';
     if(ph.length<10||ph.length>14)er.phone='Enter a valid WhatsApp number.';
     if(f.elements.pw.value.length<8)er.pw='Use at least 8 characters.';
+    if(v('where').length<2)er.where='Enter your hostel or where you stay, so buyers and sellers can meet you.';
     if(!f.elements.ok.checked)er.ok='Please confirm to continue.';
     f.querySelectorAll('[data-e]').forEach(x=>x.textContent=er[x.dataset.e]||'');
     if(Object.keys(er).length)return;
@@ -2272,7 +2314,7 @@ const NAV={s:[],r:0,v:'shop',cur:{},lc:null};
 // Home-screen shortcuts (long-press the app icon): /?go=sell, /?go=orders, /?go=messages
 (()=>{const sp=new URLSearchParams(location.search),g=sp.get('go');if(!g)return;window.__goT=sp.get('t');history.replaceState(null,'','/app');let n=0;const run=()=>{if(!S.user){if(++n<20)setTimeout(run,300);return}if(g==='sell')$('#tbSell').click();else if(g==='orders')view('orders');else if(g==='selling')view('selling');else if(g==='payments')openPays();else if(g==='badges')openBadges();else if(g==='invite')openInvite();else if(g==='messages'){const t=+new URLSearchParams(location.search).get('t')||+(window.__goT||0);t?openChat(t):openInbox()}};setTimeout(run,300)})();
 // Links like /?item=L12, /?store=S3 open that item or store (after signing in, if needed); ?r=CODE remembers who invited you.
-(()=>{const sp=new URLSearchParams(location.search),col=(sp.get('collect')||'').toUpperCase();if(!/^[A-Z2-9]{6}$/.test(col))return;history.replaceState(null,'','/app');let n=0;
+(()=>{const sp=new URLSearchParams(location.search),cm=location.pathname.match(/^\/c\/([A-Za-z0-9]{6})\/?$/),col=(cm?cm[1]:sp.get('collect')||'').toUpperCase();if(!/^[A-Z2-9]{6}$/.test(col))return;history.replaceState(null,'','/app');let n=0;
   const run=()=>{if(!S.user){if(++n<600)setTimeout(run,1000);return}openCollect(col)};setTimeout(run,600)})();
 (()=>{const sp=new URLSearchParams(location.search),rf=sp.get('r'),it=sp.get('item'),stq=sp.get('store');if(rf)try{localStorage.setItem('stall:ref',rf.toUpperCase().slice(0,12))}catch(e){}
   if(!rf&&!it&&!stq)return;history.replaceState(null,'','/app');if(!it&&!stq)return;let n=0;
