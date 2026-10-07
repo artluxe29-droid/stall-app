@@ -304,6 +304,14 @@ html.dark-ui input:not([type=checkbox]):not([type=radio]):not([type=range]),html
 .vb{display:inline-block;font-size:12px;font-weight:600;color:var(--green);white-space:nowrap}
 .fsb{display:inline-flex;align-items:center;gap:5px;background:#C8F03C;color:#1C2457;font-size:12.5px;font-weight:800;padding:4px 11px 4px 8px;border-radius:99px;border:0;white-space:nowrap;font-family:inherit}.fsb .ic{width:15px;height:15px}.fsb.sm{font-size:11px;padding:2px 8px 2px 6px;margin:2px 0 4px}.fsb.sm .ic{width:13px;height:13px}button.fsb{cursor:pointer}
 .kitseg{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:0 0 12px}.kcap{border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;margin-top:8px;display:flex;gap:10px;align-items:flex-start}.kcap p{margin:0;flex:1;font-size:13.5px}
+.cartl{display:flex;flex-direction:column;gap:10px;margin:12px 0}.cartr{border:1.5px solid var(--line);border-radius:16px;padding:12px 14px}
+.cr1{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.cr1 b{display:block;font-size:15px}.cr1 small{color:var(--muted);font-size:13px}.crp{font-weight:800;white-space:nowrap}
+.crm{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.crm label{flex:1;min-width:120px;display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:12px;padding:8px 10px;font-size:13.5px;font-weight:600;cursor:pointer}
+.crm label:has(input:checked){border-color:var(--ink);background:var(--acc);color:var(--acc-ink)}.crm input{width:auto;margin:0}
+.codes{display:flex;flex-direction:column;gap:10px;margin:16px 0}.codr{border:1.5px solid var(--line);border-radius:16px;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center}
+.codr b{display:block;font-size:15px}.codr small{color:var(--muted);font-size:13px}.codr .cc{font-size:22px;font-weight:800;letter-spacing:1px}.codr a{grid-column:1/-1;text-align:left;font-size:13.5px}
+.payall{display:flex;align-items:center;gap:12px;justify-content:space-between;background:var(--acc);color:var(--acc-ink);border-radius:18px;padding:14px 16px;margin-bottom:14px}.payall b{display:block}.payall small{font-size:13px}
+.cdlbox{border:1.5px solid var(--line);border-radius:16px;padding:12px 14px;margin-top:10px}
 .ogh{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:6px 0 10px;display:flex;align-items:center;gap:8px}.ogh span{background:var(--acc);color:var(--acc-ink);border-radius:99px;padding:1px 8px;font-size:12px;letter-spacing:0}
 .onone{display:flex;align-items:center;gap:10px;border:1.5px dashed var(--line);border-radius:16px;padding:14px 16px;color:var(--muted);font-weight:600;margin-bottom:12px}.onone .ic{width:20px;height:20px}
 .opast{margin-top:18px;border:1.5px solid var(--line);border-radius:18px;overflow:hidden}.opast summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px}
@@ -893,12 +901,41 @@ function openLook(){const s=myStore(),d=$('#accDlg');if(!s)return;
 // Shrinks a photo (ID card or shop) before upload.
 function shrinkPhoto(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.8))};im.onerror=rej;im.src=r.result};r.onerror=rej;r.readAsDataURL(file)})}
 async function loadOne(id){const r=await fetchJ('/api/orders/mine');return (r.orders||[]).find(x=>x.id===id)}
+// A bag with items from several sellers: one screen, one Paystack payment for all of them. Each seller still gets their own order and release code.
+const payable=o=>o&&o.card&&o.status==='pending'&&o.deadline>Date.now();
+function cartScreen(L){const d=$('#checkout');if(!d.open)d.showModal();const left=Math.min(...L.map(o=>o.deadline))-Date.now();
+  d.innerHTML=`<div class="pad"><p class="meta" style="margin:0">${L.length} sellers · one payment</p><h2>Pay for your bag</h2>
+   <div class="cartl">${L.map(o=>`<div class="cartr" data-co="${o.id}"><div class="cr1"><div><b>${esc(o.title)}</b><small>${esc(o.sellerName)}</small></div><span class="crp" data-cp="${o.id}">${naira(o.sub!=null?o.sub:o.amount)}</span></div>
+    ${o.deliv&&o.deliv.on?`<div class="crm"><label><input type="radio" name="m${o.id}" value="pickup" checked><span>Pick up${o.pickup?' · '+esc(o.pickup):''}</span></label><label><input type="radio" name="m${o.id}" value="delivery"><span>Delivery · ${o.deliv.fee?naira(o.deliv.fee):'free'}</span></label></div>`:`<small class="meta">Pick up${o.pickup?' at '+esc(o.pickup):''}. Arrange a time with the seller.</small>`}</div>`).join('')}</div>
+   <div id="addrBox" hidden><label>Where should they bring it?<input id="dAddr" maxlength="160" placeholder="Hostel, room number or landmark"></label><label>Phone for delivery<input id="dPh" maxlength="20" inputmode="tel" value="${esc(S.user.phone||'')}"></label></div>
+   <div class="sum"><span>Total</span><span id="payTot"></span></div>
+   <p class="meta">One payment on Paystack's secure page (card, bank transfer or USSD). Stall holds each seller's share until you have their item, and gives you a release code for each one.</p>
+   <div class="acts"><button class="pill" id="psPay">Pay securely</button></div>
+   <p class="meta">Complete payment within <b id="cdown">${clock(left)}</b>. <button class="link" id="cartOne">Pay sellers one by one instead</button></p></div>`;
+  const m=o=>(d.querySelector(`[name=m${o.id}]:checked`)||{}).value||'pickup',amt=o=>(o.sub!=null?o.sub:o.amount)+(m(o)==='delivery'?o.deliv.fee||0:0);
+  const upd=()=>{const t=L.reduce((a,o)=>a+amt(o),0);L.forEach(o=>{const el=d.querySelector(`[data-cp="${o.id}"]`);if(el)el.textContent=naira(amt(o))});$('#payTot').textContent=naira(t);$('#psPay').textContent='Pay '+naira(t)+' securely';$('#addrBox').hidden=!L.some(o=>m(o)==='delivery')};upd();
+  d.querySelectorAll('input[type=radio]').forEach(r=>r.onchange=()=>{upd();if(r.value==='delivery'&&r.checked)$('#dAddr').focus()});
+  $('#cartOne').onclick=()=>{PAYQ=L.slice(1);PAYTOTAL=L.length;PAYIDX=1;orderScreen(L[0])};
+  $('#psPay').onclick=async e=>{const addr=$('#dAddr').value.trim();if(L.some(o=>m(o)==='delivery')&&addr.length<5){$('#dAddr').focus();return toast('Enter where your orders should be brought')}
+    try{localStorage.setItem('stall:cart-pay',JSON.stringify(L.map(o=>o.id)))}catch(x){}
+    startFeature({kind:'cart',orders:L.map(o=>({id:o.id,method:m(o)})),addr,dphone:$('#dPh').value.trim()},e.currentTarget)};
+  const tk=setInterval(()=>{const el=$('#cdown');if(!el)return clearInterval(tk);const l=Math.min(...L.map(o=>o.deadline))-Date.now();if(l<=0){clearInterval(tk);d.close();view('orders');toast('The payment window ran out. Add the items to your bag again.')}else el.textContent=clock(l)},1000)}
+// After one payment for several orders: every release code on one screen.
+async function paidScreen(oids){const r=await fetchJ('/api/orders/mine').catch(()=>({})),L=(r.orders||[]).filter(o=>oids.includes(o.id)),d=$('#checkout');if(!L.length)return view('orders');if(!d.open)d.showModal();
+  const ok=L.filter(o=>o.status==='verified');
+  d.innerHTML=`<div class="pad" style="text-align:center"><svg class="ok" viewBox="0 0 72 72"><circle cx="36" cy="36" r="30"/><path d="M23 37l9 9 18-20"/></svg>
+   <h2>${ok.length===L.length?'All paid ✓':'Payment received'}</h2><p class="meta">${ok.length===L.length?`Stall is holding your money for ${L.length} orders. Give each seller their own code when you get your item.`:'Some orders need a quick check by the Stall team. You\'ll see their codes in Orders once approved.'}</p>
+   <div class="codes">${L.map(o=>`<div class="codr"><div style="text-align:left"><b>${esc(o.title)}</b><small>${esc(o.sellerName)}${o.method==='delivery'?' · delivery':' · pick up'}</small></div>${o.status==='verified'?`<div class="cc">${esc(o.code||'')}</div>`:'<small class="meta">Being checked</small>'}
+    ${o.status==='verified'&&waCode(o.sellerPhone,o.code,o.title)?`<a class="link" href="${waCode(o.sellerPhone,o.code,o.title)}" target="_blank" rel="noopener">Send code on WhatsApp</a>`:''}</div>`).join('')}</div>
+   <div class="acts"><button class="pill" id="paidDone">Done</button></div><p class="meta">Your codes are always in Orders too.</p></div>`;
+  $('#paidDone').onclick=()=>{d.close();S.cart=[];save();badge();render();view('orders')}}
 function payAdvance(){const nx=PAYQ.shift();if(!nx){$('#checkout').close();S.cart=[];save();badge();render();view('orders');return}PAYIDX++;orderScreen(nx)}
 async function startCheckout(items){const ag=$('#buyAgree');if(ag&&!ag.checked){toast('Tick the box to agree to how Stall holds your payment');ag.closest('label').animate([{transform:'translateX(-4px)'},{transform:'translateX(4px)'},{transform:'none'}],{duration:240});return}
   const b=$('#goPay');if(b){b.disabled=true;b.textContent='Placing order…'}
   const r=await apiPost('orders/create',{items:items.flatMap(x=>Array(x.q).fill(x.id)),consent:true});
   if(b){b.disabled=false;b.textContent='Continue'}
   if(r.error)return toast(r.error);
+  const P=r.orders.filter(payable);if(P.length>1)return cartScreen(P);
   PAYQ=r.orders.slice(1);PAYTOTAL=r.orders.length;PAYIDX=1;orderScreen(r.orders[0])}
 const wa2=p=>`<a class="link" href="tel:${esc(p)}">${esc(p)}</a>`;
 const dlvLine=d=>d&&d.on?`<p class="meta dline">${ico('truck')} Delivers${d.fee?' for '+naira(d.fee):' for free'}${d.note?' · '+esc(d.note):''}</p>`:'';
@@ -965,21 +1002,24 @@ function showReceipt(html,text,title){const d=$('#accDlg');d.innerHTML=`<div cla
   if(!d.open)d.showModal()}
 // Receipt to image: drawn by html2canvas (loaded only when needed) from an off-screen copy, on the receipt-board lilac.
 const loadH2C=()=>window.html2canvas?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement('script');s.src='/vendor/html2canvas.min.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)});
-async function rcCanvas(html,o={}){await loadH2C();await document.fonts.ready;const pad=o.pad!=null?o.pad:24,bg=o.bg||'#ECEAF4',w=document.createElement('div');w.style.cssText=`position:fixed;left:-10000px;top:0;box-sizing:content-box;width:360px;padding:${pad}px;background:${bg};-webkit-text-size-adjust:none;text-size-adjust:none`;w.innerHTML=html;document.body.appendChild(w);
+async function rcCanvas(html,o={}){await loadH2C();await document.fonts.ready;const pad=o.pad!=null?o.pad:24,bg=o.bg||'#ECEAF4',w=document.createElement('div');w.style.cssText=`position:fixed;left:-10000px;top:0;box-sizing:content-box;width:${o.w||360}px;padding:${pad}px;background:${bg};-webkit-text-size-adjust:none;text-size-adjust:none`;w.innerHTML=html;document.body.appendChild(w);
   await Promise.all([...w.querySelectorAll('img')].map(i=>i.complete?0:new Promise(z=>{i.onload=i.onerror=z})));
   // html2canvas mis-sizes images with height:auto, so pin each to the height it actually has.
   w.querySelectorAll('img').forEach(i=>{const r=i.getBoundingClientRect();i.style.width=r.width+'px';i.style.height=r.height+'px'});
-  try{return await html2canvas(w,{scale:3,backgroundColor:bg,logging:false,useCORS:true})}finally{w.remove()}}
+  try{return await html2canvas(w,{scale:o.scale||3,backgroundColor:bg,logging:false,useCORS:true})}finally{w.remove()}}
 const rcPng=async(html,o)=>new Promise(async(ok,no)=>(await rcCanvas(html,o)).toBlob(b=>b?ok(b):no(new Error('png')),'image/png'));
 // A one-page PDF holding the receipt picture, sized to the receipt (built here, no library needed).
-async function rcPdf(html,o){const c=await rcCanvas(html,o),jpg=Uint8Array.from(atob(c.toDataURL('image/jpeg',.92).split(',')[1]),x=>x.charCodeAt(0));
-  const pw=+(c.width/3*.75).toFixed(2),ph=+(c.height/3*.75).toFixed(2),en=new TextEncoder(),parts=[],offs=[];let n=0;const add=x=>{const b=typeof x==='string'?en.encode(x):x;parts.push(b);n+=b.length};
-  const obj=(i,body)=>{offs[i]=n;add(i+' 0 obj\n'+body+'\nendobj\n')},draw=`q ${pw} 0 0 ${ph} 0 0 cm /Im0 Do Q`;
-  add('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');obj(1,'<< /Type /Catalog /Pages 2 0 R >>');obj(2,'<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
-  obj(3,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
-  offs[4]=n;add(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${c.width} /Height ${c.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`);add(jpg);add('\nendstream\nendobj\n');
-  obj(5,`<< /Length ${draw.length} >>\nstream\n${draw}\nendstream`);obj(6,'<< /Title (Stall receipt) /Producer (Stall) >>');
-  const x=n;add('xref\n0 7\n0000000000 65535 f \n'+offs.slice(1).map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')+'trailer\n<< /Size 7 /Root 1 0 R /Info 6 0 R >>\nstartxref\n'+x+'\n%%EOF\n');
+async function rcPdf(html,o){return pdfPages([await rcCanvas(html,o)],3,'Stall receipt')}
+// A PDF with one picture per page (built here, no library needed). k is the canvas scale, so a page is canvas size / k in CSS px.
+function pdfPages(cs,k,title){const en=new TextEncoder(),parts=[],offs=[];let n=0;const add=x=>{const b=typeof x==='string'?en.encode(x):x;parts.push(b);n+=b.length};
+  const obj=(i,body)=>{offs[i]=n;add(i+' 0 obj\n'+body+'\nendobj\n')},N=cs.length,pg=i=>4+i*3;
+  add('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');obj(1,'<< /Type /Catalog /Pages 2 0 R >>');obj(2,`<< /Type /Pages /Kids [${cs.map((_,i)=>pg(i)+' 0 R').join(' ')}] /Count ${N} >>`);
+  obj(3,`<< /Title (${String(title||'Stall').replace(/[()\\]/g,'')}) /Producer (Stall) >>`);
+  cs.forEach((c,i)=>{const jpg=Uint8Array.from(atob(c.toDataURL('image/jpeg',.9).split(',')[1]),x=>x.charCodeAt(0)),pw=+(c.width/k*.75).toFixed(2),ph=+(c.height/k*.75).toFixed(2),draw=`q ${pw} 0 0 ${ph} 0 0 cm /Im0 Do Q`,P=pg(i);
+    obj(P,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im0 ${P+1} 0 R >> >> /Contents ${P+2} 0 R >>`);
+    offs[P+1]=n;add(`${P+1} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${c.width} /Height ${c.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`);add(jpg);add('\nendstream\nendobj\n');
+    obj(P+2,`<< /Length ${draw.length} >>\nstream\n${draw}\nendstream`)});
+  const tot=4+N*3,x=n;add('xref\n0 '+tot+'\n0000000000 65535 f \n'+offs.slice(1).map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')+'trailer\n<< /Size '+tot+' /Root 1 0 R /Info 3 0 R >>\nstartxref\n'+x+'\n%%EOF\n');
   return new Blob(parts,{type:'application/pdf'})}
 function saveBlob(b,name){const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),6e4);toast('Saved '+name)}
 // ---- Milestone badges: a seller's 1st, 5th, 10th… sale and a buyer's safe buys. Shown once when earned, kept in Account → Badges, and
@@ -1254,7 +1294,9 @@ function orderGroups(L,seller){const now=L.filter(o=>OPEN_ST.includes(o.status))
    +(past.length?`<details class="opast" data-opast="${k}"${OPAST[k]?' open':''}><summary><span><b>Past orders</b><small>${past.length} finished${rate?` · <em>${rate} to rate</em>`:''}</small></span><i class="chev"></i></summary><div class="opl">${past.map(o=>orderCard(o,seller)).join('')}</div></details>`:'')}
 document.addEventListener('toggle',e=>{const d=e.target;if(d.dataset&&d.dataset.opast)OPAST[d.dataset.opast]=d.open},true);
 async function renderOrders(){setTimeout(checkMilestones,1200);const r=await fetchJ('/api/orders/mine').catch(()=>({}));const L=r.orders||[],up=updBox('buy');markSeen('b');
-  $('#orderList').innerHTML=(L.length?nudgeHtml('order'):'')+up+(L.length?orderGroups(L,false):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>When you buy something, it shows up here.</p><div class="acts" style="justify-content:center"><button class="pill" id="toShop">Start shopping</button></div></div>`);
+  const W=L.filter(payable);
+  $('#orderList').innerHTML=(W.length>1?`<div class="payall"><div><b>${W.length} orders waiting for payment</b><small>${naira(W.reduce((a,o)=>a+(o.sub!=null?o.sub:o.amount),0))} in total. Pay for them together.</small></div><button class="pill sm" id="payAll">Pay all</button></div>`:'')+(L.length?nudgeHtml('order'):'')+up+(L.length?orderGroups(L,false):`<div class="empty" style="padding:40px 0"><h3>No orders yet</h3><p>When you buy something, it shows up here.</p><div class="acts" style="justify-content:center"><button class="pill" id="toShop">Start shopping</button></div></div>`);
+  if($('#payAll'))$('#payAll').onclick=()=>cartScreen(W);
   drawNudges();$('#orderList').querySelectorAll('[data-rateform]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();if(!f.elements.stars.value)return toast('Tap the stars to rate');
     const r=await apiPost('orders/rate',{id:+f.dataset.rateform,stars:+f.elements.stars.value,text:f.elements.text.value});if(r.error)return toast(r.error);toast('Thanks for rating');renderOrders()});
   $('#orderList').querySelectorAll('[data-payid]').forEach(b=>b.onclick=async()=>{const o=(L).find(x=>x.id==b.dataset.payid);PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)});
@@ -1573,6 +1615,31 @@ function openCollectNew(bank){const d=$('#accDlg'),bo=($('#form [name=bank_code]
     sb.disabled=false;sb.textContent='Create collection';
     if(r.error){$('#cErr').innerHTML=esc(r.error)+(r.verify?' <button type="button" class="link" id="cVer">Verify now</button>':'');const v=$('#cVer');if(v)v.onclick=()=>openStudentVerify();if(r.bank){$('#cBank').hidden=false}return}
     toast('Collection created. Share the link with your class');refreshMe();openCollect(r.code)}}
+// The paid list as branded A4 pages (PDF, or one picture per page). Long lists simply run onto more pages, with the header repeated small.
+const CL_W=595,CL_H=842;
+function clPages(c,rows){const first=20,rest=27,pages=[];pages.push(rows.slice(0,first));for(let i=first;i<rows.length;i+=rest)pages.push(rows.slice(i,i+rest));if(!pages[0].length&&pages.length>1)pages.shift();
+  const N=pages.length,when=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),tot=rows.reduce((a,r)=>a+(r.amount||c.amount),0);let k=0;
+  const row=(r,i)=>`<div style="display:flex;align-items:center;height:24px;padding:0 14px;font-size:11px;background:${i%2?'#FFFFFF':'#F6F1E7'};border-radius:6px">
+    <span style="width:30px;color:#5B6077;font-weight:700">${r.n}</span><span style="flex:1;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px">${esc(r.name)}</span>
+    <span style="width:130px;color:#26306E">${esc(r.matric||'')}</span><span style="width:110px;color:#5B6077">${cTime(r.t)}</span>
+    <span style="width:62px;text-align:center">${r.ticked?'<span style="display:inline-block;background:#C8F03C;color:#1C2457;border-radius:99px;padding:1px 8px;font-weight:800;font-size:10px">✓ Given</span>':'<span style="display:inline-block;width:12px;height:12px;border:1.5px solid #C9C3B5;border-radius:3px"></span>'}</span></div>`;
+  const head=`<div style="display:flex;align-items:center;height:26px;padding:0 14px;font-size:9.5px;font-weight:800;color:#5B6077;border-bottom:1.5px solid #E3DED2;margin-bottom:4px"><span style="width:30px">#</span><span style="flex:1">NAME</span><span style="width:130px">MATRIC NUMBER</span><span style="width:110px">PAID</span><span style="width:62px;text-align:center">COLLECTED</span></div>`;
+  const awn=`<div style="height:8px;background:#1C2457"></div><div style="display:flex;height:16px">${Array.from({length:10},(_,i)=>`<div style="flex:1;border-radius:0 0 16px 16px;background:${i%2?'#F6F1E7':'#C8F03C'}"></div>`).join('')}</div>`;
+  return pages.map((P,pi)=>`<div style="width:${CL_W}px;height:${CL_H}px;background:#FFFFFF;color:#1C2457;font-family:Figtree,Arial,sans-serif;position:relative;overflow:hidden">
+   ${pi===0?`<div style="background:#26306E;color:#F6F1E7;padding-bottom:22px">${awn}<div style="padding:18px 32px 0">
+     <div style="display:flex;justify-content:space-between;align-items:center"><img src="/icons/receipt/wm-cream.png" width="58" height="24" style="display:block;width:58px;height:24px"><span style="background:#C8F03C;color:#1C2457;font-size:9.5px;font-weight:800;letter-spacing:.14em;padding:4px 10px;border-radius:99px">PAID LIST</span></div>
+     <div style="font:800 26px/1.1 'Bricolage Grotesque',Arial,sans-serif;letter-spacing:0;margin-top:14px">${esc(c.title)}</div>
+     <div style="font-size:12px;color:#CCCACF;margin-top:4px">${esc([c.cls,c.school,'Collected by '+c.rep].filter(Boolean).join(' · '))}</div>
+     <div style="display:flex;gap:8px;margin-top:14px">${[[naira(c.amount),'per person'],[rows.length+(c.expected?' of '+c.expected:''),'paid'],[naira(tot),'collected'],[when,'as of']].map(([v,l])=>`<div style="flex:1;background:#1C2457;border-radius:10px;padding:8px 10px"><div style="font:800 15px/1.1 'Bricolage Grotesque',Arial,sans-serif;letter-spacing:0;color:${l==='paid'?'#C8F03C':'#F6F1E7'}">${esc(v)}</div><div style="font-size:9.5px;color:#CCCACF;margin-top:2px">${l}</div></div>`).join('')}</div></div></div>`
+    :`<div style="background:#26306E;color:#F6F1E7">${awn}<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 32px 12px"><div style="font:800 15px/1.2 'Bricolage Grotesque',Arial,sans-serif;letter-spacing:0">${esc(c.title)}<span style="font:500 11px Figtree,Arial;color:#CCCACF"> · paid list, continued</span></div><img src="/icons/receipt/wm-cream.png" width="44" height="18" style="display:block;width:44px;height:18px"></div></div>`}
+   <div style="padding:${pi===0?16:14}px 32px 0">${head}${P.length?P.map(row).join(''):'<p style="font-size:12px;color:#5B6077;padding:14px">No one has paid yet.</p>'}</div>
+   <div style="position:absolute;left:32px;right:32px;bottom:18px;display:flex;justify-content:space-between;font-size:9.5px;color:#5B6077;border-top:1.5px solid #E3DED2;padding-top:8px"><span>Paid through Stall · ${esc(location.host)}/c/${esc(c.code)}</span><span>Page ${pi+1} of ${N}</span></div></div>`)}
+async function clExport(c,paid,kind,btn){const lb=btn.innerHTML;btn.disabled=true;btn.textContent='Preparing…';
+  try{const rows=paid.slice().sort((a,b)=>a.name.localeCompare(b.name)).map((r,i)=>({...r,n:i+1})),pages=clPages(c,rows),name='stall-'+String(c.title).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)+'-paid';
+    const cs=[];for(let i=0;i<pages.length;i++){btn.textContent=pages.length>1?`Page ${i+1} of ${pages.length}…`:'Preparing…';cs.push(await rcCanvas(pages[i],{pad:0,bg:'#FFFFFF',w:CL_W,scale:2}))}
+    if(kind==='pdf'){const f=pdfPages(cs,2,c.title+' - paid list');saveBlob(f,name+'.pdf')}
+    else for(let i=0;i<cs.length;i++){const bl=await new Promise((ok,no)=>cs[i].toBlob(x=>x?ok(x):no(),'image/png'));saveBlob(bl,name+(cs.length>1?'-page-'+(i+1):'')+'.png');if(cs.length>1)await new Promise(z=>setTimeout(z,400))}}
+  catch(e){toast('Could not make the file. Try again.')}btn.disabled=false;btn.innerHTML=lb}
 async function openCollect(code){const d=$('#accDlg');d.innerHTML='<div class="pad"><h2>Class collection</h2><p class="meta">Loading…</p></div>';if(!d.open)d.showModal();
   const r=await fetchJ('/api/collect/view?code='+encodeURIComponent(code));if(r.error){d.querySelector('.meta').textContent=r.error;return}
   const c=r.c,link=location.origin+'/c/'+c.code,msg=`💸 *${c.title}*${c.cls?'\n'+c.cls:''}\n*${naira(c.amount)}* per person${c.deadline?' · closes '+cDate(c.deadline):''}\n\nPay safely on Stall and see who has paid 👇\n`,pct=c.expected?Math.min(100,Math.round(r.n/c.expected*100)):0;
@@ -1584,13 +1651,15 @@ async function openCollect(code){const d=$('#accDlg');d.innerHTML='<div class="p
    ${r.mine?`<div class="cdone">✓ You paid on ${cTime(r.mine.t)}</div>`:''}
    ${!r.owner&&!r.mine&&c.open?`<button class="pill" type="button" id="cPay" style="width:100%">Pay ${naira(c.total)}</button><p class="meta" style="margin-top:6px">${naira(c.amount)} plus ${naira(c.charge)} for payment processing and Stall. The money goes straight to ${esc(c.rep.split(' ')[0])}'s bank account through Paystack; Stall never holds it. <b>Only pay if you know who is collecting.</b> Questions about what it covers or refunds go to them.</p>`:''}
    ${r.owner?`<div class="acts" style="flex-wrap:wrap"><a class="pill" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg+link)}">Share on WhatsApp</a><button class="pill alt" type="button" data-copy="${esc(link)}">Copy link</button>
-     <a class="pill alt" href="/api/collect/csv?code=${c.code}">Download list</a><button class="pill alt" type="button" id="cOpen">${c.status==='open'?'Close collection':'Reopen'}</button></div>
+     <button class="pill alt" type="button" id="cDl">Download list</button><button class="pill alt" type="button" id="cOpen">${c.status==='open'?'Close collection':'Reopen'}</button></div>
      <label class="opt" style="display:flex;gap:10px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="cPub" ${c.publicList?'checked':''} style="width:auto;margin-top:3px"> <span><b>Let people with the link see who has paid</b><br><small class="meta">${c.publicList?'On: they see names and the last 4 digits of matric numbers.':'Off: only you can see the list.'}</small></span></label>`:''}
    <p class="lb" style="margin-top:16px">Who has paid (${r.n})</p>${r.owner&&r.n>8?'<input class="search" id="cFind" type="search" placeholder="Find a name or matric number" style="margin:6px 0 4px">':''}
    <div id="cList">${!r.paid?`<p class="meta">Only ${esc(c.rep.split(' ')[0])} can see who has paid.</p>`:r.paid.length?r.paid.map(p=>`<div class="cpay" data-n="${esc((p.name+' '+p.matric).toLowerCase())}"><b>${esc(p.name)}</b>${r.owner?`<label><input type="checkbox" data-tick="${p.id}" ${p.ticked?'checked':''}> Collected</label>`:'<span></span>'}<small>${esc(p.matric||'')} · ${cTime(p.t)}</small></div>`).join(''):'<p class="meta">No one has paid yet.</p>'}</div>
    <div class="acts"><button class="pill alt" type="button" id="cBack2">${r.owner?'All collections':'Close'}</button></div>
    ${r.owner?'':'<p class="meta" style="text-align:center;margin-top:10px"><button class="link" type="button" id="cRep">Report this collection</button></p>'}</div>`;
   const pay=$('#cPay');if(pay)pay.onclick=async()=>{pay.disabled=true;pay.textContent='Opening Paystack…';const x=await apiPost('pay/start',{kind:'collect',target:c.code});if(x.url){location.href=x.url;return}pay.disabled=false;pay.textContent='Pay '+naira(c.total);toast(x.error||'Could not start payment')};
+  const dl=$('#cDl');if(dl)dl.onclick=()=>{let bx=$('#cDlBox');if(bx){bx.remove();return}dl.closest('.acts').insertAdjacentHTML('afterend',`<div id="cDlBox" class="cdlbox"><p class="meta" style="margin:0 0 8px">A branded list, A to Z, with page numbers. Long lists continue onto more pages.</p><div class="acts" style="margin:0;flex-wrap:wrap"><button class="pill sm" type="button" data-cx="pdf">${ico('download')}PDF</button><button class="pill sm alt" type="button" data-cx="img">${ico('image')}Image${r.n>20?'s (one per page)':''}</button><a class="pill sm alt" href="/api/collect/csv?code=${c.code}">Spreadsheet (CSV)</a></div></div>`);
+    $('#cDlBox').querySelectorAll('[data-cx]').forEach(b=>b.onclick=()=>clExport(c,r.paid||[],b.dataset.cx,b))};
   const op=$('#cOpen');if(op)op.onclick=async()=>{const x=await apiPost('collect/status',{code:c.code,open:c.status!=='open'});if(x.error)return toast(x.error);toast(c.status==='open'?'Collection closed':'Collection reopened');openCollect(c.code)};
   const pb=$('#cPub');if(pb)pb.onchange=async()=>{const x=await apiPost('collect/visibility',{code:c.code,public:pb.checked});if(x.error){pb.checked=!pb.checked;return toast(x.error)}toast(pb.checked?'People with the link can now see who has paid':'Only you can see who has paid');openCollect(c.code)};
   const rp=$('#cRep');if(rp)rp.onclick=async()=>{const why=prompt('What\'s wrong with this collection? (e.g. pretending to be our class rep, not a real event)');if(!why)return;const x=await apiPost('collect/report',{code:c.code,reason:why});toast(x.error||'Thanks. The Stall team will look into it.')};
@@ -2305,11 +2374,12 @@ const NAV={s:[],r:0,v:'shop',cur:{},lc:null};
   let r=await apiPost('pay/confirm',{reference:ref});
   for(let i=0;i<4&&r.processing;i++){await new Promise(z=>setTimeout(z,1500));r=await apiPost('pay/confirm',{reference:ref})}
   if(r.error)return toast(r.error);S.refs.push(ref);save();
-  const msg={collect:'Paid ✓ It has gone to the collector',store:'Store fee paid. Your store is open',verify:'You are now verified ✓',reach:'Store reach upgraded'+(r.until?' until '+until(r.until):''),boost:'Featured'+(r.until?' until '+until(r.until):''),order:r.status==='verified'?'Payment confirmed ✓':'Payment received. The Stall team will check this order'}[r.kind]||'Payment received';
+  const msg={collect:'Paid ✓ It has gone to the collector',store:'Store fee paid. Your store is open',verify:'You are now verified ✓',reach:'Store reach upgraded'+(r.until?' until '+until(r.until):''),boost:'Featured'+(r.until?' until '+until(r.until):''),order:r.status==='verified'?'Payment confirmed ✓':'Payment received. The Stall team will check this order',cart:r.status==='verified'?'All paid ✓':'Payment received'}[r.kind]||'Payment received';
   if(r.signedOut||!S.user)return toast(msg+'. Open Stall to see it.');
   toast(r.note||msg);await refreshMe();await loadPub();if(r.kind==='store'&&r.id){renderStores();storePage(r.id)}
   if(r.kind==='collect'&&r.code)openCollect(r.code);
   if(['boost','reach','verify'].includes(r.kind)&&r.ref)openPayReceipt(r.ref);
+  if(r.kind==='cart'&&r.oids){try{localStorage.removeItem('stall:cart-pay')}catch(x){}S.cart=[];save();badge();render();paidScreen(r.oids);return}
   if(r.kind==='order'&&r.oid){const o=await loadOne(r.oid);if(o){PAYQ=[];PAYTOTAL=1;PAYIDX=1;$('#checkout').showModal();orderScreen(o)}}})();
 // Home-screen shortcuts (long-press the app icon): /?go=sell, /?go=orders, /?go=messages
 (()=>{const sp=new URLSearchParams(location.search),g=sp.get('go');if(!g)return;window.__goT=sp.get('t');history.replaceState(null,'','/app');let n=0;const run=()=>{if(!S.user){if(++n<20)setTimeout(run,300);return}if(g==='sell')$('#tbSell').click();else if(g==='orders')view('orders');else if(g==='selling')view('selling');else if(g==='payments')openPays();else if(g==='badges')openBadges();else if(g==='invite')openInvite();else if(g==='messages'){const t=+new URLSearchParams(location.search).get('t')||+(window.__goT||0);t?openChat(t):openInbox()}};setTimeout(run,300)})();
