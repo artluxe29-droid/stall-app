@@ -1,0 +1,31 @@
+[
+ {
+  "say": "Let's take a quick tour of Stall, so you always know where to find things."
+ },
+ {
+  "cap": "The top bar",
+  "say": "At the top, there are three buttons. The sun switches between light and dark mode. The speech bubble opens your messages. And the bag holds the things you're about to buy.",
+  "after": 0.9
+ },
+ {
+  "cap": "Search anything",
+  "say": "Use the search bar to find anything, from textbooks to food. You can even tap the microphone, and just say what you need."
+ },
+ {
+  "cap": "Browse categories",
+  "say": "Or browse by category, like books, electronics, fashion, or food."
+ },
+ {
+  "cap": "Near you or nationwide",
+  "say": "Choose how far to look. Just your school, your state, or all of Nigeria."
+ },
+ {
+  "cap": "The bottom bar",
+  "say": "At the bottom are five tabs. Home is where you shop. Stores shows the shops on campus. Sell is where you list something. Orders keeps track of what you've bought. And Account holds your profile and settings.",
+  "after": 1.0
+ },
+ {
+  "cap": "You've got it",
+  "say": "If you ever feel lost, just tap Home, and you're back where you started. Next, let's buy something safely."
+ }
+]

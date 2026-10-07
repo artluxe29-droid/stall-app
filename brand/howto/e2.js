@@ -1,0 +1,8 @@
+const P = s => where(s), T2 = (s, at) => { const [x, y] = P(s); tap(x, y, at, s) }, TIP = (text, s, at, dur, below) => { const [x, y, r] = P(s); tip(text, x, below ? r.bottom - $('#stage').getBoundingClientRect().top + 8 : r.top - $('#stage').getBoundingClientRect().top - 26, at, dur, below) };
+run([
+ (t, d) => { [['#iTheme', 'Light / dark', .1], ['#iMsg', 'Messages', .38], ['#iBag', 'Your bag', .68]].forEach(([s, l, f]) => { ring(s, t + d * f, 1.6); TIP(l, s, t + d * f, 1.5, true) }) },
+ (t, d) => { ring('#hSearch', t + d * .05, 1.8); T2('#mic', t + d * .62); for (let i = 0; i < 3; i++)A('#mic .wave', [{ opacity: .9, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(2.2)' }], t + d * .66 + i * .45, .6); TIP('Say what you need', '#mic', t + d * .68, 1.8) },
+ (t, d) => { ring('#cats', t + d * .05, 1.3); ['#cB', '#cE', '#cF', '#cD'].forEach((s, i) => { T2(s, t + d * (.3 + i * .16)); A(s + ' i', [{ outline: '2px solid transparent' }, { outline: '2px solid #26306E' }, { outline: '2px solid transparent' }], t + d * (.3 + i * .16), .9) }) },
+ (t, d) => { [['#rS', .22], ['#rSt', .46], ['#rN', .7]].forEach(([s, f], i) => { T2(s, t + d * f); A(s, [{ background: '#fff', color: '#1C2457' }, { background: '#26306E', color: '#F6F1E7' }], t + d * f + .05, .2); if (i) A(['#rS', '#rSt'][i - 1], [{ background: '#26306E', color: '#F6F1E7' }, { background: '#fff', color: '#1C2457' }], t + d * f + .05, .2) }); },
+ (t, d) => { [['#tb0', 'Home', .1], ['#tb1', 'Stores', .27], ['#tb2', 'Sell', .43], ['#tb3', 'Orders', .58], ['#tb4', 'Account', .78]].forEach(([s, l, f]) => { ring(s, t + d * f, 1.3); TIP(l, s, t + d * f, 1.2) }) },
+ (t, d) => { T2('#tb0', t + d * .3); ring('#tb0', t + d * .3, 1.6) }]);

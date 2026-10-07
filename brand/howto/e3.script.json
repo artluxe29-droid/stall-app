@@ -1,0 +1,36 @@
+[
+ {
+  "say": "Now, let's see how to buy something safely on Stall."
+ },
+ {
+  "cap": "Find what you need",
+  "say": "Tap the search bar, and type what you need. Results from people near you show up straight away."
+ },
+ {
+  "cap": "Check the item and seller",
+  "say": "Tap an item to see the details. Check the price, the seller, and their reviews. A verified badge means Stall has checked they're a real student. When you're happy, tap Add to bag.",
+  "after": 0.9
+ },
+ {
+  "cap": "Check out from your bag",
+  "say": "In your bag, read and tick the box, then tap Continue."
+ },
+ {
+  "cap": "Pay safely through Stall",
+  "say": "Choose pick up or delivery, then tap Pay securely. You can pay by card, bank transfer, or USSD.",
+  "after": 1.2
+ },
+ {
+  "cap": "Get your release code",
+  "say": "Once you've paid, you'll get a release code. Stall holds your money safely, until the item is in your hands."
+ },
+ {
+  "cap": "Give the code at handover",
+  "say": "When you meet the seller, check the item first. If it's right, give them the code. That's when they get paid, and your order is complete.",
+  "after": 1.0
+ },
+ {
+  "cap": "Safe for everyone",
+  "say": "Simple, and safe for everyone. No more stalling. Stall it."
+ }
+]

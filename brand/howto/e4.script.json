@@ -1,0 +1,30 @@
+[
+ {
+  "say": "Let's look at your Account page, where you manage everything on Stall."
+ },
+ {
+  "cap": "Open your Account",
+  "say": "Tap Account, at the bottom right. At the top, you'll see your name, your matric number, and your school."
+ },
+ {
+  "cap": "Your shortcuts",
+  "say": "These shortcuts open your messages, orders people placed with you, group collections, invites and credit, your payment receipts, and your badges.",
+  "after": 0.9
+ },
+ {
+  "cap": "Selling settings",
+  "say": "Under Selling, you can turn on delivery, get a verified seller badge, and share your Stall QR code."
+ },
+ {
+  "cap": "Your profile",
+  "say": "Under Your profile, verify that you're a student. It builds trust, and helps you sell faster. You can also add your email, and change your password."
+ },
+ {
+  "cap": "App and preferences",
+  "say": "Turn on notifications, so you never miss an order. Choose light or dark mode. And read How Stall works, any time."
+ },
+ {
+  "cap": "Help is close",
+  "say": "If you ever need help, buyer protection, the terms, and privacy are right at the bottom. That's your Account page. See you in the next video!"
+ }
+]
