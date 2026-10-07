@@ -1,0 +1,34 @@
+[
+ {
+  "say": "Welcome to Stall. In this video, let's create your account. It only takes a minute."
+ },
+ {
+  "cap": "Open Stall",
+  "say": "When you open Stall, you'll see a few quick slides about how it works. Tap Next to read them, or tap Skip to go straight in."
+ },
+ {
+  "cap": "Student or shop?",
+  "say": "First, choose who you are. Pick I'm a student if you study there, or I run a shop if you own a business on campus."
+ },
+ {
+  "cap": "Pick your school",
+  "say": "Start typing your school's name, then tap it in the list. Stall shows you people and shops from your school first."
+ },
+ {
+  "cap": "Add your details",
+  "say": "Next, add your full name, your matric number, your email, and your WhatsApp number. Buyers and sellers use it to reach you about orders.",
+  "after": 1.0
+ },
+ {
+  "cap": "Password and hostel",
+  "say": "Create a password with at least eight characters. Then add your hostel, or where you stay, so meeting up is easy."
+ },
+ {
+  "cap": "Agree and create",
+  "say": "Read and tick the box to agree to the terms. Then tap Create account."
+ },
+ {
+  "cap": "You're in!",
+  "say": "And that's it. You're in. Welcome to Stall! In the next video, I'll show you around the app."
+ }
+]

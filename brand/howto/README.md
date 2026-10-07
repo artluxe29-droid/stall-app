@@ -15,3 +15,20 @@ node render.mjs ep1 30           # → ep1.mp4 (needs Playwright and ffmpeg with
 ```
 
 The videos are silent on purpose: add a trending sound in CapCut, TikTok or Instagram when posting.
+
+## Voiced episodes (e1–e4)
+
+1. Create your account · 2. Find your way around · 3. How to buy safely · 4. Your Account page.
+
+Each has `eN.script.json` (caption + what the narrator says), `eN.screens.html` (the phone screens) and `eN.js` (what moves during each line).
+The narration is made with Kokoro, an open text-to-speech model that runs on your own computer (voice `af_heart`, a little slower than normal).
+
+```
+pip install kokoro-onnx soundfile        # once; put kokoro.onnx and voices.bin (kokoro-onnx releases on GitHub) in this folder
+python3 voice.py e1 af_heart 0.94        # speaks every line, times the episode around it, adds a soft music bed → e1.wav, e1.times.js
+python3 build2.py e1                     # → e1.built.html
+node peek2.mjs e1                        # a still from the middle of every step
+node render.mjs e1 30                    # → e1.mp4 with the voice-over
+```
+
+To change the wording, edit the script and run the four steps again; the animation re-times itself to the new speech.
