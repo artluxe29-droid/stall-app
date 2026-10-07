@@ -358,7 +358,7 @@ async function release(env,o,how){const now=Date.now();
 // The order is claimed ('refunding') before Paystack is asked, so a release or a second refund can't happen at the same time.
 async function refund(env,o,why){if(!['verified','disputed','under_review'].includes(o.status))return{error:'This order can no longer be refunded.'};
   if(!(await env.DB.prepare("UPDATE orders SET status='refunding',updated=? WHERE id=? AND status IN ('verified','disputed','under_review')").bind(Date.now(),o.id).run()).meta.changes)return{error:'This order can no longer be refunded.'};
-  if(o.paid_via==='paystack'&&o.r_ref){const r=await ps(env,'/refund',{method:'POST',body:JSON.stringify({transaction:o.r_ref})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
+  if(o.paid_via==='paystack'&&o.r_ref){const r=await ps(env,'/refund',{method:'POST',body:JSON.stringify({transaction:o.r_ref,...(o.r_amount>0?{amount:o.r_amount*100}:{})})}).catch(e=>({status:false,message:String(e&&e.message||e)}));
     if(!r.status){await env.DB.prepare("UPDATE orders SET status=?,updated=? WHERE id=? AND status='refunding'").bind(o.status,Date.now(),o.id).run();
       await tg(env,'Refund failed for order #'+o.id+' ('+o.title+', ₦'+o.amount+'): '+(r.message||'unknown error')+'\nCheck the Paystack balance, then refund it in Admin → Orders.');
       return{error:'Paystack could not start the refund: '+(r.message||'unknown error')}}}
@@ -602,21 +602,12 @@ async function makeStore(env,u,d,ref){const seen=!d.bank_manual&&await bankSeen(
   if(manual)await tg(env,'Payout details need confirming (store)\n'+clean(d.name,40)+' - '+u.phone+'\nBank: '+BANKS[d.bank_code]+'\nAccount: '+d.acct+'\nName given: '+clean(d.acctName,60));
   await giveFounding(env,u.school_id).catch(()=>{});
   await bumpVer(env);return r.meta.last_row_id}
-// Finishes a Paystack payment exactly once, however it arrives: the return page, the webhook, or both.
-async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.prepare('SELECT * FROM pending_pay WHERE ref=?').bind(ref).first();if(!p)return{error:'Unknown payment reference.'};
-  if(p.done===1)return{ok:true,already:true,kind:p.kind,...JSON.parse(p.result||'{}')};if(p.done===2)return{ok:true,processing:true,kind:p.kind};
-  // Paid with Stall credit: already taken from the balance, nothing to check with Paystack.
-  if(!opt.credit){const v=(await ps(env,'/transaction/verify/'+ref)).data||{};
-  if(v.status!=='success')return{error:'Payment not completed. You were not charged.',notPaid:true};
-  if(v.amount!==p.amount*100)return{error:'Payment amount did not match. Contact Stall support with reference '+ref}}
-  if(!(await env.DB.prepare('UPDATE pending_pay SET done=2,claimed=? WHERE ref=? AND done=0').bind(Date.now(),ref).run()).meta.changes)return{ok:true,processing:true,kind:p.kind};
-  const u=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(p.uid).first(),d=JSON.parse(p.data||'{}'),now=Date.now();let res={},label=p.label,act='',applied=false;
-  try{
-    if(p.kind==='store'){const has=await env.DB.prepare('SELECT id FROM stores WHERE uid=?').bind(u.id).first();
-      if(has){res={id:'S'+has.id,note:'You already had a store, so no new one was made. Contact Stall support for a refund with reference '+ref};act='paid store fee but already had a store (refund due)';await tg(env,'Refund due: '+u.name+' paid a store fee but already has a store. Ref '+ref)}
-      else{res={id:'S'+await makeStore(env,u,d.d||{},ref)};act='opened a store'}}
-    else if(p.kind==='order'){const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(+d.oid).first(),fee0=d.fee!=null?d.fee:feeOf(p.amount,await feeCfg(env));
+// Settles one order from a confirmed Paystack payment. amount is this order's share (the whole payment for a single order).
+// In a combined payment, running it again for an order this same payment already settled does nothing.
+async function payOrder(env,d,ref,amount,part){const now=Date.now(),p={amount};let res={},act='',label='';
+      const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(+d.oid).first(),fee0=d.fee!=null?d.fee:feeOf(p.amount,await feeCfg(env));
       if(!o)throw new Error('order missing');
+      if(part&&o.r_ref===ref)return{res:{oid:o.id,fee:o.fee||0,status:o.status,again:true},act:'',label:o.title};
       // An order already paid keeps its fee; a new sale within the seller's launch offer has none.
       const fee=o.paid_at?(o.fee!=null?o.fee:fee0):(await freeLeft(env,o.seller))>0?0:fee0;let st='verified',note=null;
       if(o.status==='expired'){// Paid after the window closed: take the stock back if it's still there, otherwise flag for a refund.
@@ -637,7 +628,26 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
       if(note)await tg(env,'Order needs a look\n'+o.title+' - ₦'+p.amount+'\n'+note+'\nOrder #'+o.id);
       if(st==='verified'&&o.status!=='verified')await notify(env,o.seller,'New paid order: '+o.title,'You have a new order',[esc(o.buyer_name)+' paid <b>₦'+Number(p.amount).toLocaleString('en-NG')+'</b> for <b>'+esc(o.title)+'</b>'+(d.method==='delivery'?', to be delivered to '+esc(d.addr||''):', for pickup')+'.','Stall is holding the money. You\'re paid as soon as the buyer gives you their release code.'],'Open your orders',SITE(env)+'/app?go=orders');
       if(st==='verified'&&o.status!=='verified')await mailOrderReceipt(env,o.id,'buyer');
-      res={oid:o.id,fee,status:st};act='paid order #'+o.id+' through Paystack (Stall fee ₦'+fee+')';label=o.title}}
+      res={oid:o.id,fee,status:st};act='paid order #'+o.id+' through Paystack (Stall fee ₦'+fee+')';label=o.title}
+  return{res,act,label}}
+// Finishes a Paystack payment exactly once, however it arrives: the return page, the webhook, or both.
+async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.prepare('SELECT * FROM pending_pay WHERE ref=?').bind(ref).first();if(!p)return{error:'Unknown payment reference.'};
+  if(p.done===1)return{ok:true,already:true,kind:p.kind,...JSON.parse(p.result||'{}')};if(p.done===2)return{ok:true,processing:true,kind:p.kind};
+  // Paid with Stall credit: already taken from the balance, nothing to check with Paystack.
+  if(!opt.credit){const v=(await ps(env,'/transaction/verify/'+ref)).data||{};
+  if(v.status!=='success')return{error:'Payment not completed. You were not charged.',notPaid:true};
+  if(v.amount!==p.amount*100)return{error:'Payment amount did not match. Contact Stall support with reference '+ref}}
+  if(!(await env.DB.prepare('UPDATE pending_pay SET done=2,claimed=? WHERE ref=? AND done=0').bind(Date.now(),ref).run()).meta.changes)return{ok:true,processing:true,kind:p.kind};
+  const u=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(p.uid).first(),d=JSON.parse(p.data||'{}'),now=Date.now();let res={},label=p.label,act='',applied=false;
+  try{
+    if(p.kind==='store'){const has=await env.DB.prepare('SELECT id FROM stores WHERE uid=?').bind(u.id).first();
+      if(has){res={id:'S'+has.id,note:'You already had a store, so no new one was made. Contact Stall support for a refund with reference '+ref};act='paid store fee but already had a store (refund due)';await tg(env,'Refund due: '+u.name+' paid a store fee but already has a store. Ref '+ref)}
+      else{res={id:'S'+await makeStore(env,u,d.d||{},ref)};act='opened a store'}}
+    else if(p.kind==='order'){const x=await payOrder(env,d,ref,p.amount);res=x.res;act=x.act;label=x.label}
+    // One Paystack payment for several orders (a bag with items from different sellers): each order is settled with its own share.
+    else if(p.kind==='cart'){const oids=[];let all=true;for(const it of d.orders||[]){const x=await payOrder(env,it,ref,it.amount,true);oids.push(x.res.oid);if(x.res.status!=='verified')all=false;
+        if(!x.res.dup&&!x.res.again)await env.DB.prepare('INSERT OR IGNORE INTO payments(ref,uid,kind,target,label,days,amount,created) VALUES(?,?,?,?,?,?,?,?)').bind(ref+'/'+x.res.oid,u.id,'commission','O'+x.res.oid,x.label,null,x.res.fee||0,now).run()}
+      res={oids,status:all?'verified':'mixed'};act='paid '+oids.length+' orders in one payment (#'+oids.join(', #')+')'}
     else if(p.kind==='collect'){const c=await env.DB.prepare('SELECT * FROM collections WHERE id=?').bind(d.cid).first();if(!c)throw new Error('collection missing');
       const ins=await env.DB.prepare('INSERT OR IGNORE INTO collect_pays(cid,uid,name,matric,amount,fee,ref,created) VALUES(?,?,?,?,?,?,?,?)').bind(c.id,u.id,u.name,u.matric||u.phone,d.amount,d.fee||0,ref,now).run();
       if(!ins.meta.changes)await tg(env,'Paid twice for a class collection: '+u.name+' ('+u.phone+') paid again for "'+c.title+'" (reference '+ref+'). The money went to the class rep; ask them to refund it.');
@@ -651,9 +661,9 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
     if(d.credit>0){await env.DB.prepare('UPDATE users SET credit=MAX(0,credit-?) WHERE id=?').bind(d.credit,u.id).run();await env.DB.prepare('INSERT INTO credit_log(uid,amt,why,t) VALUES(?,?,?,?)').bind(u.id,-d.credit,label,now).run()}
     await bumpVer(env);
     const got=opt.credit?0:p.kind==='order'?res.fee:p.kind==='collect'?(d.fee||0):p.amount;if(opt.credit)label=label+' (paid with credit)';
-    await env.DB.prepare('INSERT OR IGNORE INTO payments(ref,uid,kind,target,label,days,amount,created) VALUES(?,?,?,?,?,?,?,?)').bind(ref,u.id,p.kind==='order'?'commission':p.kind,res.id||(p.kind==='order'?'O'+res.oid:p.kind==='collect'?'C'+d.cid:d.target)||null,label,p.kind==='reach'?REACH_DAYS:(d.days||null),got,now).run();
+    if(p.kind!=='cart')await env.DB.prepare('INSERT OR IGNORE INTO payments(ref,uid,kind,target,label,days,amount,created) VALUES(?,?,?,?,?,?,?,?)').bind(ref,u.id,p.kind==='order'?'commission':p.kind,res.id||(p.kind==='order'?'O'+res.oid:p.kind==='collect'?'C'+d.cid:d.target)||null,label,p.kind==='reach'?REACH_DAYS:(d.days||null),got,now).run();
     await env.DB.prepare('UPDATE pending_pay SET done=1,result=? WHERE ref=?').bind(JSON.stringify(res),ref).run();
-    await logA(env,u,'money',act,label+' · ₦'+got,{who:u.name+' ('+(u.biz||u.phone)+')'});if(p.kind!=='order')await mailPayReceipt(env,ref);return{ok:true,kind:p.kind,ref,...res}}
+    await logA(env,u,'money',act,label+' · ₦'+got,{who:u.name+' ('+(u.biz||u.phone)+')'});if(p.kind!=='order'&&p.kind!=='cart')await mailPayReceipt(env,ref);return{ok:true,kind:p.kind,ref,...res}}
   // If the purchase itself was already applied, running it again would double it (two orders paid, featuring twice): keep it as done and alert.
   catch(e){if(applied){await env.DB.prepare('UPDATE pending_pay SET done=1,result=? WHERE ref=?').bind(JSON.stringify(res),ref).run().catch(()=>{});await tg(env,'Payment '+ref+' ('+p.kind+') went through, but saving its records failed: '+String(e&&e.message||e).slice(0,200)+'. Check Admin → Earnings.');return{ok:true,kind:p.kind,ref,...res}}
     await env.DB.prepare('UPDATE pending_pay SET done=0 WHERE ref=?').bind(ref).run();return{error:'Could not finish this payment yet. It will be retried. Reference '+ref}}}
@@ -1557,6 +1567,17 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
         // Stall's fee is on the items only, not on the delivery fee.
         const total=base+(method==='delivery'?o.d_fee||0:0),fee=feeOf(base,await feeCfg(env));
         w={amount:total,label:o.title};data={oid:o.id,method,addr:method==='delivery'?addr:null,dphone:method==='delivery'?dphone:null,fee}}
+      else if(kind==='cart'){const list=Array.isArray(b.orders)?b.orders.slice(0,20):[],ids=[...new Set(list.map(x=>+x.id).filter(Boolean))];if(!ids.length)return J({error:'Nothing to pay for.'},400);
+        const addr=clean(b.addr,160),dphone=clean(b.dphone,20)||u.phone,cfg=await feeCfg(env),items=[];let total=0;
+        for(const id of ids){const o=await env.DB.prepare('SELECT * FROM orders WHERE id=? AND buyer=?').bind(id,u.id).first();if(!o)return J({error:'Order not found.'},404);
+          if(o.status!=='pending'||Date.now()>o.deadline)return J({error:(o.status==='pending'?'The payment window for "'+o.title+'" has expired.':'"'+o.title+'" is not waiting for payment.')+' Refresh and try again.',refresh:true},400);
+          if(!o.bank_ok||!o.bank_code)return J({error:o.seller_name+' can\'t take payments yet. Remove their item from this payment and try again.',oid:o.id},400);
+          const sub=await recipFor(env,o.bank_code,o.acct_no,o.acct_name);if(sub.error){waitUntil(tg(env,'Paystack would not set up payouts for '+o.seller_name+' ('+o.seller_phone+'): '+sub.error+'\nOrder #'+o.id+'.'));return J({error:o.seller_name+' can\'t take payments right now. Pay the others first, or try again later.',oid:o.id},502)}
+          const m=(list.find(x=>+x.id===id)||{}).method==='delivery'?'delivery':'pickup';if(m==='delivery'){if(!o.d_on)return J({error:o.seller_name+' does not deliver. Choose pickup for their order.'},400);if(addr.length<5)return J({error:'Enter where your orders should be brought (hostel, room, landmark).'},400)}
+          const base=o.sub!=null?o.sub:o.amount,amt=base+(m==='delivery'?o.d_fee||0:0);total+=amt;
+          items.push({oid:o.id,method:m,addr:m==='delivery'?addr:null,dphone:m==='delivery'?dphone:null,fee:feeOf(base,cfg),amount:amt})}
+        await env.DB.batch(ids.map(id=>env.DB.prepare('UPDATE orders SET deadline=MAX(deadline,?) WHERE id=?').bind(Date.now()+PAY_WINDOW,id)));
+        w={amount:total,label:items.length+' orders'};data={orders:items}}
       else if(kind==='collect'){const c=await env.DB.prepare('SELECT c.*,r.bank_code,r.acct_no,r.bank_verified,r.name rname FROM collections c JOIN users r ON r.id=c.uid WHERE c.code=?').bind(target).first();
         if(!c)return J({error:'Collection not found.'},404);if(!collOpen(c))return J({error:'This collection is closed.'},400);if(c.uid===u.id)return J({error:'You can\'t pay into your own collection.'},400);
         if(await env.DB.prepare('SELECT 1 FROM collect_pays WHERE cid=? AND uid=?').bind(c.id,u.id).first())return J({error:'You have already paid for this.'},400);
