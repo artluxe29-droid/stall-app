@@ -224,6 +224,8 @@ dialog.adm[open]{display:flex;flex-direction:column}
 .lvchips button.on{background:#26306E;color:#C8F03C}.lvshare{width:100%;justify-content:center}.lvshare.on{background:#D93F3F;color:#fff}
 .lvdot{width:22px;height:22px;border-radius:50%;background:#26306E;border:4px solid #C8F03C;box-shadow:0 0 0 0 rgba(38,48,110,.45);animation:lvp 1.8s infinite}.lvdot.me{background:#C8F03C;border-color:#26306E}
 @keyframes lvp{70%{box-shadow:0 0 0 16px rgba(38,48,110,0)}100%{box-shadow:0 0 0 0 rgba(38,48,110,0)}}
+.lvsw{position:absolute;left:10px;top:10px;z-index:500;display:flex;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.18);overflow:hidden}.lvsw button{border:0;background:#fff;color:#161A33;font:700 12.5px inherit;font-family:inherit;padding:8px 11px;cursor:pointer}.lvsw button.on{background:#26306E;color:#fff}
+.lvme{position:absolute;right:10px;bottom:12px;z-index:500;width:40px;height:40px;border-radius:12px;border:0;background:#fff;color:#26306E;box-shadow:0 2px 10px rgba(0,0,0,.18);display:grid;place-items:center;cursor:pointer}.lvme .ic{width:20px;height:20px}
 .lvpin{width:34px;height:34px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:#C8F03C;border:3px solid #26306E;display:grid;place-items:center}.lvpin svg{transform:rotate(45deg)}
 .bdgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-top:10px}
 .bdg{border:0;border-radius:16px;padding:12px 6px;background:var(--blue);color:var(--on);display:grid;gap:2px;justify-items:center;cursor:pointer;font:inherit}
@@ -1203,17 +1205,36 @@ const lvKm=m=>m<1000?Math.round(m/10)*10+' m':(m/1000).toFixed(1)+' km';
 async function openLive(oid,pinMode){const d=$('#liveDlg');lvStop();Object.assign(LV,{oid,pinMode:!!pinMode,share:false,last:0,me:null,info:null,fitted:0,moved:0,newPin:null,ck:null});
   d.innerHTML=`<div class="lvh"><div><small id="lvWho">Loading…</small><div class="lveta" id="lvEta">…</div><small id="lvSub"></small></div><button class="pill sm alt" data-close>Close</button></div><div class="lvmap" id="lvMap"></div><div class="lvb" id="lvB"></div>`;
   if(!d.open)d.showModal();try{await loadMap()}catch(e){$('#lvMap').innerHTML='<div class="lvnote">The map could not load. Check your connection.</div>'}
-  if(window.L&&d.open){const m=LV.map=L.map('lvMap',{zoomControl:false,attributionControl:true}).setView([9.08,8.68],6);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(m);L.control.zoom({position:'topright'}).addTo(m);
+  if(window.L&&d.open){const m=LV.map=L.map('lvMap',{zoomControl:false,attributionControl:true,maxZoom:20}).setView([9.08,8.68],6);
+    // Street map, or satellite photos: on many campuses the satellite view shows buildings and paths the street map doesn't have yet.
+    LV.layers={map:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'}),
+      sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:19,attribution:'Imagery © Esri, Maxar, Earthstar Geographics'})};
+    const base=S.mapSat?'sat':'map';LV.layers[base].addTo(m);L.control.zoom({position:'topright'}).addTo(m);
+    $('#lvMap').insertAdjacentHTML('beforeend',`<div class="lvsw" id="lvSw"><button data-lvl="map" class="${base==='map'?'on':''}">Map</button><button data-lvl="sat" class="${base==='sat'?'on':''}">Satellite</button></div><button class="lvme" id="lvMe" title="Show where I am" aria-label="Show where I am">${ico('pin')}</button>`);
+    $('#lvSw').onclick=e=>{const b=e.target.closest('[data-lvl]');if(!b)return;const k=b.dataset.lvl;Object.entries(LV.layers).forEach(([n,l])=>n===k?l.addTo(m):m.removeLayer(l));S.mapSat=k==='sat'?1:0;save();
+      $('#lvSw').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.lvl===k))};
+    $('#lvMe').onclick=()=>bestFix(8000,30).then(f=>{lvMark('me',f.lat,f.lng,'<div class="lvdot me"></div>','dot',f.acc);m.setView([f.lat,f.lng],Math.max(m.getZoom(),17))},()=>toast('Turn on location for Stall to see where you are'));
     m.on('click',e=>{if(LV.pinMode)lvSetPin(e.latlng.lat,e.latlng.lng)});setTimeout(()=>m.invalidateSize(),200)}
-  await lvPoll(true);LV.poll=setInterval(()=>lvPoll(false),5000)}
+  await lvPoll(true);LV.poll=setInterval(()=>lvPoll(false),4000)}
 function lvStop(){clearInterval(LV.poll);LV.poll=null;if(LV.watch!=null)navigator.geolocation.clearWatch(LV.watch);LV.watch=null;if(LV.lock){LV.lock.release().catch(()=>{});LV.lock=null}
-  if(LV.map){LV.map.remove();LV.map=null}LV.mk={}}
+  if(LV.map){LV.map.remove();LV.map=null}LV.mk={};LV.acc={};LV.good=null;LV.sent=null}
 $('#liveDlg').addEventListener('close',()=>{if(LV.share)apiPost('orders/live/stop',{id:LV.oid});LV.share=false;lvStop()});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&LV.share&&!LV.lock&&navigator.wakeLock)navigator.wakeLock.request('screen').then(l=>LV.lock=l).catch(()=>{})});
 const lvIcon=(cls,html)=>L.divIcon({className:'',html,iconSize:[34,34],iconAnchor:cls==='pin'?[17,34]:[11,11]});
-function lvMark(k,lat,lng,html,cls){if(!LV.map)return;LV.mk=LV.mk||{};if(LV.mk[k])LV.mk[k].setLatLng([lat,lng]);else LV.mk[k]=L.marker([lat,lng],{icon:lvIcon(cls,html),keyboard:false}).addTo(LV.map)}
-function lvFit(){if(!LV.map)return;const pts=Object.values(LV.mk||{}).map(m=>m.getLatLng());if(!pts.length)return;if(pts.length===1)LV.map.setView(pts[0],LV.map.getZoom()<15?16:LV.map.getZoom());else LV.map.fitBounds(L.latLngBounds(pts),{padding:[50,50],maxZoom:17})}
+// Markers glide to their new spot instead of jumping, and a soft circle shows how exact the position is (GPS accuracy, in metres).
+function lvMark(k,lat,lng,html,cls,acc){if(!LV.map)return;LV.mk=LV.mk||{};LV.acc=LV.acc||{};const m=LV.mk[k];
+  if(!m)LV.mk[k]=L.marker([lat,lng],{icon:lvIcon(cls,html),keyboard:false}).addTo(LV.map);
+  else{const a=m.getLatLng(),t0=performance.now(),go=t=>{const f=Math.min(1,(t-t0)/900),e=f*(2-f);m.setLatLng([a.lat+(lat-a.lat)*e,a.lng+(lng-a.lng)*e]);if(LV.acc[k])LV.acc[k].setLatLng(m.getLatLng());if(f<1)m._raf=requestAnimationFrame(go)};
+    cancelAnimationFrame(m._raf);metresJS(a.lat,a.lng,lat,lng)>2000?m.setLatLng([lat,lng]):(m._raf=requestAnimationFrame(go))}
+  if(cls!=='dot')return;const r=Math.min(+acc||0,1000);
+  if(r>8){if(LV.acc[k])LV.acc[k].setRadius(r);else LV.acc[k]=L.circle([lat,lng],{radius:r,color:k==='me'?'#C8F03C':'#26306E',weight:1,fillOpacity:.12,interactive:false}).addTo(LV.map)}
+  else if(LV.acc[k]){LV.map.removeLayer(LV.acc[k]);delete LV.acc[k]}}
+const metresJS=(a,b,c,d)=>{const r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2;return 2*6371e3*Math.asin(Math.sqrt(x))};
+// The phone's first answer is often a rough network guess. Listen for a few seconds and keep the most exact fix.
+function bestFix(ms,good){return new Promise((ok,no)=>{if(!navigator.geolocation)return no();let best=null,id,done=false;const end=()=>{if(done)return;done=true;navigator.geolocation.clearWatch(id);clearTimeout(tm);best?ok(best):no()};
+  const tm=setTimeout(end,ms);id=navigator.geolocation.watchPosition(p=>{const c=p.coords;if(!best||c.accuracy<best.acc)best={lat:c.latitude,lng:c.longitude,acc:c.accuracy};if(c.accuracy<=good)end()},e=>{if(e.code===1){done=true;clearTimeout(tm);navigator.geolocation.clearWatch(id);no(e)}},{enableHighAccuracy:true,maximumAge:0,timeout:ms})})}
+const lvRm=k=>{if(LV.mk&&LV.mk[k]){LV.map.removeLayer(LV.mk[k]);delete LV.mk[k]}if(LV.acc&&LV.acc[k]){LV.map.removeLayer(LV.acc[k]);delete LV.acc[k]}};
+function lvFit(){if(!LV.map)return;const pts=Object.values(LV.mk||{}).map(m=>m.getLatLng());if(!pts.length)return;if(pts.length===1)LV.map.setView(pts[0],LV.map.getZoom()<16?17:LV.map.getZoom());else LV.map.fitBounds(L.latLngBounds(pts),{padding:[60,60],maxZoom:18})}
 async function lvPoll(first){const r=await fetchJ('/api/orders/track?id='+LV.oid).catch(()=>null);if(!r||!$('#liveDlg').open)return;if(r.error){$('#lvWho').textContent=r.error;return}
   LV.info=r;const mover=r.me===r.mover,dl=r.mover==='seller',pinMine=dl?r.me==='buyer':r.me==='seller';LV.mover=mover;LV.pinMine=pinMine;
   if(!r.open&&!LV.pinMode){$('#lvWho').textContent='Not on the way right now';$('#lvEta').textContent='—';$('#lvSub').textContent=dl?'Live tracking starts when the seller marks the order as out for delivery.':'This order has been collected or closed.';lvControls(r);return}
@@ -1223,7 +1244,8 @@ async function lvPoll(first){const r=await fetchJ('/api/orders/track?id='+LV.oid
   $('#lvSub').innerHTML=LV.pinMode?'Tap where you\'ll meet, or use your location.'+(r.spot?' Spot: '+esc(r.spot):''):
     [r.dist!=null?lvKm(r.dist)+' away':'',r.lastAt?(r.etaBy==='said'?'they said it ':'updated ')+lvAgo(r.lastAt):'',r.spot?esc(r.spot):''].filter(Boolean).join(' · ')||(mover?'Share your location or tap a time so they know when to expect you.':'They haven\'t shared their location yet. You\'ll get a notification when they do.');
   if(r.pin)lvMark('pin',r.pin.lat,r.pin.lng,`<div class="lvpin">${ico('pin')}</div>`,'pin');
-  if(r.live&&!mover)lvMark('them',r.live.lat,r.live.lng,'<div class="lvdot"></div>','dot');else if(!r.live&&LV.mk&&LV.mk.them){LV.map.removeLayer(LV.mk.them);delete LV.mk.them}
+  if(r.live&&!mover)lvMark('them',r.live.lat,r.live.lng,'<div class="lvdot"></div>','dot',r.live.acc);else if(!r.live)lvRm('them');
+  if(r.live&&!mover&&r.live.acc>80&&!LV.pinMode){const x=$('#lvSub');if(x)x.innerHTML+=' · weak GPS on their side (±'+Math.round(r.live.acc)+' m)'}
   if(first){lvFit();if(!r.pin&&!r.live&&!LV.pinMode&&LV.map)$('#lvMap').insertAdjacentHTML('beforeend',`<div class="lvnote">${pinMine?'Drop a pin for the meeting spot so the other side knows exactly where to go.':'No meeting spot pinned yet. You can still follow them once they share.'}</div>`)}
   else if(r.live&&!mover&&!LV.fitted){LV.fitted=1;lvFit()}
   lvControls(r)}
@@ -1231,7 +1253,10 @@ function lvControls(r){const b=$('#lvB');if(!b)return;
   // Only rebuild when something visible changes, so buttons don't reset under a finger every 5 seconds.
   const key=JSON.stringify([LV.pinMode,r.open,LV.mover,LV.share,!!r.pin,!!r.live,LV.pinMine]);if(key===LV.ck&&b.innerHTML)return;LV.ck=key;
   if(LV.pinMode){b.innerHTML=`<button class="pill alt lvshare" id="lvHere">${ico('pin')} Use my current location</button><div class="acts" style="margin:0"><button class="pill sm" id="lvSave" ${LV.newPin?'':'disabled'}>Save meeting spot</button>${r.pin?'<button class="link" id="lvClear">Remove pin</button>':''}</div>`;
-    $('#lvHere').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>lvSetPin(p.coords.latitude,p.coords.longitude,true),()=>toast('Turn on location for Stall, or tap the map instead'),{enableHighAccuracy:true,timeout:15000}):toast('Location is not available on this phone');
+    $('#lvHere').onclick=e=>{if(!navigator.geolocation)return toast('Location is not available on this phone');const b=e.currentTarget;b.disabled=true;b.textContent='Finding you…';
+      bestFix(12000,20).then(f=>{lvSetPin(f.lat,f.lng,true);lvMark('me',f.lat,f.lng,'<div class="lvdot me"></div>','dot',f.acc);
+        $('#lvEta').textContent=f.acc>40?'Pin dropped (±'+Math.round(f.acc)+' m)':'Pin dropped';if(f.acc>40)toast('Your GPS is rough here. Tap the exact spot on the map to fix the pin.')},
+        ()=>toast('Turn on location for Stall, or tap the map instead')).finally(()=>{b.disabled=false;b.innerHTML=ico('pin')+' Use my current location'})};
     $('#lvSave').onclick=async()=>{const x=await apiPost('orders/pin',{id:LV.oid,...LV.newPin});if(x.error)return toast(x.error);toast('Meeting spot saved');LV.pinMode=false;LV.newPin=null;lvPoll(true);if(!$('#orders').hidden)renderOrders();if(!$('#selling').hidden)renderSelling()};
     const cl=$('#lvClear');if(cl)cl.onclick=async()=>{await apiPost('orders/pin',{id:LV.oid,clear:true});toast('Pin removed');LV.newPin=null;if(LV.mk.pin){LV.map.removeLayer(LV.mk.pin);delete LV.mk.pin}lvPoll(false)};return}
   if(!r.open){b.innerHTML='';return}
@@ -1245,13 +1270,19 @@ function lvControls(r){const b=$('#lvB');if(!b)return;
 function lvSetPin(lat,lng,center){LV.newPin={lat,lng};lvMark('pin',lat,lng,`<div class="lvpin">${ico('pin')}</div>`,'pin');if(center&&LV.map)LV.map.setView([lat,lng],17);const s=$('#lvSave');if(s)s.disabled=false;$('#lvEta').textContent='Pin dropped'}
 function lvShareOn(){if(!navigator.geolocation)return toast('Location is not available on this phone. Use the time buttons instead.');
   LV.share=true;lvControls(LV.info);if(navigator.wakeLock)navigator.wakeLock.request('screen').then(l=>LV.lock=l).catch(()=>{});
-  LV.watch=navigator.geolocation.watchPosition(async p=>{const c=p.coords;lvMark('me',c.latitude,c.longitude,'<div class="lvdot me"></div>','dot');if(!LV.moved){LV.moved=1;lvFit()}
-    if(Date.now()-LV.last<4000)return;LV.last=Date.now();const r=await apiPost('orders/live',{id:LV.oid,lat:c.latitude,lng:c.longitude,acc:c.accuracy});
+  LV.watch=navigator.geolocation.watchPosition(async p=>{const c=p.coords,now=Date.now();
+    // Skip rough network guesses once GPS has given a good fix, so the dot doesn't jump across campus.
+    if(LV.good&&now-LV.good.t<30000&&c.accuracy>Math.max(100,LV.good.acc*4))return;if(c.accuracy<=50)LV.good={t:now,acc:c.accuracy};
+    lvMark('me',c.latitude,c.longitude,'<div class="lvdot me"></div>','dot',c.accuracy);if(!LV.moved){LV.moved=1;lvFit()}
+    if(c.accuracy>80){const x=$('#lvSub');if(x)x.textContent='Weak GPS (±'+Math.round(c.accuracy)+' m). Step outside or away from buildings for a sharper position.'}
+    // Standing still: don't resend tiny wobbles within the GPS error.
+    const moved=LV.sent?metresJS(LV.sent.lat,LV.sent.lng,c.latitude,c.longitude):1e9;if(LV.sent&&moved<Math.max(4,c.accuracy/2)&&now-LV.last<15000)return;
+    if(now-LV.last<3000)return;LV.last=now;LV.sent={lat:c.latitude,lng:c.longitude};const r=await apiPost('orders/live',{id:LV.oid,lat:c.latitude,lng:c.longitude,acc:c.accuracy});
     if(r.error){toast(r.error);if(r.stopped||r.closed)lvShareOff(true);return}if(r.eta!=null){$('#lvEta').className='lveta'+(r.eta===0?' here':'');$('#lvEta').textContent=r.eta===0?'Here':'About '+r.eta+' min';$('#lvSub').textContent=lvKm(r.dist)+' to the meeting spot'}},
     // Only a refused permission stops sharing; GPS dropping out for a moment (indoors, under trees) just waits for the next fix.
-    e=>{if(e.code===1){toast('Location is off for Stall. Allow it in your phone settings, or use the time buttons.');lvShareOff()}else{const x=$('#lvSub');if(x)x.textContent='Looking for GPS signal… keep this screen open.'}},{enableHighAccuracy:true,maximumAge:3000,timeout:20000})}
+    e=>{if(e.code===1){toast('Location is off for Stall. Allow it in your phone settings, or use the time buttons.');lvShareOff()}else{const x=$('#lvSub');if(x)x.textContent='Looking for GPS signal… keep this screen open.'}},{enableHighAccuracy:true,maximumAge:0,timeout:20000})}
 function lvShareOff(quiet){if(LV.watch!=null)navigator.geolocation.clearWatch(LV.watch);LV.watch=null;if(LV.lock){LV.lock.release().catch(()=>{});LV.lock=null}
-  if(LV.share&&!quiet)apiPost('orders/live/stop',{id:LV.oid});LV.share=false;LV.moved=0;if(LV.mk&&LV.mk.me){LV.map.removeLayer(LV.mk.me);delete LV.mk.me}lvControls(LV.info||{open:true})}
+  if(LV.share&&!quiet)apiPost('orders/live/stop',{id:LV.oid});LV.share=false;LV.moved=0;LV.good=null;LV.sent=null;lvRm('me');lvControls(LV.info||{open:true})}
 // Report a problem, give your side, or say you handed it over: a short note and an optional photo.
 function openOrderNote(oid,mode){const d=$('#accDlg'),M={report:['Report a problem','What went wrong? Be specific, e.g. "the screen is cracked" or "they didn\'t come to the meeting point".','Send report'],
    side:['Give your side','Explain what happened. A photo helps Stall decide fairly, e.g. the item, the handover spot or a chat screenshot.','Send'],
