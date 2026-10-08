@@ -75,7 +75,7 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   for(const s0 of stale)if((await env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,s0.id).run()).meta.changes)ids.push(s0.id);
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='32';
+const SCHEMA_V='33';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -124,6 +124,7 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'ALTER TABLE orders ADD COLUMN method TEXT','ALTER TABLE orders ADD COLUMN addr TEXT','ALTER TABLE orders ADD COLUMN dphone TEXT','ALTER TABLE orders ADD COLUMN dstage TEXT','ALTER TABLE orders ADD COLUMN track TEXT',
     'CREATE INDEX IF NOT EXISTS listings_school ON listings(school_id,created)','CREATE INDEX IF NOT EXISTS listings_state ON listings(state,created)','CREATE INDEX IF NOT EXISTS listings_review ON listings(review)','CREATE INDEX IF NOT EXISTS stores_school ON stores(school_id)',
     'ALTER TABLE orders ADD COLUMN pin_lat REAL','ALTER TABLE orders ADD COLUMN pin_lng REAL',
+    'ALTER TABLE vendor_codes ADD COLUMN kind TEXT','ALTER TABLE users ADD COLUMN no_cfee INTEGER',
     'ALTER TABLE pending_pay ADD COLUMN claimed INTEGER','ALTER TABLE pending_pay ADD COLUMN checks INTEGER NOT NULL DEFAULT 0',
     'CREATE INDEX IF NOT EXISTS orders_status_created ON orders(status,created)','CREATE INDEX IF NOT EXISTS orders_status_updated ON orders(status,updated)','CREATE INDEX IF NOT EXISTS orders_buyer ON orders(buyer)','CREATE INDEX IF NOT EXISTS orders_seller ON orders(seller)','CREATE INDEX IF NOT EXISTS users_role_created ON users(role,created)','CREATE INDEX IF NOT EXISTS vendor_codes_created ON vendor_codes(created)','CREATE INDEX IF NOT EXISTS listings_created ON listings(created)','CREATE INDEX IF NOT EXISTS listings_cat_created ON listings(cat,created)','CREATE INDEX IF NOT EXISTS listings_uid ON listings(uid)','CREATE INDEX IF NOT EXISTS photos_lid ON photos(lid,n)','CREATE INDEX IF NOT EXISTS order_items_oid ON order_items(oid)','CREATE INDEX IF NOT EXISTS stores_uid ON stores(uid)','CREATE INDEX IF NOT EXISTS store_items_sid ON store_items(sid)','CREATE INDEX IF NOT EXISTS pending_pay_done ON pending_pay(done,created)','CREATE INDEX IF NOT EXISTS payouts_st_upd ON payouts(status,updated)',
     'ALTER TABLE users ADD COLUMN ms_sell INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN ms_buy INTEGER NOT NULL DEFAULT 0',
@@ -356,6 +357,19 @@ const priceWords=t=>[...new Set(String(t||'').toLowerCase().replace(/[^a-z0-9 ]/
 // verified bank account through a Paystack subaccount (Stall never holds it); Stall's small fee per payment is split off by Paystack.
 const COLLECT_FEE_DEFAULT=50,collectFee=async env=>{const v=await getK(env,'collect_fee');return v==null?COLLECT_FEE_DEFAULT:Math.min(1000,Math.max(0,+v||0))};
 // What the payer pays on top so the rep receives the full amount: Stall's fee plus Paystack's charge on the total.
+// Media partner (e.g. ACUSA Media at ACU): a home-screen banner for that school, and a count of completed orders there that earn the partner a fixed amount each.
+const PARTNER0={on:false,school_id:null,name:'',title:'',text:'',url:'',cta:'',from:'2026-10-26',to:'2026-12-18',rate:20,img_v:0};
+const partnerCfg=async env=>{try{return{...PARTNER0,...JSON.parse(await getK(env,'partner')||'{}')}}catch(e){return{...PARTNER0}}};
+const lagosDay=d=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(d||'');return m?Date.UTC(+m[1],+m[2]-1,+m[3])-36e5:null};
+const partnerFor=async(env,u)=>{const p=await partnerCfg(env);if(!p.on||!u||p.school_id==null||u.school_id!==p.school_id)return null;
+  return{name:p.name,title:p.title,text:p.text,url:p.url,cta:p.cta,img:p.img_v?'/api/partner-img?v='+p.img_v:null}};
+// Completed (released) orders sold by sellers at the partner's school, month by month (Lagos time) within the partnership dates.
+async function partnerReport(env,p){const from=lagosDay(p.from),to=lagosDay(p.to);if(p.school_id==null||from==null||to==null||to<from)return{months:[],n:0,owed:0};
+  const end=to+864e5,months=[];let y=new Date(from+36e5).getUTCFullYear(),m=new Date(from+36e5).getUTCMonth();
+  for(let i=0;i<24;i++){const ms=Math.max(from,Date.UTC(y,m,1)-36e5),me=Math.min(end,Date.UTC(y,m+1,1)-36e5);if(ms>=end)break;
+    const r=await env.DB.prepare("SELECT COUNT(*) n,IFNULL(SUM(o.amount),0) v FROM orders o JOIN users s ON s.id=o.seller WHERE o.status='released' AND s.school_id=? AND o.updated>=? AND o.updated<?").bind(p.school_id,ms,me).first();
+    months.push({key:y+'-'+String(m+1).padStart(2,'0'),from:ms,to:me,n:r.n,value:r.v,owed:r.n*p.rate});m++;if(m>11){m=0;y++}}
+  const n=months.reduce((a,x)=>a+x.n,0);return{months,n,owed:n*p.rate}}
 const collectCharge=(a,st)=>{let t=a+st;for(let i=0;i<5;i++)t=a+st+Math.min(Math.round(t*.015)+(t>=2500?100:0),2000);return t-a};
 async function subFor(env,u){if(!u.bank_verified||!u.acct_no||!u.bank_code)return{error:'Add and verify the bank account the class money should go to.'};
   const k=psMode(env)+u.bank_code+':'+u.acct_no,c=await env.DB.prepare('SELECT code FROM ps_subs WHERE k=?').bind(k).first();if(c)return{code:c.code};
@@ -735,7 +749,7 @@ async function route({request,env,params,waitUntil}){
     if(pass.length<8||pass.length>100)return bad('pw','Use at least 8 characters.');
     if(vendor){biz=t('biz');cat=t('cat').slice(0,20);
       if(biz.length<2||biz.length>40)return bad('biz','Enter your business name.');
-      if(t('code')&&!await env.DB.prepare('SELECT 1 FROM vendor_codes WHERE code=? AND active=1 AND used_by IS NULL').bind(t('code').toUpperCase()).first())return bad('code','That invite code is not valid or was already used. Ask the Stall team for one.');
+      if(t('code')&&!await env.DB.prepare('SELECT 1 FROM vendor_codes WHERE code=? AND active=1 AND used_by IS NULL AND IFNULL(kind,\'vendor\')=\'vendor\'').bind(t('code').toUpperCase()).first())return bad('code','That invite code is not valid or was already used. Ask the Stall team for one.');
     }else{matric=t('matric').toUpperCase();email=t('email').toLowerCase();
       if(!/^[A-Z0-9\/\-]{4,16}$/.test(matric))return bad('matric','Enter your matric number as it appears on your student ID.');
       if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email))return bad('email','Enter a valid email address.');
@@ -861,8 +875,8 @@ async function route({request,env,params,waitUntil}){
       await logA(env,u,'money','created a collection',title+' · ₦'+amount+' each',{who:u.name+' ('+u.phone+')'});return J({ok:true,code,link:url.origin+'/?collect='+code})}
     if(path==='collect/mine'){const rs=(await env.DB.prepare('SELECT c.*,(SELECT COUNT(*) FROM collect_pays p WHERE p.cid=c.id) n,(SELECT IFNULL(SUM(amount),0) FROM collect_pays p WHERE p.cid=c.id) total FROM collections c WHERE c.uid=? ORDER BY c.created DESC LIMIT 100').bind(u.id).all()).results;
       return J({items:rs.map(c=>({code:c.code,title:c.title,cls:c.cls,amount:c.amount,expected:c.expected,deadline:c.deadline,open:collOpen(c),status:c.status,n:c.n,total:c.total,created:c.created})),bank:u.bank_verified&&u.acct_no?{bank:u.bank_name,acct:'••••'+String(u.acct_no).slice(-4),name:u.acct_name}:null})}
-    if(path==='collect/view'){const c=await env.DB.prepare('SELECT c.*,r.name rname,r.vlevel rv,r.school_id rs FROM collections c JOIN users r ON r.id=c.uid WHERE c.code=?').bind(String(url.searchParams.get('code')||'').toUpperCase()).first();
-      if(!c)return J({error:'This collection doesn\'t exist. Check the link with your class rep.'},404);const owner=c.uid===u.id||!!u.is_admin,st=await collectFee(env),ch=collectCharge(c.amount,st);
+    if(path==='collect/view'){const c=await env.DB.prepare('SELECT c.*,r.name rname,r.vlevel rv,r.school_id rs,r.no_cfee rnf FROM collections c JOIN users r ON r.id=c.uid WHERE c.code=?').bind(String(url.searchParams.get('code')||'').toUpperCase()).first();
+      if(!c)return J({error:'This collection doesn\'t exist. Check the link with your class rep.'},404);const owner=c.uid===u.id||!!u.is_admin,st=c.rnf?0:await collectFee(env),ch=collectCharge(c.amount,st);
       const ps0=(await env.DB.prepare('SELECT id,uid,name,matric,amount,ref,ticked,created FROM collect_pays WHERE cid=? ORDER BY created DESC').bind(c.id).all()).results,mine=ps0.find(p=>p.uid===u.id),sch=c.rs?await schoolOf(env,c.rs):null;
       return J({c:{code:c.code,title:c.title,cls:c.cls,descr:c.descr,publicList:!!c.public_list,amount:c.amount,charge:ch,total:c.amount+ch,expected:c.expected,deadline:c.deadline,open:collOpen(c),status:c.status,rep:c.rname,repVerified:(c.rv||0)>=1,school:sch&&sch.short||sch&&sch.name||null},
         owner,mine:mine?{t:mine.created,ref:owner||mine?mine.ref:null}:null,n:ps0.length,total:ps0.reduce((a,p)=>a+p.amount,0),
@@ -963,7 +977,7 @@ async function route({request,env,params,waitUntil}){
     // Independent lookups go to the database together: each round trip from Nigeria to the database costs time.
     const [v,ic,si,rv,fl]=await Promise.all([env.DB.prepare('SELECT status,reason FROM verify_requests WHERE uid=?').bind(u.id).first(),env.DB.prepare('SELECT status,reason FROM id_checks WHERE uid=?').bind(u.id).first(),schoolOf(env,u.school_id),getK(env,'require_verified'),freeLeft(env,u.id)]);
     let wait=null;if(si&&si.launch!=='live'){const [wr,wn]=await Promise.all([env.DB.prepare('SELECT want FROM waitlist WHERE uid=?').bind(u.id).first(),env.DB.prepare('SELECT COUNT(*) c FROM waitlist WHERE school_id=? AND want IS NOT NULL').bind(si.id).first()]);wait={want:wr&&wr.want||null,n:wn?wn.c:0}}
-    return J({user:{...pub(u),schoolInfo:si,wait,verify:v?v.status:null,verifyReason:v&&v.reason,idCheck:ic?ic.status:null,idReason:ic&&ic.reason,mustVerify:rv!=='0',verifyGate:(await getK(env,'verify_gate'))!=='0',freeLeft:fl}})}
+    return J({user:{...pub(u),schoolInfo:si,wait,verify:v?v.status:null,verifyReason:v&&v.reason,idCheck:ic?ic.status:null,idReason:ic&&ic.reason,mustVerify:rv!=='0',verifyGate:(await getK(env,'verify_gate'))!=='0',freeLeft:fl,noCfee:!!u.no_cfee,partner:await partnerFor(env,u)}})}
   if(path==='listings'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);waitUntil(sweep(env).catch(()=>{}));const NOW=Math.floor(Date.now()/6e4)*6e4;waitUntil(dailyCleanup(env));waitUntil(weeklyMails(env));if(Date.now()-TELL_T>6e4){TELL_T=Date.now();waitUntil(tellLaunch(env).catch(()=>{}))}waitUntil(payJobs(env).catch(()=>{}));
     const sp=url.searchParams,ids=(sp.get('ids')||'').split(',').map(x=>+x.slice(1)).filter(x=>x>0).slice(0,60),w=[LIVE],v=[];let lim=Math.min(96,Math.max(1,+sp.get('n')||24)),off=Math.max(0,+sp.get('off')||0),total;
     const cut=Math.floor((NOW-2*864e5)/6e5)*6e5;
@@ -1024,6 +1038,8 @@ async function route({request,env,params,waitUntil}){
     await env.DB.prepare('UPDATE listings SET sold=?,qty_left=CASE WHEN ? THEN 0 WHEN IFNULL(qty_left,0)>0 THEN qty_left ELSE 1 END WHERE id=? AND uid=?').bind(b.sold?1:0,b.sold?1:0,id,u.id).run();await bump();return J({ok:true})}
   if(path==='listings/ver')return edge('ver',10,async()=>({v:await ver(env)}));
   // Store logos: one small image per store, cached (the feed adds ?v= so a new logo shows straight away).
+  if(path==='partner-img'){const d=await getK(env,'partner_img');if(!d||!imgOk(d))return new Response('Not found',{status:404});const{type,bytes}=b64bytes(d);
+    return new Response(bytes,{headers:{'content-type':type,'cache-control':'public, max-age=86400','x-content-type-options':'nosniff'}})}
   if(path.startsWith('store-logo/')){const id=+path.split('/')[1],r=await env.DB.prepare('SELECT logo FROM stores WHERE id=?').bind(id).first();if(!r||!r.logo)return new Response('Not found',{status:404});
     const H={'cache-control':'public, max-age=86400','x-content-type-options':'nosniff'};
     if(r.logo.startsWith('r2:')){const o=env.PHOTOS&&await env.PHOTOS.get('logo/'+id);if(!o)return new Response('Not found',{status:404});return new Response(o.body,{headers:{...H,'content-type':r.logo.slice(3)}})}
@@ -1425,19 +1441,41 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
     if(path==='admin/users'&&request.method==='GET'){const role=url.searchParams.get('role'),w=[],v=[];
       if(role==='student'||role==='vendor'){w.push('role=?');v.push(role)}else if(role==='reviewer')w.push('reviewer=1');
       if(q){w.push('(name LIKE ? OR matric LIKE ? OR phone LIKE ? OR email LIKE ? OR biz LIKE ?)');v.push(like,like,like,like,like)}
-      if(role==='verified')w.push('verified=1');
-      return list('users','id,role,name,matric,matric_claim,email,phone,biz,place,status,created,is_admin,reviewer,verified,vlevel',w,v,'created DESC',x=>({...x,oddPhone:phoneOdd(x.phone)}))}
+      if(role==='verified')w.push('verified=1');else if(role==='nofee')w.push('no_cfee=1');
+      return list('users','id,role,name,matric,matric_claim,email,phone,biz,place,status,created,is_admin,reviewer,verified,vlevel,no_cfee',w,v,'created DESC',x=>({...x,oddPhone:phoneOdd(x.phone)}))}
+    if(path==='admin/partner'&&request.method==='GET'){const p=await partnerCfg(env),sc=p.school_id!=null?await schoolOf(env,p.school_id):null;
+      const nofee=(await env.DB.prepare('SELECT id,name,biz FROM users WHERE no_cfee=1 LIMIT 50').all()).results;
+      return J({...p,school:sc?sc.short||sc.name:'',img:p.img_v?'/api/partner-img?v='+p.img_v:null,report:await partnerReport(env,p),nofee},200,{'cache-control':'no-store'})}
+    if(path==='admin/partner'&&request.method==='POST'){const p=await partnerCfg(env),t=(k,n)=>String(b[k]==null?p[k]:b[k]).trim().slice(0,n);
+      let sid=p.school_id;if(b.school!=null){const q0=String(b.school).trim();if(!q0)sid=null;else{const sc=await env.DB.prepare('SELECT id FROM schools WHERE UPPER(short)=UPPER(?) OR UPPER(name)=UPPER(?) LIMIT 1').bind(q0,q0).first();if(!sc)return J({error:'No school found with that name. Use its short name, e.g. ACU.'},400);sid=sc.id}}
+      const url=t('url',300);if(url&&!/^https:\/\/[^\s<>"']+$/.test(url))return J({error:'The link must start with https://'},400);
+      const from=t('from',10),to=t('to',10);if(lagosDay(from)==null||lagosDay(to)==null||lagosDay(to)<lagosDay(from))return J({error:'Enter a start and end date, with the end after the start.'},400);
+      const rate=Math.round(+(b.rate==null?p.rate:b.rate));if(!(rate>=0&&rate<=1000))return J({error:'Enter an amount per order from ₦0 to ₦1,000.'},400);
+      const n={...p,on:b.on==null?p.on:!!b.on,school_id:sid,name:t('name',40),title:t('title',60),text:t('text',140),url,cta:t('cta',24),from,to,rate};
+      if(n.on&&(sid==null||!n.title))return J({error:'Add the school and a headline before turning the banner on.'},400);
+      if(b.removeImg){await setK(env,'partner_img','');n.img_v=0}else if(b.img){if(!imgOk(b.img))return J({error:'Use a JPG, PNG or WebP image under 300 KB.'},400);await setK(env,'partner_img',b.img);n.img_v=Date.now()}
+      await setK(env,'partner',JSON.stringify(n));await logA(env,a,'other','updated the media partner settings',(n.name||'Partner')+(n.on?' · banner on':' · banner off'));return J({ok:true})}
+    // Statement for the partner: every completed order counted in one month, as a spreadsheet (CSV).
+    if(path==='admin/partner/statement'&&request.method==='GET'){const p=await partnerCfg(env),r=await partnerReport(env,p),mo=r.months.find(x=>x.key===url.searchParams.get('m'));if(!mo)return J({error:'Choose a month in the partnership.'},400);
+      const rs=(await env.DB.prepare("SELECT o.id,o.title,o.amount,o.updated,s.name sname FROM orders o JOIN users s ON s.id=o.seller WHERE o.status='released' AND s.school_id=? AND o.updated>=? AND o.updated<? ORDER BY o.updated").bind(p.school_id,mo.from,mo.to).all()).results;
+      const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"',day=t=>new Date(t+36e5).toISOString().slice(0,10);
+      const csv=['Order,Completed (Lagos),Item,Seller,Order value (NGN),'+q((p.name||'Partner')+' share (NGN)')].concat(rs.map(o=>['#'+o.id,day(o.updated),q(o.title),q(o.sname),o.amount,p.rate].join(','))).concat([',,,Total orders: '+rs.length+',,'+rs.length*p.rate]).join('\r\n');
+      return new Response('\ufeff'+csv,{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="stall-'+(p.name||'partner').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+mo.key+'.csv"','cache-control':'no-store'}})}
+    // Partner accounts (e.g. ACUSA) can collect money with no Stall fee.
+    if(path==='admin/no-fee'&&request.method==='POST'){const t=await env.DB.prepare('SELECT id,name,biz FROM users WHERE id=?').bind(+b.id).first();if(!t)return J({error:'Account not found.'},404);
+      await env.DB.prepare('UPDATE users SET no_cfee=? WHERE id=?').bind(b.on?1:null,t.id).run();await logA(env,a,'money',b.on?'turned off the collection fee for':'turned the collection fee back on for',t.biz||t.name);return J({ok:true})}
     if(path==='admin/reviewers'&&request.method==='GET')return J({reviewers:(await env.DB.prepare('SELECT name,phone FROM users WHERE reviewer=1').all()).results});
     if(path==='admin/reviewers'&&request.method==='POST'){const ph=phoneN(b.phone);const r=await env.DB.prepare('UPDATE users SET reviewer=? WHERE phone=?').bind(b.add?1:0,ph).run();
       if(!r.meta.changes)return J({error:'No account found with that phone number.'},404);
       const t=await env.DB.prepare('SELECT name FROM users WHERE phone=?').bind(ph).first();await logA(env,a,'account',b.add?'made reviewer':'removed reviewer',t.name+' · '+ph);return J({ok:true})}
     if(path==='admin/codes'&&request.method==='GET'){const f=url.searchParams.get('f'),w=[],v=[];
-      if(f==='unused')w.push('c.active=1 AND c.used_by IS NULL');else if(f==='used')w.push('c.used_by IS NOT NULL');else if(f==='off')w.push('c.active=0 AND c.used_by IS NULL');
-      if(q){w.push('(c.code LIKE ? OR c.label LIKE ? OR u.biz LIKE ?)');v.push(like,like,like)}
-      return list('vendor_codes c LEFT JOIN users u ON u.id=c.used_by','c.code,c.label,c.active,c.created,u.biz',w,v,'c.created DESC')}
-    if(path==='admin/codes'&&request.method==='POST'){const label=String(b.label||'').trim().slice(0,40);if(label.length<2)return J({error:'Enter the vendor or shop name.'},400);
-      const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',code='STALL-'+[...crypto.getRandomValues(new Uint8Array(6))].map(x=>A[x%32]).join('');
-      await env.DB.prepare('INSERT INTO vendor_codes(code,active,label,created) VALUES(?,1,?,?)').bind(code,label,Date.now()).run();await logA(env,a,'other','created code',label+' · '+code);return J({code,label})}
+      if(f==='unused')w.push('c.active=1 AND c.used_by IS NULL');else if(f==='used')w.push('c.used_by IS NOT NULL');else if(f==='off')w.push('c.active=0 AND c.used_by IS NULL');else if(f==='store')w.push("c.kind='store'");
+      if(q){w.push('(c.code LIKE ? OR c.label LIKE ? OR u.biz LIKE ? OR u.name LIKE ?)');v.push(like,like,like,like)}
+      return list('vendor_codes c LEFT JOIN users u ON u.id=c.used_by',"c.code,c.label,c.active,c.created,IFNULL(c.kind,'vendor') kind,IFNULL(u.biz,u.name) biz",w,v,'c.created DESC')}
+    if(path==='admin/codes'&&request.method==='POST'){const label=String(b.label||'').trim().slice(0,40),kind=b.kind==='store'?'store':'vendor';if(label.length<2)return J({error:kind==='store'?'Enter who the free store is for.':'Enter the vendor or shop name.'},400);
+      // Vendor codes let a campus shop sign up; store codes open one store with no store fee (e.g. partners' Founding Sellers).
+      const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',code=(kind==='store'?'FREE-':'STALL-')+[...crypto.getRandomValues(new Uint8Array(6))].map(x=>A[x%32]).join('');
+      await env.DB.prepare('INSERT INTO vendor_codes(code,active,label,created,kind) VALUES(?,1,?,?,?)').bind(code,label,Date.now(),kind).run();await logA(env,a,'other','created '+(kind==='store'?'free store code':'code'),label+' · '+code);return J({code,label,kind})}
     if(path==='admin/code-off'){const r=await env.DB.prepare('UPDATE vendor_codes SET active=0 WHERE code=? AND used_by IS NULL').bind(String(b.code||'')).run();if(r.meta.changes)await logA(env,a,'other','turned off code',String(b.code));return J({ok:true})}
     if(path==='admin/banks'&&request.method==='GET'){
       const uu=(await env.DB.prepare("SELECT id,name,phone,bank_name,acct_no,acct_name FROM users WHERE bank_verified=0 LIMIT 200").all()).results.map(x=>({kind:'user',...x}));
@@ -1660,13 +1698,22 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
           items.push({oid:o.id,method:m,addr:m==='delivery'?addr:null,dphone:m==='delivery'?dphone:null,fee:feeOf(base,cfg),amount:amt})}
         await env.DB.batch(ids.map(id=>env.DB.prepare('UPDATE orders SET deadline=MAX(deadline,?) WHERE id=?').bind(Date.now()+PAY_WINDOW,id)));
         w={amount:total,label:items.length+' orders'};data={orders:items}}
-      else if(kind==='collect'){const c=await env.DB.prepare('SELECT c.*,r.bank_code,r.acct_no,r.bank_verified,r.name rname FROM collections c JOIN users r ON r.id=c.uid WHERE c.code=?').bind(target).first();
+      else if(kind==='collect'){const c=await env.DB.prepare('SELECT c.*,r.bank_code,r.acct_no,r.bank_verified,r.name rname,r.no_cfee rnf FROM collections c JOIN users r ON r.id=c.uid WHERE c.code=?').bind(target).first();
         if(!c)return J({error:'Collection not found.'},404);if(!collOpen(c))return J({error:'This collection is closed.'},400);if(c.uid===u.id)return J({error:'You can\'t pay into your own collection.'},400);
         if(await env.DB.prepare('SELECT 1 FROM collect_pays WHERE cid=? AND uid=?').bind(c.id,u.id).first())return J({error:'You have already paid for this.'},400);
         const sub=await subFor(env,{name:c.rname,bank_code:c.bank_code,acct_no:c.acct_no,bank_verified:c.bank_verified});if(sub.error)return J({error:'The class rep\'s bank account isn\'t ready for payments yet. Ask them to check it on Stall.'},400);
-        const st=await collectFee(env),ch=collectCharge(c.amount,st);w={amount:c.amount+ch,label:'Class: '+c.title,split:{subaccount:sub.code,transaction_charge:st*100,bearer:'subaccount'}};data={cid:c.id,code:c.code,amount:c.amount,fee:st}}
+        // Accounts the team marks fee-free (e.g. a partner association) collect with no Stall fee; payers still cover Paystack's charge.
+        const st=c.rnf?0:await collectFee(env),ch=collectCharge(c.amount,st);w={amount:c.amount+ch,label:'Class: '+c.title,split:{subaccount:sub.code,transaction_charge:st*100,bearer:'subaccount'}};data={cid:c.id,code:c.code,amount:c.amount,fee:st}}
       else if(kind==='store'){{const x=paused(u)||await soonGate(env,u)||await sellerOk(env,u);if(x)return x}if(u.role==='student'&&!(u.vlevel>=1)&&(await getK(env,'require_verified'))!=='0')return J({error:'Verify that you\'re a student before you sell: confirm your school email or upload your student ID in Account → Verify.',verify:true},403);const d=b.d||{},bad=storeBad(d);if(bad)return J({error:bad},400);if(await env.DB.prepare('SELECT 1 FROM stores WHERE uid=?').bind(u.id).first())return J({error:'You already have a store.'},409);
-        if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);w={amount:STORE_FEE,label:'Store: '+clean(d.name,40)};data={d}}
+        if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);
+        // A free store code opens the store with no fee and a numbered Founding Seller badge, even past the usual limit.
+        if(b.code){const code=String(b.code).trim().toUpperCase().slice(0,20),now=Date.now();if(!await allow(env,'scode:'+u.id,10,36e5))return slow();
+          if(!(await env.DB.prepare("UPDATE vendor_codes SET used_by=? WHERE code=? AND kind='store' AND active=1 AND used_by IS NULL").bind(u.id,code).run()).meta.changes)return J({error:'That store code is not valid or was already used. Check it with the person who gave it to you.'},400);
+          let sid;try{sid=await makeStore(env,u,d,'CODE-'+code)}catch(e){await env.DB.prepare('UPDATE vendor_codes SET used_by=NULL WHERE code=?').bind(code).run();throw e}
+          if(u.school_id!=null)await env.DB.prepare('UPDATE stores SET founding=(SELECT IFNULL(MAX(founding),0)+1 FROM stores WHERE school_id=?1) WHERE id=?2 AND founding IS NULL').bind(u.school_id,sid).run();
+          await bumpVer(env);await logA(env,u,'money','opened a store with a free code','Store: '+clean(d.name,40)+' · '+code,{who:u.name+' ('+(u.biz||u.phone)+')'});
+          return J({ok:true,free:true,id:'S'+sid})}
+        w={amount:STORE_FEE,label:'Store: '+clean(d.name,40)};data={d}}
       else{w=await what(kind,target,days);if(w.error)return J(w,400);data.level=w.level||null}
       // Credit can pay at most creditPct% of featuring or store reach; the rest goes through Paystack as usual.
       let cr=0;if(b.credit&&(kind==='boost'||kind==='reach')){cr=Math.min(u.credit||0,Math.floor(w.amount*(await creditPct(env))/100));if(cr<1)return J({error:'You don\'t have credit to use here.'},400)}
