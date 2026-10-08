@@ -360,17 +360,18 @@ const COLLECT_FEE_DEFAULT=50,collectFee=async env=>{const v=await getK(env,'coll
 // Partners and sponsors (e.g. ACUSA Media at ACU): each has its own label, where its home banner shows (one school, a state or everywhere),
 // dates, and optionally an amount it earns from every completed order in that area, counted month by month.
 const lagosDay=d=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(d||'');return m?Date.UTC(+m[1],+m[2]-1,+m[3])-36e5:null};
-const P_NEW={on:false,name:'',label:'Official Partner',scope:'school',school_id:null,state:'',title:'',text:'',url:'',cta:'',from:'',to:'',rate:0,img_v:0};
+const P_NEW={on:false,name:'',label:'Official Partner',scope:'school',school_ids:[],state:'',title:'',text:'',url:'',cta:'',from:'',to:'',rate:0,img_v:0};
 async function partnersAll(env){let a=null;try{a=JSON.parse(await getK(env,'partners')||'null')}catch(e){}
   if(!Array.isArray(a)){a=[];try{const o=JSON.parse(await getK(env,'partner')||'null');if(o&&(o.name||o.title))a.push({...P_NEW,...o,id:1,label:'Official Media Partner'})}catch(e){}
     // The first version kept one partner and its image under 'partner' and 'partner_img'; move them into the list once.
     if(a.length){const im=await getK(env,'partner_img');if(im)await setK(env,'partner_img:1',im)}await setK(env,'partners',JSON.stringify(a))}
-  return a.map(x=>({...P_NEW,...x}))}
+  // 'school' covers one or several chosen schools (any states); older entries kept a single school_id.
+  return a.map(x=>{const p={...P_NEW,...x};if(!Array.isArray(p.school_ids)||!p.school_ids.length)p.school_ids=p.school_id!=null?[p.school_id]:[];delete p.school_id;return p})}
 const pLive=(p,now=Date.now())=>{const f=lagosDay(p.from),t=lagosDay(p.to);return p.on&&!!p.title&&(f==null||now>=f)&&(t==null||now<t+864e5)};
-const pFor=(p,u)=>p.scope==='all'||(p.scope==='state'?!!p.state&&u.state===p.state:p.school_id!=null&&u.school_id===p.school_id);
+const pFor=(p,u)=>p.scope==='all'||(p.scope==='state'?!!p.state&&u.state===p.state:u.school_id!=null&&p.school_ids.includes(u.school_id));
 const partnersFor=async(env,u)=>u?(await partnersAll(env)).filter(p=>pLive(p)&&pFor(p,u)).map(p=>({id:p.id,name:p.name,label:p.label,title:p.title,text:p.text,url:p.url,cta:p.cta,img:p.img_v?'/api/partner-img?id='+p.id+'&v='+p.img_v:null})):[];
 // Which completed orders count for a partner: those sold by sellers in its area, released between its dates (Lagos time).
-const pWhere=p=>p.scope==='all'?['1=1',[]]:p.scope==='state'?['s.state=?',[p.state]]:['s.school_id=?',[p.school_id]];
+const pWhere=p=>p.scope==='all'?['1=1',[]]:p.scope==='state'?['s.state=?',[p.state]]:p.school_ids.length?['s.school_id IN ('+p.school_ids.map(()=>'?').join(',')+')',p.school_ids]:['0=1',[]];
 async function partnerReport(env,p){const from=lagosDay(p.from),to0=lagosDay(p.to);if(!(p.rate>0)||from==null)return{months:[],n:0,owed:0};
   const end=(to0==null?Math.max(from,Date.now()):to0)+864e5,[wq,wv]=pWhere(p),months=[];let y=new Date(from+36e5).getUTCFullYear(),m=new Date(from+36e5).getUTCMonth();
   for(let i=0;i<36;i++){const ms=Math.max(from,Date.UTC(y,m,1)-36e5),me=Math.min(end,Date.UTC(y,m+1,1)-36e5);if(ms>=end)break;
@@ -1451,21 +1452,24 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       if(role==='verified')w.push('verified=1');else if(role==='nofee')w.push('no_cfee=1');
       return list('users','id,role,name,matric,matric_claim,email,phone,biz,place,status,created,is_admin,reviewer,verified,vlevel,no_cfee',w,v,'created DESC',x=>({...x,oddPhone:phoneOdd(x.phone)}))}
     if(path==='admin/partners'&&request.method==='GET'){const all=await partnersAll(env),now=Date.now(),items=[];
-      for(const p of all){const sc=p.scope==='school'&&p.school_id!=null?await schoolOf(env,p.school_id):null,r=await partnerReport(env,p),f=lagosDay(p.from),t=lagosDay(p.to);
-        items.push({...p,school:sc?sc.short||sc.name:'',img:p.img_v?'/api/partner-img?id='+p.id+'&v='+p.img_v:null,status:!p.on?'off':t!=null&&now>=t+864e5?'ended':f!=null&&now<f?'scheduled':p.title?'live':'off',report:r})}
+      for(const p of all){const scs=p.scope==='school'?(await Promise.all(p.school_ids.map(id=>schoolOf(env,id)))).filter(Boolean):[],r=await partnerReport(env,p),f=lagosDay(p.from),t=lagosDay(p.to);
+        items.push({...p,schools:scs.map(x=>x.short||x.name).join(', '),img:p.img_v?'/api/partner-img?id='+p.id+'&v='+p.img_v:null,status:!p.on?'off':t!=null&&now>=t+864e5?'ended':f!=null&&now<f?'scheduled':p.title?'live':'off',report:r})}
       const nofee=(await env.DB.prepare('SELECT id,name,biz FROM users WHERE no_cfee=1 LIMIT 50').all()).results;
       return J({items,nofee,states:STATES},200,{'cache-control':'no-store'})}
     if(path==='admin/partner'&&request.method==='POST'){const all=await partnersAll(env),old=b.id?all.find(x=>x.id===+b.id):null;if(b.id&&!old)return J({error:'That partner no longer exists.'},404);
       const p=old||{...P_NEW,id:all.reduce((m,x)=>Math.max(m,x.id),0)+1},t=(k,n)=>String(b[k]==null?p[k]:b[k]).trim().slice(0,n);
       const name=t('name',40);if(name.length<2)return J({error:'Enter the partner\'s name.'},400);
-      const scope=['school','state','all'].includes(b.scope)?b.scope:p.scope;let sid=p.school_id,st=p.state;
-      if(scope==='school'&&b.school!=null){const q0=String(b.school).trim();const sc=q0&&await env.DB.prepare('SELECT id FROM schools WHERE UPPER(short)=UPPER(?) OR UPPER(name)=UPPER(?) LIMIT 1').bind(q0,q0).first();if(!sc)return J({error:'No school found with that name. Use its short name, e.g. ACU.'},400);sid=sc.id}
-      if(scope==='school'&&sid==null)return J({error:'Enter the school, e.g. ACU.'},400);
+      const scope=['school','state','all'].includes(b.scope)?b.scope:p.scope;let sids=p.school_ids,st=p.state;
+      // Schools are typed as short or full names separated by commas, e.g. "ACU, UI, LASU".
+      if(scope==='school'&&b.schools!=null){const names=[...new Set(String(b.schools).split(/[,;\n]/).map(x=>x.trim()).filter(Boolean))].slice(0,200),ids=[],miss=[];
+        for(const q0 of names){const sc=await env.DB.prepare('SELECT id FROM schools WHERE UPPER(short)=UPPER(?) OR UPPER(name)=UPPER(?) LIMIT 1').bind(q0,q0).first();if(sc){if(!ids.includes(sc.id))ids.push(sc.id)}else miss.push(q0)}
+        if(miss.length)return J({error:'No school found for: '+miss.join(', ')+'. Use short names, e.g. ACU, UI.'},400);sids=ids}
+      if(scope==='school'&&!sids.length)return J({error:'Enter at least one school, e.g. ACU.'},400);
       if(scope==='state'){st=String(b.state==null?st:b.state);if(!STATES.includes(st))return J({error:'Choose a state.'},400)}
       const url=t('url',300);if(url&&!/^https:\/\/[^\s<>"']+$/.test(url))return J({error:'The link must start with https://'},400);
       const from=t('from',10),to=t('to',10);if((from&&lagosDay(from)==null)||(to&&lagosDay(to)==null))return J({error:'Pick valid dates.'},400);if(from&&to&&lagosDay(to)<lagosDay(from))return J({error:'The end date must be after the start date.'},400);
       const rate=Math.round(+(b.rate==null||b.rate===''?p.rate:b.rate)||0);if(!(rate>=0&&rate<=1000))return J({error:'Enter an amount per order from ₦0 to ₦1,000.'},400);if(rate>0&&!from)return J({error:'Add a start date so Stall knows which orders to count.'},400);
-      const n={...p,on:b.on==null?p.on:!!b.on,name,label:t('label',40)||'Official Partner',scope,school_id:scope==='school'?sid:null,state:scope==='state'?st:'',title:t('title',60),text:t('text',140),url,cta:t('cta',24),from,to,rate};
+      const n={...p,on:b.on==null?p.on:!!b.on,name,label:t('label',40)||'Official Partner',scope,school_ids:scope==='school'?sids:[],state:scope==='state'?st:'',title:t('title',60),text:t('text',140),url,cta:t('cta',24),from,to,rate};
       if(n.on&&!n.title)return J({error:'Add a headline before turning the banner on.'},400);
       if(b.removeImg){await setK(env,'partner_img:'+n.id,'');n.img_v=0}else if(b.img){if(!imgOk(b.img))return J({error:'Use a JPG, PNG or WebP image under 300 KB.'},400);await setK(env,'partner_img:'+n.id,b.img);n.img_v=Date.now()}
       await setK(env,'partners',JSON.stringify(old?all.map(x=>x.id===n.id?n:x):all.concat(n)));await logA(env,a,'other',(old?'updated':'added')+' a partner',n.name+(n.on?' · banner on':' · banner off'));return J({ok:true,id:n.id})}

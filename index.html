@@ -433,7 +433,7 @@ footer{background:transparent}
 .ptnr b{display:block;font-family:'Bricolage Grotesque',sans-serif;font-size:18px;line-height:1.2;margin-top:3px}.ptnr small{display:block;opacity:.8;margin-top:3px;font-size:13px;line-height:1.4}
 .ptnr .ptc{flex:none;background:#C8F03C;color:#141A3D;font-weight:700;font-size:13px;border-radius:99px;padding:8px 14px}
 .ptnr.wide{display:block;padding:0}.ptnr.wide img{width:100%;height:auto;max-height:220px;border-radius:0;display:block}.ptnr.wide .ptw{display:flex;align-items:center;gap:12px;padding:12px 16px}
-.ptnr .ptc{white-space:nowrap}.ptnr{position:relative}.ptd{position:absolute;right:14px;bottom:8px;display:flex;gap:4px}.ptd i{width:6px;height:6px;border-radius:50%;background:#F6F1E7;opacity:.35}.ptd i.on{opacity:1}@media(max-width:520px){.ptnr{gap:10px;padding:12px 14px}.ptnr b{font-size:16px}.ptnr .ptc{padding:7px 12px}}
+.ptnr .ptc{white-space:nowrap}.ptnr{position:relative}.ptd{position:absolute;right:14px;bottom:8px;display:flex;gap:4px}.ptd i{width:6px;height:6px;border-radius:50%;background:#F6F1E7;opacity:.35}.ptd i.on{opacity:1}.ptd.ptn{font-size:11px;font-weight:700;opacity:.75;bottom:6px}.ptnr{touch-action:pan-y;user-select:none}.ptnr.multi{padding-bottom:26px}.ptnr.wide.multi{padding-bottom:0}.ptnr.wide.multi .ptw{padding-bottom:24px}@media(max-width:520px){.ptnr{gap:10px;padding:12px 14px}.ptnr b{font-size:16px}.ptnr .ptc{padding:7px 12px}}
 .soon .snaw{display:flex;height:26px;padding-top:9px;position:relative}.soon .snaw::before{content:'';position:absolute;left:0;right:0;top:0;height:10px;background:#141A3D}
 .soon .snaw i{flex:1;border-radius:0 0 99px 99px;background:#F6F1E7}.soon .snaw i:nth-child(even){background:#C8F03C}
 .soon .snb{padding:16px 18px 18px}.soon .sntg{display:inline-block;background:#C8F03C;color:#26306E;font-weight:800;font-size:11px;line-height:1;letter-spacing:.12em;padding:6px 10px;border-radius:99px}
@@ -1553,13 +1553,21 @@ function drawGuide(){const g=$('#guideCard');if(g)g.hidden=!S.user||!!S.guideSee
 // Schools open one at a time. Until a student's school is live, the home screen invites them onto its waitlist.
 const schLive=()=>{const si=S.user&&S.user.schoolInfo;return !si||!si.launch||si.launch==='live'};
 const effScope=()=>{const si=S.user&&S.user.schoolInfo;if(!si)return 'all';const s=S.scope||'school';return s==='school'&&!schLive()&&!S.scopeTap?'all':s};
-// Partner and sponsor banners (Admin → Partners). Several can apply to one user; they take turns every 7 seconds.
-let PTI=0,PTT=null;
+// Partner and sponsor banners (Admin → Partners). Several can apply to one user: each visit starts at a random one so every sponsor
+// gets seen, they take turns every 7 seconds, and students can swipe through them. More than 5 show a counter instead of dots.
+let PTI=-1,PTT=null,PTK='';
 function drawPartner(){const el=$('#partnerCard');if(!el)return;const ps=(S.user&&S.user.partners)||[];clearInterval(PTT);if(!ps.length){el.hidden=true;return}
-  const show=()=>{const p=ps[PTI%ps.length];const t=`<span class="ptb"><span class="pte">${esc(p.name?p.name+' · '+(p.label||'Official Partner'):(p.label||'Official Partner'))}</span><b>${esc(p.title)}</b>${p.text?`<small>${esc(p.text)}</small>`:''}</span>${p.url?`<span class="ptc">${esc(p.cta||'Open')}</span>`:''}`;
-    el.classList.toggle('wide',!!p.img);el.innerHTML=(p.img?`<img src="${esc(p.img)}" alt=""><span class="ptw">${t}</span>`:t)+(ps.length>1?`<span class="ptd">${ps.map((_,k)=>`<i${k===PTI%ps.length?' class="on"':''}></i>`).join('')}</span>`:'');
+  const k=ps.map(x=>x.id).join();if(k!==PTK||PTI<0){PTK=k;PTI=Math.floor(Math.random()*ps.length)}
+  const show=()=>{const n=ps.length,i=((PTI%n)+n)%n,p=ps[i];const t=`<span class="ptb"><span class="pte">${esc(p.name?p.name+' · '+(p.label||'Official Partner'):(p.label||'Official Partner'))}</span><b>${esc(p.title)}</b>${p.text?`<small>${esc(p.text)}</small>`:''}</span>${p.url?`<span class="ptc">${esc(p.cta||'Open')}</span>`:''}`;
+    el.classList.toggle('wide',!!p.img);el.classList.toggle('multi',n>1);el.innerHTML=(p.img?`<img src="${esc(p.img)}" alt="" draggable="false"><span class="ptw">${t}</span>`:t)+(n>5?`<span class="ptd ptn">${i+1} / ${n}</span>`:n>1?`<span class="ptd">${ps.map((_,x)=>`<i${x===i?' class="on"':''}></i>`).join('')}</span>`:'');
     if(p.url)el.href=p.url;else el.removeAttribute('href')};
-  show();el.hidden=false;if(ps.length>1&&!matchMedia('(prefers-reduced-motion: reduce)').matches)PTT=setInterval(()=>{if(document.hidden)return;PTI++;show()},7000)}
+  const go=d=>{PTI+=d;show();restart()},restart=()=>{clearInterval(PTT);if(ps.length>1&&!matchMedia('(prefers-reduced-motion: reduce)').matches)PTT=setInterval(()=>{if(!document.hidden)go(1)},7000)};
+  if(!el.dataset.sw){el.dataset.sw=1;let x0=null,moved=false;el.setAttribute('draggable','false');el.addEventListener('dragstart',e=>e.preventDefault());
+    el.addEventListener('pointerdown',e=>{x0=e.clientX;moved=false});
+    el.addEventListener('pointerup',e=>{if(x0==null)return;const dx=e.clientX-x0;x0=null;if(Math.abs(dx)>40&&el._go){moved=true;el._go(dx<0?1:-1)}});
+    el.addEventListener('click',e=>{if(moved){e.preventDefault();moved=false}})}
+  el._go=d=>{if(((S.user&&S.user.partners)||[]).length>1)go(d)};
+  show();el.hidden=false;restart()}
 function drawSoon(){const el=$('#soonCard');if(!el)return;const u=S.user,si=u&&u.schoolInfo;if(!u||u.admin||schLive()){el.hidden=true;return}
   const nm=esc(si.short||si.name),w=u.wait||{},want=w.want,n=w.n||0,sel=si.launch==='sellers',WN={buy:'a buyer',sell:'a seller',both:'a buyer and seller'};
   const pick=`<p class="snl">${want?'Change what you want':'I want to'}</p><div class="snwl">${[['buy','Buy'],['sell','Sell'],['both','Both']].map(([k,l])=>`<button data-wl="${k}" class="${want===k?'on':''}">${l}</button>`).join('')}</div>`;
@@ -2263,11 +2271,11 @@ function adminTab(k){AD.tab=k;const S0=ast(k),m=AMETA[k];document.querySelectorA
    +'<div id="alist"><p class="meta">Loading...</p></div>';if(k==='money'){volDash();earnDash()}
   $('#ab').scrollTop=0;adminLoad()}
 // Partners: sponsors and partners, each with its own label, area (school, state or everywhere), dates, home banner and optional ₦ per completed order.
-const PSC={school:'One school',state:'A whole state',all:'Every school'},PST={live:['Showing','ok'],scheduled:['Starts later','warn'],ended:['Ended',''],off:['Banner off','']};
+const PSC={school:'Selected schools',state:'A whole state',all:'Every school'},PST={live:['Showing','ok'],scheduled:['Starts later','warn'],ended:['Ended',''],off:['Banner off','']};
 const fdate=d=>d?new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'';
 async function partnerLoad(edit){const el=$('#ptnrBox'),r=await fetchJ('/api/admin/partners').catch(()=>null);if(!el)return;if(!r||r.error){el.innerHTML=`<p class="meta">${esc(r&&r.error||'Could not load. Try again.')}</p>`;return}
   AD.ptnr=r;if(edit!=null)return partnerEdit(edit);
-  const where=p=>p.scope==='all'?'Every school':p.scope==='state'?p.state+' State':p.school||'—',when=p=>p.from||p.to?(p.from?fdate(p.from):'Now')+' – '+(p.to?fdate(p.to):'no end date'):'No dates';
+  const where=p=>p.scope==='all'?'Every school':p.scope==='state'?p.state+' State':p.schools||'—',when=p=>p.from||p.to?(p.from?fdate(p.from):'Now')+' – '+(p.to?fdate(p.to):'no end date'):'No dates';
   el.innerHTML=`<div class="atools"><button class="pill sm" id="ptAdd" type="button">Add a partner or sponsor</button></div>
    ${r.items.length?r.items.map(p=>`<div class="arow"><div class="t"><div class="ttl"><b>${esc(p.name)}</b>${bdg(p.label)}${bdg(...PST[p.status])}</div>
      <small>${esc(where(p))} · ${esc(when(p))}${p.title?' · “'+esc(p.title)+'”':''}</small>${p.rate>0?`<small>₦${p.rate} per completed order · <b>${p.report.n} order${p.report.n===1?'':'s'}, ${naira(p.report.owed)} owed so far</b></small>`:''}</div>
@@ -2276,13 +2284,13 @@ async function partnerLoad(edit){const el=$('#ptnrBox'),r=await fetchJ('/api/adm
     <p class="meta">For partner associations. Turn it on in People → find the account → No collection fee. Payers still cover Paystack's charge.</p>
     ${r.nofee&&r.nofee.length?r.nofee.map(x=>`<p>${esc(x.biz||x.name)}</p>`).join(''):'<p class="meta">No accounts yet.</p>'}</div>`;
   $('#ptAdd').onclick=()=>partnerEdit(0);el.querySelectorAll('[data-ptedit]').forEach(b=>b.onclick=()=>partnerEdit(+b.dataset.ptedit))}
-function partnerEdit(id){const el=$('#ptnrBox'),R=AD.ptnr,p=R.items.find(x=>x.id===id)||{on:false,name:'',label:'Official Partner',scope:'school',school:'',state:'',title:'',text:'',url:'',cta:'',from:'',to:'',rate:0,report:{months:[],n:0,owed:0}},r=p.report,mn=k=>new Date(k+'-15').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+function partnerEdit(id){const el=$('#ptnrBox'),R=AD.ptnr,p=R.items.find(x=>x.id===id)||{on:false,name:'',label:'Official Partner',scope:'school',schools:'',state:'',title:'',text:'',url:'',cta:'',from:'',to:'',rate:0,report:{months:[],n:0,owed:0}},r=p.report,mn=k=>new Date(k+'-15').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
   el.innerHTML=`<div class="atools"><button class="pill sm alt" id="ptBack" type="button">← All partners</button></div>
    <form id="ptnrForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('megaphone')}</span><b>${id?esc(p.name):'New partner or sponsor'}</b></div>
     <div class="two"><label>Name<input name="name" maxlength="40" required value="${esc(p.name)}" placeholder="ACUSA Media"></label><label>Label on the banner<input name="label" maxlength="40" value="${esc(p.label)}" list="ptLabels" placeholder="Official Partner"></label></div>
     <datalist id="ptLabels"><option>Official Media Partner</option><option>Official Sponsor</option><option>Official Partner</option><option>Food Partner</option><option>Banking Partner</option><option>Telecoms Partner</option><option>Event Partner</option></datalist>
     <div class="two"><label>Where it shows<select name="scope">${Object.entries(PSC).map(([k,l])=>`<option value="${k}"${p.scope===k?' selected':''}>${l}</option>`).join('')}</select></label>
-     <label data-sc="school">School (short name)<input name="school" maxlength="90" value="${esc(p.school||'')}" placeholder="ACU"></label><label data-sc="state">State<select name="state"><option value="">Choose…</option>${R.states.map(x=>`<option${p.state===x?' selected':''}>${x}</option>`).join('')}</select></label><span data-sc="all" class="meta" style="align-self:end">Everyone on Stall sees it.</span></div>
+     <label data-sc="school">Schools, separated by commas<input name="schools" maxlength="3000" value="${esc(p.schools||'')}" placeholder="ACU, UI, LASU, UNILAG"></label><label data-sc="state">State<select name="state"><option value="">Choose…</option>${R.states.map(x=>`<option${p.state===x?' selected':''}>${x}</option>`).join('')}</select></label><span data-sc="all" class="meta" style="align-self:end">Everyone on Stall sees it.</span></div>
     <div class="two"><label>Starts (optional)<input name="from" type="date" value="${esc(p.from)}"></label><label>Ends (optional)<input name="to" type="date" value="${esc(p.to)}"></label></div>
     <p class="meta">The banner shows only between these dates and switches itself off after the end date.</p>
     <p class="lb" style="margin-top:12px">Home banner</p>
@@ -2293,13 +2301,13 @@ function partnerEdit(id){const el=$('#ptnrBox'),R=AD.ptnr,p=R.items.find(x=>x.id
     <label>Image (optional, a wide one about 1200×400 fills the banner)<input name="img" type="file" accept="image/*"></label>${p.img?`<div class="acts" style="align-items:center;gap:10px"><img src="${esc(p.img)}" alt="" style="max-width:220px;border-radius:10px"><label class="fchk"><input type="checkbox" name="removeImg"> Remove image</label></div>`:''}
     <p class="lb" style="margin-top:12px">Share of orders (optional)</p>
     <label>₦ the partner earns per completed order<input name="rate" type="number" min="0" max="1000" value="${p.rate||''}" placeholder="Leave empty if none"></label>
-    <p class="meta">Counts orders sold by sellers in the area above that were delivered and released between the dates. Needs a start date.</p>
+    <p class="meta">Counts orders sold by sellers at the schools or state above that were delivered and released between the dates. Needs a start date.</p>
     <span class="err" id="ptnrErr"></span><div class="aacts"><button class="pill sm" type="submit">Save</button>${id?'<button class="pill sm red" type="button" id="ptDel">Remove partner</button>':''}</div></form>
    ${id&&p.rate>0?`<div class="acard"><div class="acardh"><span class="aic">${ico('wallet')}</span><b>Orders ${esc(p.name)} earns from</b></div>
     ${r.months.length?r.months.map(m=>`<div class="arow"><div class="t"><div class="ttl"><b>${mn(m.key)}</b>${bdg(m.n+' order'+(m.n===1?'':'s'))}</div><small>Owed: <b>${naira(m.owed)}</b> · order value ${naira(m.value)}</small></div><div class="aacts"><a class="pill sm alt" href="/api/admin/partner/statement?id=${id}&m=${m.key}" download>Statement (CSV)</a></div></div>`).join('')+`<p style="margin-top:10px"><b>Total so far: ${r.n} order${r.n===1?'':'s'} · ${naira(r.owed)}</b></p>`:'<p class="meta">Nothing to count yet.</p>'}</div>`:''}`;
   const f=$('#ptnrForm'),sc=()=>f.querySelectorAll('[data-sc]').forEach(x=>x.hidden=x.dataset.sc!==f.elements.scope.value);sc();f.elements.scope.onchange=sc;
   $('#ptBack').onclick=()=>partnerLoad();if($('#ptDel'))$('#ptDel').onclick=async()=>{if(!confirm('Remove '+p.name+'? Their banner stops showing. Past orders are not affected.'))return;const x=await apiPost('admin/partner/delete',{id});if(x.error)return toast(x.error);toast('Partner removed');refreshMe();partnerLoad()};
-  f.onsubmit=async e=>{e.preventDefault();const E=f.elements,b={id:id||undefined,on:E.on.checked,name:E.name.value,label:E.label.value,scope:E.scope.value,school:E.school.value,state:E.state.value,title:E.title.value,text:E.text.value,url:E.url.value.trim(),cta:E.cta.value,from:E.from.value,to:E.to.value,rate:E.rate.value||0};
+  f.onsubmit=async e=>{e.preventDefault();const E=f.elements,b={id:id||undefined,on:E.on.checked,name:E.name.value,label:E.label.value,scope:E.scope.value,schools:E.schools.value,state:E.state.value,title:E.title.value,text:E.text.value,url:E.url.value.trim(),cta:E.cta.value,from:E.from.value,to:E.to.value,rate:E.rate.value||0};
     if(E.removeImg&&E.removeImg.checked)b.removeImg=true;else if(E.img.files[0]){try{b.img=await wideImg(E.img.files[0])}catch(x){return $('#ptnrErr').textContent='Could not read that image. Try another one.'}}
     const res=await apiPost('admin/partner',b);if(res.error)return $('#ptnrErr').textContent=res.error;toast('Saved');refreshMe();partnerLoad(res.id)}}
 // Shrinks an image to at most 1200px wide as a JPEG, small enough to store with the settings.
