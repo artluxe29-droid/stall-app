@@ -75,7 +75,7 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   for(const s0 of stale)if((await env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,s0.id).run()).meta.changes)ids.push(s0.id);
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='33';
+const SCHEMA_V='34';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -125,6 +125,7 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'CREATE INDEX IF NOT EXISTS listings_school ON listings(school_id,created)','CREATE INDEX IF NOT EXISTS listings_state ON listings(state,created)','CREATE INDEX IF NOT EXISTS listings_review ON listings(review)','CREATE INDEX IF NOT EXISTS stores_school ON stores(school_id)',
     'ALTER TABLE orders ADD COLUMN pin_lat REAL','ALTER TABLE orders ADD COLUMN pin_lng REAL',
     'ALTER TABLE vendor_codes ADD COLUMN kind TEXT','ALTER TABLE users ADD COLUMN no_cfee INTEGER',
+    'CREATE TABLE IF NOT EXISTS partner_seen(pid INTEGER NOT NULL,uid INTEGER NOT NULL,day TEXT NOT NULL,school_id INTEGER,tapped INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(pid,uid,day))','CREATE INDEX IF NOT EXISTS partner_seen_pid ON partner_seen(pid,day)',
     'ALTER TABLE pending_pay ADD COLUMN claimed INTEGER','ALTER TABLE pending_pay ADD COLUMN checks INTEGER NOT NULL DEFAULT 0',
     'CREATE INDEX IF NOT EXISTS orders_status_created ON orders(status,created)','CREATE INDEX IF NOT EXISTS orders_status_updated ON orders(status,updated)','CREATE INDEX IF NOT EXISTS orders_buyer ON orders(buyer)','CREATE INDEX IF NOT EXISTS orders_seller ON orders(seller)','CREATE INDEX IF NOT EXISTS users_role_created ON users(role,created)','CREATE INDEX IF NOT EXISTS vendor_codes_created ON vendor_codes(created)','CREATE INDEX IF NOT EXISTS listings_created ON listings(created)','CREATE INDEX IF NOT EXISTS listings_cat_created ON listings(cat,created)','CREATE INDEX IF NOT EXISTS listings_uid ON listings(uid)','CREATE INDEX IF NOT EXISTS photos_lid ON photos(lid,n)','CREATE INDEX IF NOT EXISTS order_items_oid ON order_items(oid)','CREATE INDEX IF NOT EXISTS stores_uid ON stores(uid)','CREATE INDEX IF NOT EXISTS store_items_sid ON store_items(sid)','CREATE INDEX IF NOT EXISTS pending_pay_done ON pending_pay(done,created)','CREATE INDEX IF NOT EXISTS payouts_st_upd ON payouts(status,updated)',
     'ALTER TABLE users ADD COLUMN ms_sell INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN ms_buy INTEGER NOT NULL DEFAULT 0',
@@ -371,6 +372,11 @@ const pLive=(p,now=Date.now())=>{const f=lagosDay(p.from),t=lagosDay(p.to);retur
 const pFor=(p,u)=>p.scope==='all'||(p.scope==='state'?!!p.state&&u.state===p.state:u.school_id!=null&&p.school_ids.includes(u.school_id));
 const partnersFor=async(env,u)=>u?(await partnersAll(env)).filter(p=>pLive(p)&&pFor(p,u)).map(p=>({id:p.id,name:p.name,label:p.label,title:p.title,text:p.text,url:p.url,cta:p.cta,img:p.img_v?'/api/partner-img?id='+p.id+'&v='+p.img_v:null})):[];
 // Which completed orders count for a partner: those sold by sellers in its area, released between its dates (Lagos time).
+// Sponsor reach: a view is one student seeing the banner on one day (repeat views that day don't add up); a tap is that student opening its link.
+async function partnerReach(env,pid,full){const t=await env.DB.prepare('SELECT COUNT(*) views,COUNT(DISTINCT uid) students,IFNULL(SUM(tapped),0) taps FROM partner_seen WHERE pid=?').bind(pid).first();if(!full)return t;
+  const bySchool=(await env.DB.prepare('SELECT IFNULL(sc.short,sc.name) school,COUNT(*) views,COUNT(DISTINCT ps.uid) students,SUM(ps.tapped) taps FROM partner_seen ps LEFT JOIN schools sc ON sc.id=ps.school_id WHERE ps.pid=? GROUP BY ps.school_id ORDER BY views DESC LIMIT 100').bind(pid).all()).results;
+  const days=(await env.DB.prepare('SELECT day,COUNT(*) views,SUM(tapped) taps FROM partner_seen WHERE pid=? GROUP BY day ORDER BY day DESC LIMIT 30').bind(pid).all()).results.reverse();
+  return{...t,bySchool,days}}
 const pWhere=p=>p.scope==='all'?['1=1',[]]:p.scope==='state'?['s.state=?',[p.state]]:p.school_ids.length?['s.school_id IN ('+p.school_ids.map(()=>'?').join(',')+')',p.school_ids]:['0=1',[]];
 async function partnerReport(env,p){const from=lagosDay(p.from),to0=lagosDay(p.to);if(!(p.rate>0)||from==null)return{months:[],n:0,owed:0};
   const end=(to0==null?Math.max(from,Date.now()):to0)+864e5,[wq,wv]=pWhere(p),months=[];let y=new Date(from+36e5).getUTCFullYear(),m=new Date(from+36e5).getUTCMonth();
@@ -975,6 +981,9 @@ async function route({request,env,params,waitUntil}){
   if(path==='me/school'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);const b=await request.json().catch(()=>({})),sc=await pickSchool(env,b);if(sc.error)return J(sc,400);
     await env.DB.batch([env.DB.prepare('UPDATE users SET school_id=?,state=? WHERE id=?').bind(sc.id,sc.state,u.id),env.DB.prepare('UPDATE waitlist SET school_id=? WHERE uid=?').bind(sc.id,u.id)]);return J({ok:true,school:sc})}
   // Students at a school that hasn't opened yet join its waitlist (to buy, sell or both) and are told when it opens.
+  if(path==='partner/seen'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);const b=await request.json().catch(()=>({}));
+    const p=(await partnersAll(env)).find(x=>x.id===+b.id);if(!p||!pLive(p)||!pFor(p,u))return J({ok:false});const tap=b.tap?1:0;
+    await env.DB.prepare('INSERT INTO partner_seen(pid,uid,day,school_id,tapped) VALUES(?,?,?,?,?) ON CONFLICT(pid,uid,day) DO UPDATE SET tapped=MAX(tapped,excluded.tapped)').bind(p.id,u.id,dayK(Date.now()),u.school_id,tap).run();return J({ok:true})}
   if(path==='me/waitlist'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);const b=await request.json().catch(()=>({})),want=['buy','sell','both'].includes(b.want)?b.want:null;
     if(!want)return J({error:'Choose whether you want to buy, sell or both.'},400);if(!u.school_id)return J({error:'Choose your school first.'},400);
     await env.DB.prepare('INSERT INTO waitlist(uid,school_id,want,created) VALUES(?,?,?,?) ON CONFLICT(uid) DO UPDATE SET school_id=excluded.school_id,want=excluded.want').bind(u.id,u.school_id,want,Date.now()).run();
@@ -1453,7 +1462,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       return list('users','id,role,name,matric,matric_claim,email,phone,biz,place,status,created,is_admin,reviewer,verified,vlevel,no_cfee',w,v,'created DESC',x=>({...x,oddPhone:phoneOdd(x.phone)}))}
     if(path==='admin/partners'&&request.method==='GET'){const all=await partnersAll(env),now=Date.now(),items=[];
       for(const p of all){const scs=p.scope==='school'?(await Promise.all(p.school_ids.map(id=>schoolOf(env,id)))).filter(Boolean):[],r=await partnerReport(env,p),f=lagosDay(p.from),t=lagosDay(p.to);
-        items.push({...p,schools:scs.map(x=>x.short||x.name).join(', '),img:p.img_v?'/api/partner-img?id='+p.id+'&v='+p.img_v:null,status:!p.on?'off':t!=null&&now>=t+864e5?'ended':f!=null&&now<f?'scheduled':p.title?'live':'off',report:r})}
+        items.push({...p,reach:await partnerReach(env,p.id,true),schools:scs.map(x=>x.short||x.name).join(', '),img:p.img_v?'/api/partner-img?id='+p.id+'&v='+p.img_v:null,status:!p.on?'off':t!=null&&now>=t+864e5?'ended':f!=null&&now<f?'scheduled':p.title?'live':'off',report:r})}
       const nofee=(await env.DB.prepare('SELECT id,name,biz FROM users WHERE no_cfee=1 LIMIT 50').all()).results;
       return J({items,nofee,states:STATES},200,{'cache-control':'no-store'})}
     if(path==='admin/partner'&&request.method==='POST'){const all=await partnersAll(env),old=b.id?all.find(x=>x.id===+b.id):null;if(b.id&&!old)return J({error:'That partner no longer exists.'},404);
@@ -1474,7 +1483,12 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       if(b.removeImg){await setK(env,'partner_img:'+n.id,'');n.img_v=0}else if(b.img){if(!imgOk(b.img))return J({error:'Use a JPG, PNG or WebP image under 300 KB.'},400);await setK(env,'partner_img:'+n.id,b.img);n.img_v=Date.now()}
       await setK(env,'partners',JSON.stringify(old?all.map(x=>x.id===n.id?n:x):all.concat(n)));await logA(env,a,'other',(old?'updated':'added')+' a partner',n.name+(n.on?' · banner on':' · banner off'));return J({ok:true,id:n.id})}
     if(path==='admin/partner/delete'&&request.method==='POST'){const all=await partnersAll(env),p=all.find(x=>x.id===+b.id);if(!p)return J({error:'That partner no longer exists.'},404);
-      await setK(env,'partners',JSON.stringify(all.filter(x=>x.id!==p.id)));await setK(env,'partner_img:'+p.id,'');await logA(env,a,'other','removed a partner',p.name);return J({ok:true})}
+      await env.DB.prepare('DELETE FROM partner_seen WHERE pid=?').bind(p.id).run();await setK(env,'partners',JSON.stringify(all.filter(x=>x.id!==p.id)));await setK(env,'partner_img:'+p.id,'');await logA(env,a,'other','removed a partner',p.name);return J({ok:true})}
+    // Reach report for a sponsor: views, students and taps per day and school, as a spreadsheet (CSV).
+    if(path==='admin/partner/reach'&&request.method==='GET'){const p=(await partnersAll(env)).find(x=>x.id===+url.searchParams.get('id'));if(!p)return J({error:'That partner no longer exists.'},404);
+      const rs=(await env.DB.prepare('SELECT ps.day,IFNULL(sc.short,sc.name) school,COUNT(*) views,COUNT(DISTINCT ps.uid) students,SUM(ps.tapped) taps FROM partner_seen ps LEFT JOIN schools sc ON sc.id=ps.school_id WHERE ps.pid=? GROUP BY ps.day,ps.school_id ORDER BY ps.day,school').bind(p.id).all()).results,t=await partnerReach(env,p.id);
+      const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"',csv=['Day,School,Views,Students,Taps'].concat(rs.map(r=>[r.day,q(r.school||'Unknown'),r.views,r.students,r.taps].join(','))).concat(['Total,,'+t.views+','+t.students+','+t.taps]).join('\r\n');
+      return new Response('\ufeff'+csv,{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="stall-'+p.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-reach.csv"','cache-control':'no-store'}})}
     // Statement for a partner: every completed order counted in one month, as a spreadsheet (CSV).
     if(path==='admin/partner/statement'&&request.method==='GET'){const p=(await partnersAll(env)).find(x=>x.id===+url.searchParams.get('id'));if(!p)return J({error:'That partner no longer exists.'},404);
       const r=await partnerReport(env,p),mo=r.months.find(x=>x.key===url.searchParams.get('m'));if(!mo)return J({error:'Choose a month in the partnership.'},400);const[wq,wv]=pWhere(p);
@@ -1589,7 +1603,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       await logA(env,a,'other',b.id?'approved/updated school':'added school',n+' · '+st);return J({ok:true})}
     // Wipes everything people made while testing, before going live. Test Paystack keys only; admins, settings and schools stay.
     if(path==='admin/clear-test'){if(!/^sk_test_/.test(env.PAYSTACK_SECRET||''))return J({error:'Clearing is only possible while Stall uses a Paystack test key, so real data can\'t be wiped by mistake.'},403);
-      const T=['orders','order_items','payouts','payments','pending_pay','threads','msgs','reviews','strikes','evidence','collections','collect_pays','listings','photos','store_items','stores','verify_requests','id_checks','push_subs','notes','credit_log','attempts','codes','vendor_codes','ps_recips','ps_subs','reports','blocks','trips','bank_seen'];
+      const T=['orders','order_items','payouts','payments','pending_pay','threads','msgs','reviews','strikes','evidence','collections','collect_pays','listings','photos','store_items','stores','verify_requests','id_checks','push_subs','notes','credit_log','attempts','codes','vendor_codes','ps_recips','ps_subs','reports','blocks','trips','bank_seen','partner_seen'];
       const cnt=async q=>(await env.DB.prepare(q).first().catch(()=>({c:0}))).c;
       const what={users:await cnt('SELECT COUNT(*) c FROM users WHERE IFNULL(is_admin,0)=0'),orders:await cnt('SELECT COUNT(*) c FROM orders'),listings:await cnt('SELECT COUNT(*) c FROM listings'),stores:await cnt('SELECT COUNT(*) c FROM stores'),payments:await cnt('SELECT COUNT(*) c FROM payments'),chats:await cnt('SELECT COUNT(*) c FROM threads'),collections:await cnt('SELECT COUNT(*) c FROM collections')};
       if(request.method!=='POST')return J({what},200,{'cache-control':'no-store'});

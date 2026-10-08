@@ -433,7 +433,7 @@ footer{background:transparent}
 .ptnr b{display:block;font-family:'Bricolage Grotesque',sans-serif;font-size:18px;line-height:1.2;margin-top:3px}.ptnr small{display:block;opacity:.8;margin-top:3px;font-size:13px;line-height:1.4}
 .ptnr .ptc{flex:none;background:#C8F03C;color:#141A3D;font-weight:700;font-size:13px;border-radius:99px;padding:8px 14px}
 .ptnr.wide{display:block;padding:0}.ptnr.wide img{width:100%;height:auto;max-height:220px;border-radius:0;display:block}.ptnr.wide .ptw{display:flex;align-items:center;gap:12px;padding:12px 16px}
-.ptnr .ptc{white-space:nowrap}.ptnr{position:relative}.ptd{position:absolute;right:14px;bottom:8px;display:flex;gap:4px}.ptd i{width:6px;height:6px;border-radius:50%;background:#F6F1E7;opacity:.35}.ptd i.on{opacity:1}.ptd.ptn{font-size:11px;font-weight:700;opacity:.75;bottom:6px}.ptnr{touch-action:pan-y;user-select:none}.ptnr.multi{padding-bottom:26px}.ptnr.wide.multi{padding-bottom:0}.ptnr.wide.multi .ptw{padding-bottom:24px}@media(max-width:520px){.ptnr{gap:10px;padding:12px 14px}.ptnr b{font-size:16px}.ptnr .ptc{padding:7px 12px}}
+.ptnr .ptc{white-space:nowrap}.ptnr{position:relative}.ptd{position:absolute;right:14px;bottom:8px;display:flex;gap:4px}.ptd i{width:6px;height:6px;border-radius:50%;background:#F6F1E7;opacity:.35}.ptd i.on{opacity:1}.ptd.ptn{font-size:11px;font-weight:700;opacity:.75;bottom:6px}.ptnr{touch-action:pan-y;user-select:none}.ptnr.multi{padding-bottom:26px}.ptk{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 12px}.ptk div{background:var(--bg2);border-radius:12px;padding:10px}.ptk b{display:block;font-size:20px}.ptk small{color:var(--mut,#5B6077)}.ptbars{display:flex;align-items:flex-end;gap:3px;height:70px;margin-top:4px}.ptbars i{flex:1;background:var(--blue);border-radius:3px 3px 0 0;min-width:3px;opacity:.85}@media(max-width:520px){.ptk{grid-template-columns:repeat(2,1fr)}}.ptnr.wide.multi{padding-bottom:0}.ptnr.wide.multi .ptw{padding-bottom:24px}@media(max-width:520px){.ptnr{gap:10px;padding:12px 14px}.ptnr b{font-size:16px}.ptnr .ptc{padding:7px 12px}}
 .soon .snaw{display:flex;height:26px;padding-top:9px;position:relative}.soon .snaw::before{content:'';position:absolute;left:0;right:0;top:0;height:10px;background:#141A3D}
 .soon .snaw i{flex:1;border-radius:0 0 99px 99px;background:#F6F1E7}.soon .snaw i:nth-child(even){background:#C8F03C}
 .soon .snb{padding:16px 18px 18px}.soon .sntg{display:inline-block;background:#C8F03C;color:#26306E;font-weight:800;font-size:11px;line-height:1;letter-spacing:.12em;padding:6px 10px;border-radius:99px}
@@ -1555,17 +1555,23 @@ const schLive=()=>{const si=S.user&&S.user.schoolInfo;return !si||!si.launch||si
 const effScope=()=>{const si=S.user&&S.user.schoolInfo;if(!si)return 'all';const s=S.scope||'school';return s==='school'&&!schLive()&&!S.scopeTap?'all':s};
 // Partner and sponsor banners (Admin → Partners). Several can apply to one user: each visit starts at a random one so every sponsor
 // gets seen, they take turns every 7 seconds, and students can swipe through them. More than 5 show a counter instead of dots.
-let PTI=-1,PTT=null,PTK='';
+let PTI=-1,PTT=null,PTK='',PTV=false;
+// Reach for sponsors: one view per banner per day, sent only while the banner is actually on screen; a tap when its link is opened.
+const ptDay=()=>new Date(Date.now()+36e5).toISOString().slice(0,10);
+function ptSeen(id,tap){if(!id)return;const k='pseen:'+ptDay();let m={};try{m=JSON.parse(localStorage.getItem(k)||'{}')}catch(e){}
+  const st=m[id]||0;if(tap?st>=2:st>=1)return;m[id]=tap?2:1;try{localStorage.setItem(k,JSON.stringify(m))}catch(e){}
+  fetch('/api/partner/seen',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id,tap:!!tap}),keepalive:true}).catch(()=>{})}
 function drawPartner(){const el=$('#partnerCard');if(!el)return;const ps=(S.user&&S.user.partners)||[];clearInterval(PTT);if(!ps.length){el.hidden=true;return}
   const k=ps.map(x=>x.id).join();if(k!==PTK||PTI<0){PTK=k;PTI=Math.floor(Math.random()*ps.length)}
   const show=()=>{const n=ps.length,i=((PTI%n)+n)%n,p=ps[i];const t=`<span class="ptb"><span class="pte">${esc(p.name?p.name+' · '+(p.label||'Official Partner'):(p.label||'Official Partner'))}</span><b>${esc(p.title)}</b>${p.text?`<small>${esc(p.text)}</small>`:''}</span>${p.url?`<span class="ptc">${esc(p.cta||'Open')}</span>`:''}`;
     el.classList.toggle('wide',!!p.img);el.classList.toggle('multi',n>1);el.innerHTML=(p.img?`<img src="${esc(p.img)}" alt="" draggable="false"><span class="ptw">${t}</span>`:t)+(n>5?`<span class="ptd ptn">${i+1} / ${n}</span>`:n>1?`<span class="ptd">${ps.map((_,x)=>`<i${x===i?' class="on"':''}></i>`).join('')}</span>`:'');
-    if(p.url)el.href=p.url;else el.removeAttribute('href')};
+    if(p.url)el.href=p.url;else el.removeAttribute('href');el.dataset.pid=p.id;if(PTV&&!document.hidden)ptSeen(p.id)};
   const go=d=>{PTI+=d;show();restart()},restart=()=>{clearInterval(PTT);if(ps.length>1&&!matchMedia('(prefers-reduced-motion: reduce)').matches)PTT=setInterval(()=>{if(!document.hidden)go(1)},7000)};
   if(!el.dataset.sw){el.dataset.sw=1;let x0=null,moved=false;el.setAttribute('draggable','false');el.addEventListener('dragstart',e=>e.preventDefault());
     el.addEventListener('pointerdown',e=>{x0=e.clientX;moved=false});
     el.addEventListener('pointerup',e=>{if(x0==null)return;const dx=e.clientX-x0;x0=null;if(Math.abs(dx)>40&&el._go){moved=true;el._go(dx<0?1:-1)}});
-    el.addEventListener('click',e=>{if(moved){e.preventDefault();moved=false}})}
+    el.addEventListener('click',e=>{if(moved){e.preventDefault();moved=false;return}if(el.getAttribute('href'))ptSeen(+el.dataset.pid,true)});
+    if('IntersectionObserver' in window)new IntersectionObserver(es=>{PTV=es[0].isIntersecting;if(PTV&&!document.hidden&&!el.hidden)ptSeen(+el.dataset.pid)},{threshold:.5}).observe(el);else PTV=true}
   el._go=d=>{if(((S.user&&S.user.partners)||[]).length>1)go(d)};
   show();el.hidden=false;restart()}
 function drawSoon(){const el=$('#soonCard');if(!el)return;const u=S.user,si=u&&u.schoolInfo;if(!u||u.admin||schLive()){el.hidden=true;return}
@@ -2278,12 +2284,21 @@ async function partnerLoad(edit){const el=$('#ptnrBox'),r=await fetchJ('/api/adm
   const where=p=>p.scope==='all'?'Every school':p.scope==='state'?p.state+' State':p.schools||'—',when=p=>p.from||p.to?(p.from?fdate(p.from):'Now')+' – '+(p.to?fdate(p.to):'no end date'):'No dates';
   el.innerHTML=`<div class="atools"><button class="pill sm" id="ptAdd" type="button">Add a partner or sponsor</button></div>
    ${r.items.length?r.items.map(p=>`<div class="arow"><div class="t"><div class="ttl"><b>${esc(p.name)}</b>${bdg(p.label)}${bdg(...PST[p.status])}</div>
-     <small>${esc(where(p))} · ${esc(when(p))}${p.title?' · “'+esc(p.title)+'”':''}</small>${p.rate>0?`<small>₦${p.rate} per completed order · <b>${p.report.n} order${p.report.n===1?'':'s'}, ${naira(p.report.owed)} owed so far</b></small>`:''}</div>
+     <small>${esc(where(p))} · ${esc(when(p))}${p.title?' · “'+esc(p.title)+'”':''}</small>${p.reach&&p.reach.views?`<small>${p.reach.views.toLocaleString()} views · ${p.reach.students.toLocaleString()} students · ${p.reach.taps.toLocaleString()} taps</small>`:''}${p.rate>0?`<small>₦${p.rate} per completed order · <b>${p.report.n} order${p.report.n===1?'':'s'}, ${naira(p.report.owed)} owed so far</b></small>`:''}</div>
      <div class="aacts"><button class="pill sm alt" data-ptedit="${p.id}">Open</button></div></div>`).join(''):'<p class="meta">No partners yet. Add one to show their banner and, if you agreed one, count the orders they earn from.</p>'}
    <div class="acard"><div class="acardh"><span class="aic">${ico('users')}</span><b>Collections with no Stall fee</b></div>
     <p class="meta">For partner associations. Turn it on in People → find the account → No collection fee. Payers still cover Paystack's charge.</p>
     ${r.nofee&&r.nofee.length?r.nofee.map(x=>`<p>${esc(x.biz||x.name)}</p>`).join(''):'<p class="meta">No accounts yet.</p>'}</div>`;
   $('#ptAdd').onclick=()=>partnerEdit(0);el.querySelectorAll('[data-ptedit]').forEach(b=>b.onclick=()=>partnerEdit(+b.dataset.ptedit))}
+// Reach card for one partner: totals, a 30-day chart, a breakdown by school, a CSV report and a ready-to-send summary for the sponsor.
+function ptReach(p){const r=p.reach||{views:0,students:0,taps:0,bySchool:[],days:[]},rate=r.views?Math.round(r.taps/r.views*1000)/10:0,mx=Math.max(1,...r.days.map(d=>d.views));
+  const sum=`${p.name} on Stall${p.from?' ('+fdate(p.from)+(p.to?' – '+fdate(p.to):'')+')':''}:\n• Banner views: ${r.views.toLocaleString()}\n• Different students reached: ${r.students.toLocaleString()}\n• Taps on your link: ${r.taps.toLocaleString()} (${rate}%)`+(r.bySchool.length>1?'\n'+r.bySchool.slice(0,8).map(x=>`• ${x.school||'Other'}: ${x.views.toLocaleString()} views, ${x.taps} taps`).join('\n'):'');
+  return `<div class="acard"><div class="acardh"><span class="aic">${ico('pulse')}</span><b>Reach</b></div>
+   <p class="meta">A view is one student seeing the banner on one day. A tap is a student opening its link.</p>
+   <div class="ptk"><div><b>${r.views.toLocaleString()}</b><small>views</small></div><div><b>${r.students.toLocaleString()}</b><small>students</small></div><div><b>${r.taps.toLocaleString()}</b><small>taps</small></div><div><b>${rate}%</b><small>tap rate</small></div></div>
+   ${r.days.length?`<div class="ptbars" aria-label="Views per day, last 30 days">${r.days.map(d=>`<i style="height:${Math.max(4,Math.round(d.views/mx*100))}%" title="${d.day}: ${d.views} views, ${d.taps} taps"></i>`).join('')}</div><small class="meta">Views per day${r.days.length>1?', '+fdate(r.days[0].day)+' – '+fdate(r.days[r.days.length-1].day):''}</small>`:'<p class="meta">No views yet. They start counting once the banner is showing.</p>'}
+   ${r.bySchool.length?`<div style="margin-top:10px">${r.bySchool.map(x=>`<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.school||'Other')}</b></div><small>${x.views.toLocaleString()} views · ${x.students.toLocaleString()} students · ${x.taps} taps</small></div></div>`).join('')}</div>`:''}
+   <div class="aacts" style="margin-top:10px">${r.views?`<a class="pill sm alt" href="/api/admin/partner/reach?id=${p.id}" download>Reach report (CSV)</a>`:''}<button class="pill sm alt" type="button" data-copy="${esc(sum)}">Copy summary</button><a class="pill sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(sum)}">Send on WhatsApp</a></div></div>`}
 function partnerEdit(id){const el=$('#ptnrBox'),R=AD.ptnr,p=R.items.find(x=>x.id===id)||{on:false,name:'',label:'Official Partner',scope:'school',schools:'',state:'',title:'',text:'',url:'',cta:'',from:'',to:'',rate:0,report:{months:[],n:0,owed:0}},r=p.report,mn=k=>new Date(k+'-15').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
   el.innerHTML=`<div class="atools"><button class="pill sm alt" id="ptBack" type="button">← All partners</button></div>
    <form id="ptnrForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('megaphone')}</span><b>${id?esc(p.name):'New partner or sponsor'}</b></div>
@@ -2303,6 +2318,7 @@ function partnerEdit(id){const el=$('#ptnrBox'),R=AD.ptnr,p=R.items.find(x=>x.id
     <label>₦ the partner earns per completed order<input name="rate" type="number" min="0" max="1000" value="${p.rate||''}" placeholder="Leave empty if none"></label>
     <p class="meta">Counts orders sold by sellers at the schools or state above that were delivered and released between the dates. Needs a start date.</p>
     <span class="err" id="ptnrErr"></span><div class="aacts"><button class="pill sm" type="submit">Save</button>${id?'<button class="pill sm red" type="button" id="ptDel">Remove partner</button>':''}</div></form>
+   ${id?ptReach(p):''}
    ${id&&p.rate>0?`<div class="acard"><div class="acardh"><span class="aic">${ico('wallet')}</span><b>Orders ${esc(p.name)} earns from</b></div>
     ${r.months.length?r.months.map(m=>`<div class="arow"><div class="t"><div class="ttl"><b>${mn(m.key)}</b>${bdg(m.n+' order'+(m.n===1?'':'s'))}</div><small>Owed: <b>${naira(m.owed)}</b> · order value ${naira(m.value)}</small></div><div class="aacts"><a class="pill sm alt" href="/api/admin/partner/statement?id=${id}&m=${m.key}" download>Statement (CSV)</a></div></div>`).join('')+`<p style="margin-top:10px"><b>Total so far: ${r.n} order${r.n===1?'':'s'} · ${naira(r.owed)}</b></p>`:'<p class="meta">Nothing to count yet.</p>'}</div>`:''}`;
   const f=$('#ptnrForm'),sc=()=>f.querySelectorAll('[data-sc]').forEach(x=>x.hidden=x.dataset.sc!==f.elements.scope.value);sc();f.elements.scope.onchange=sc;
