@@ -433,7 +433,7 @@ footer{background:transparent}
 .ptnr b{display:block;font-family:'Bricolage Grotesque',sans-serif;font-size:18px;line-height:1.2;margin-top:3px}.ptnr small{display:block;opacity:.8;margin-top:3px;font-size:13px;line-height:1.4}
 .ptnr .ptc{flex:none;background:#C8F03C;color:#141A3D;font-weight:700;font-size:13px;border-radius:99px;padding:8px 14px}
 .ptnr.wide{display:block;padding:0}.ptnr.wide img{width:100%;height:auto;max-height:220px;border-radius:0;display:block}.ptnr.wide .ptw{display:flex;align-items:center;gap:12px;padding:12px 16px}
-.ptnr .ptc{white-space:nowrap}@media(max-width:520px){.ptnr{gap:10px;padding:12px 14px}.ptnr b{font-size:16px}.ptnr .ptc{padding:7px 12px}}
+.ptnr .ptc{white-space:nowrap}.ptnr{position:relative}.ptd{position:absolute;right:14px;bottom:8px;display:flex;gap:4px}.ptd i{width:6px;height:6px;border-radius:50%;background:#F6F1E7;opacity:.35}.ptd i.on{opacity:1}@media(max-width:520px){.ptnr{gap:10px;padding:12px 14px}.ptnr b{font-size:16px}.ptnr .ptc{padding:7px 12px}}
 .soon .snaw{display:flex;height:26px;padding-top:9px;position:relative}.soon .snaw::before{content:'';position:absolute;left:0;right:0;top:0;height:10px;background:#141A3D}
 .soon .snaw i{flex:1;border-radius:0 0 99px 99px;background:#F6F1E7}.soon .snaw i:nth-child(even){background:#C8F03C}
 .soon .snb{padding:16px 18px 18px}.soon .sntg{display:inline-block;background:#C8F03C;color:#26306E;font-weight:800;font-size:11px;line-height:1;letter-spacing:.12em;padding:6px 10px;border-radius:99px}
@@ -1553,11 +1553,13 @@ function drawGuide(){const g=$('#guideCard');if(g)g.hidden=!S.user||!!S.guideSee
 // Schools open one at a time. Until a student's school is live, the home screen invites them onto its waitlist.
 const schLive=()=>{const si=S.user&&S.user.schoolInfo;return !si||!si.launch||si.launch==='live'};
 const effScope=()=>{const si=S.user&&S.user.schoolInfo;if(!si)return 'all';const s=S.scope||'school';return s==='school'&&!schLive()&&!S.scopeTap?'all':s};
-// Media partner banner (e.g. ACUSA Media at ACU), set in Admin → Partners. Wide images show full width; otherwise a text card.
-function drawPartner(){const el=$('#partnerCard');if(!el)return;const p=S.user&&S.user.partner;if(!p||!p.title){el.hidden=true;return}
-  const t=`<span class="ptb"><span class="pte">${esc(p.name?p.name+' · Official Media Partner':'Official Media Partner')}</span><b>${esc(p.title)}</b>${p.text?`<small>${esc(p.text)}</small>`:''}</span>${p.url?`<span class="ptc">${esc(p.cta||'Open')}</span>`:''}`;
-  el.classList.toggle('wide',!!p.img);el.innerHTML=p.img?`<img src="${esc(p.img)}" alt=""><span class="ptw">${t}</span>`:t;
-  if(p.url)el.href=p.url;else el.removeAttribute('href');el.hidden=false}
+// Partner and sponsor banners (Admin → Partners). Several can apply to one user; they take turns every 7 seconds.
+let PTI=0,PTT=null;
+function drawPartner(){const el=$('#partnerCard');if(!el)return;const ps=(S.user&&S.user.partners)||[];clearInterval(PTT);if(!ps.length){el.hidden=true;return}
+  const show=()=>{const p=ps[PTI%ps.length];const t=`<span class="ptb"><span class="pte">${esc(p.name?p.name+' · '+(p.label||'Official Partner'):(p.label||'Official Partner'))}</span><b>${esc(p.title)}</b>${p.text?`<small>${esc(p.text)}</small>`:''}</span>${p.url?`<span class="ptc">${esc(p.cta||'Open')}</span>`:''}`;
+    el.classList.toggle('wide',!!p.img);el.innerHTML=(p.img?`<img src="${esc(p.img)}" alt=""><span class="ptw">${t}</span>`:t)+(ps.length>1?`<span class="ptd">${ps.map((_,k)=>`<i${k===PTI%ps.length?' class="on"':''}></i>`).join('')}</span>`:'');
+    if(p.url)el.href=p.url;else el.removeAttribute('href')};
+  show();el.hidden=false;if(ps.length>1&&!matchMedia('(prefers-reduced-motion: reduce)').matches)PTT=setInterval(()=>{if(document.hidden)return;PTI++;show()},7000)}
 function drawSoon(){const el=$('#soonCard');if(!el)return;const u=S.user,si=u&&u.schoolInfo;if(!u||u.admin||schLive()){el.hidden=true;return}
   const nm=esc(si.short||si.name),w=u.wait||{},want=w.want,n=w.n||0,sel=si.launch==='sellers',WN={buy:'a buyer',sell:'a seller',both:'a buyer and seller'};
   const pick=`<p class="snl">${want?'Change what you want':'I want to'}</p><div class="snwl">${[['buy','Buy'],['sell','Sell'],['both','Both']].map(([k,l])=>`<button data-wl="${k}" class="${want===k?'on':''}">${l}</button>`).join('')}</div>`;
@@ -2149,7 +2151,7 @@ const AD={tab:'overview',st:{},sum:{},n:0},OST={pending:['Waiting for payment','
 const AG=[['Home',[['overview','Overview','home','Today at a glance'],['health','System health','pulse','Payments, email, AI and storage']]],
  ['Orders & money',[['payments','Flagged orders','flag','Problems and payments waiting for your decision','review'],['orders','All orders','box','Every order and where it is'],['sellerpay','Seller payouts','wallet','Money sent to sellers after delivery','payoutsFailed'],['money','Money & earnings','money','How much moved through Stall, and what Stall earned']]],
  ['People',[['users','People','users','Students and campus vendors'],['vendors','Vendor applications','store','Approve campus shops','vendorsPending'],['ids','Student IDs','id','Check school documents','idsPending'],['verify','Verified badges','badge','Paid verified-seller requests','verifyPending'],['payouts','Bank details','lock','Confirm hand-typed payout accounts','banks'],['codes','Codes','key','Vendor sign-up and free store codes']]],
- ['Marketplace',[['items','Photo check','image','New listings the AI wasn\'t sure about','itemsReview'],['schools','Schools','school','Launch schools, see waitlists and requests to add one','schoolsPending'],['partner','Partners','megaphone','Media partner banner and the orders they earn from']]],
+ ['Marketplace',[['items','Photo check','image','New listings the AI wasn\'t sure about','itemsReview'],['schools','Schools','school','Launch schools, see waitlists and requests to add one','schoolsPending'],['partner','Partners','megaphone','Partners and sponsors: banners and order shares']]],
  ['System',[['log','Activity','list','Who did what, and when'],['settings','Settings','gear','Business details, verification and the Android app']]]];
 const ATABS=AG.flatMap(g=>g[1].map(([k,l,,,n])=>[k,l,n])),AMETA=Object.fromEntries(AG.flatMap(g=>g[1].map(x=>[x[0],x])));
 const AF={ids:[['pending','Waiting'],['approved','Approved'],['rejected','Rejected'],['all','All']],sellerpay:[['failed','Failed'],['processing','Sending'],['paid','Paid'],['all','All']],orders:[['all','All'],['verified','Awaiting delivery'],['disputed','Problem reported'],['refunded','Refunded'],['under_review','Needs review'],['pending','Waiting for payment'],['released','Delivered'],['rejected','Rejected'],['expired','Expired']],vendors:[['all','All'],['pending','Waiting'],['active','Approved'],['suspended','Suspended']],users:[['all','Everyone'],['student','Students'],['vendor','Vendors'],['verified','Verified'],['reviewer','Reviewers'],['nofee','No collection fee']],items:[['review','Needs a look'],['rejected','Rejected'],['live','Approved']],schools:[['launch','Launch'],['active','All schools'],['pending','Requested']],verify:[['pending','Waiting'],['approved','Approved, not paid'],['paid','Verified'],['rejected','Not approved'],['all','All']],money:[['all','All'],['boost','Featured'],['reach','Store reach'],['verify','Verified badges'],['store','Store fees'],['commission','Sale fees']],codes:[['all','All'],['unused','Not used'],['used','Used'],['off','Turned off'],['store','Free store']],log:[['all','Everything'],['payment','Payments'],['account','Accounts'],['money','Earnings'],['other','Other']]};
@@ -2260,31 +2262,46 @@ function adminTab(k){AD.tab=k;const S0=ast(k),m=AMETA[k];document.querySelectorA
    +(AF[k]?`<div class="fchips">${AF[k].map(([v,l])=>`<button class="fchip" data-af="${v}" aria-pressed="${S0.f===v}">${l}</button>`).join('')}</div>`:'')
    +'<div id="alist"><p class="meta">Loading...</p></div>';if(k==='money'){volDash();earnDash()}
   $('#ab').scrollTop=0;adminLoad()}
-// Partners: the media partner's home banner (shown to users at one school), the completed orders there that earn the partner ₦X each, and fee-free collection accounts.
-async function partnerLoad(){const el=$('#ptnrBox'),p=await fetchJ('/api/admin/partner').catch(()=>null);if(!el)return;if(!p||p.error){el.innerHTML=`<p class="meta">${esc(p&&p.error||'Could not load. Try again.')}</p>`;return}
-  const r=p.report||{months:[]},fd=d=>d?new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'',mn=k=>new Date(k+'-15').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
-  el.innerHTML=`<form id="ptnrForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('megaphone')}</span><b>Home banner</b></div>
-    <p class="meta">Shown at the top of the home screen to everyone at one school. Add an image (a wide one, about 1200×400, fills the banner) or just text.</p>
-    <label class="fchk" style="margin:6px 0"><input type="checkbox" name="on" ${p.on?'checked':''}> Show the banner</label>
-    <div class="two"><label>School (short name)<input name="school" maxlength="90" value="${esc(p.school||'')}" placeholder="ACU"></label><label>Partner name<input name="name" maxlength="40" value="${esc(p.name||'')}" placeholder="ACUSA Media"></label></div>
-    <label>Headline<input name="title" maxlength="60" value="${esc(p.title||'')}" placeholder="Catch Campus Gist live every Friday"></label>
-    <label>Short text (optional)<input name="text" maxlength="140" value="${esc(p.text||'')}" placeholder="News, events and shows from ACUSA Media"></label>
-    <div class="two"><label>Link (optional)<input name="url" maxlength="300" inputmode="url" value="${esc(p.url||'')}" placeholder="https://instagram.com/…"></label><label>Button text<input name="cta" maxlength="24" value="${esc(p.cta||'')}" placeholder="Follow"></label></div>
-    <label>Image (optional)<input name="img" type="file" accept="image/*"></label>${p.img?`<div class="acts" style="align-items:center;gap:10px"><img src="${esc(p.img)}" alt="" style="max-width:220px;border-radius:10px"><label class="fchk"><input type="checkbox" name="removeImg"> Remove image</label></div>`:''}
-    <p class="lb" style="margin-top:14px">Partnership and orders</p>
-    <div class="two"><label>Starts<input name="from" type="date" value="${esc(p.from||'')}"></label><label>Ends<input name="to" type="date" value="${esc(p.to||'')}"></label></div>
-    <label>Partner earns per completed order (₦)<input name="rate" type="number" min="0" max="1000" value="${p.rate}"></label>
-    <span class="err" id="ptnrErr"></span><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>
-   <div class="acard"><div class="acardh"><span class="aic">${ico('wallet')}</span><b>Completed orders at ${esc(p.school||'the school')}</b></div>
-    <p class="meta">Orders that were delivered and released, sold by sellers at ${esc(p.school||'the school')}, from ${fd(p.from)} to ${fd(p.to)}. Pay ${esc(p.name||'the partner')} each month and send them the statement.</p>
-    ${r.months.length?`<div class="ptab">${r.months.map(m=>`<div class="arow"><div class="t"><div class="ttl"><b>${mn(m.key)}</b>${bdg(m.n+' order'+(m.n===1?'':'s'))}</div><small>Owed: <b>${naira(m.owed)}</b> · order value ${naira(m.value)}</small></div><div class="aacts"><a class="pill sm alt" href="/api/admin/partner/statement?m=${m.key}" download>Statement (CSV)</a></div></div>`).join('')}</div>
-    <p style="margin-top:10px"><b>Total so far: ${r.n} order${r.n===1?'':'s'} · ${naira(r.owed)}</b></p>`:'<p class="meta">Choose the school and dates above, then save.</p>'}</div>
+// Partners: sponsors and partners, each with its own label, area (school, state or everywhere), dates, home banner and optional ₦ per completed order.
+const PSC={school:'One school',state:'A whole state',all:'Every school'},PST={live:['Showing','ok'],scheduled:['Starts later','warn'],ended:['Ended',''],off:['Banner off','']};
+const fdate=d=>d?new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'';
+async function partnerLoad(edit){const el=$('#ptnrBox'),r=await fetchJ('/api/admin/partners').catch(()=>null);if(!el)return;if(!r||r.error){el.innerHTML=`<p class="meta">${esc(r&&r.error||'Could not load. Try again.')}</p>`;return}
+  AD.ptnr=r;if(edit!=null)return partnerEdit(edit);
+  const where=p=>p.scope==='all'?'Every school':p.scope==='state'?p.state+' State':p.school||'—',when=p=>p.from||p.to?(p.from?fdate(p.from):'Now')+' – '+(p.to?fdate(p.to):'no end date'):'No dates';
+  el.innerHTML=`<div class="atools"><button class="pill sm" id="ptAdd" type="button">Add a partner or sponsor</button></div>
+   ${r.items.length?r.items.map(p=>`<div class="arow"><div class="t"><div class="ttl"><b>${esc(p.name)}</b>${bdg(p.label)}${bdg(...PST[p.status])}</div>
+     <small>${esc(where(p))} · ${esc(when(p))}${p.title?' · “'+esc(p.title)+'”':''}</small>${p.rate>0?`<small>₦${p.rate} per completed order · <b>${p.report.n} order${p.report.n===1?'':'s'}, ${naira(p.report.owed)} owed so far</b></small>`:''}</div>
+     <div class="aacts"><button class="pill sm alt" data-ptedit="${p.id}">Open</button></div></div>`).join(''):'<p class="meta">No partners yet. Add one to show their banner and, if you agreed one, count the orders they earn from.</p>'}
    <div class="acard"><div class="acardh"><span class="aic">${ico('users')}</span><b>Collections with no Stall fee</b></div>
-    <p class="meta">Turn this on for a partner's account in People → find them → No collection fee. Payers still cover Paystack's charge.</p>
-    ${p.nofee&&p.nofee.length?p.nofee.map(x=>`<p>${esc(x.biz||x.name)}</p>`).join(''):'<p class="meta">No accounts yet.</p>'}</div>`;
-  $('#ptnrForm').onsubmit=async e=>{e.preventDefault();const E=e.target.elements,b={on:E.on.checked,school:E.school.value,name:E.name.value,title:E.title.value,text:E.text.value,url:E.url.value.trim(),cta:E.cta.value,from:E.from.value,to:E.to.value,rate:E.rate.value};
+    <p class="meta">For partner associations. Turn it on in People → find the account → No collection fee. Payers still cover Paystack's charge.</p>
+    ${r.nofee&&r.nofee.length?r.nofee.map(x=>`<p>${esc(x.biz||x.name)}</p>`).join(''):'<p class="meta">No accounts yet.</p>'}</div>`;
+  $('#ptAdd').onclick=()=>partnerEdit(0);el.querySelectorAll('[data-ptedit]').forEach(b=>b.onclick=()=>partnerEdit(+b.dataset.ptedit))}
+function partnerEdit(id){const el=$('#ptnrBox'),R=AD.ptnr,p=R.items.find(x=>x.id===id)||{on:false,name:'',label:'Official Partner',scope:'school',school:'',state:'',title:'',text:'',url:'',cta:'',from:'',to:'',rate:0,report:{months:[],n:0,owed:0}},r=p.report,mn=k=>new Date(k+'-15').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  el.innerHTML=`<div class="atools"><button class="pill sm alt" id="ptBack" type="button">← All partners</button></div>
+   <form id="ptnrForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('megaphone')}</span><b>${id?esc(p.name):'New partner or sponsor'}</b></div>
+    <div class="two"><label>Name<input name="name" maxlength="40" required value="${esc(p.name)}" placeholder="ACUSA Media"></label><label>Label on the banner<input name="label" maxlength="40" value="${esc(p.label)}" list="ptLabels" placeholder="Official Partner"></label></div>
+    <datalist id="ptLabels"><option>Official Media Partner</option><option>Official Sponsor</option><option>Official Partner</option><option>Food Partner</option><option>Banking Partner</option><option>Telecoms Partner</option><option>Event Partner</option></datalist>
+    <div class="two"><label>Where it shows<select name="scope">${Object.entries(PSC).map(([k,l])=>`<option value="${k}"${p.scope===k?' selected':''}>${l}</option>`).join('')}</select></label>
+     <label data-sc="school">School (short name)<input name="school" maxlength="90" value="${esc(p.school||'')}" placeholder="ACU"></label><label data-sc="state">State<select name="state"><option value="">Choose…</option>${R.states.map(x=>`<option${p.state===x?' selected':''}>${x}</option>`).join('')}</select></label><span data-sc="all" class="meta" style="align-self:end">Everyone on Stall sees it.</span></div>
+    <div class="two"><label>Starts (optional)<input name="from" type="date" value="${esc(p.from)}"></label><label>Ends (optional)<input name="to" type="date" value="${esc(p.to)}"></label></div>
+    <p class="meta">The banner shows only between these dates and switches itself off after the end date.</p>
+    <p class="lb" style="margin-top:12px">Home banner</p>
+    <label class="fchk" style="margin:6px 0"><input type="checkbox" name="on" ${p.on?'checked':''}> Show the banner</label>
+    <label>Headline<input name="title" maxlength="60" value="${esc(p.title)}" placeholder="Campus Gist, live every Friday"></label>
+    <label>Short text (optional)<input name="text" maxlength="140" value="${esc(p.text)}" placeholder="News, events and shows from ACUSA Media"></label>
+    <div class="two"><label>Link (optional)<input name="url" maxlength="300" inputmode="url" value="${esc(p.url)}" placeholder="https://instagram.com/…"></label><label>Button text<input name="cta" maxlength="24" value="${esc(p.cta)}" placeholder="Follow"></label></div>
+    <label>Image (optional, a wide one about 1200×400 fills the banner)<input name="img" type="file" accept="image/*"></label>${p.img?`<div class="acts" style="align-items:center;gap:10px"><img src="${esc(p.img)}" alt="" style="max-width:220px;border-radius:10px"><label class="fchk"><input type="checkbox" name="removeImg"> Remove image</label></div>`:''}
+    <p class="lb" style="margin-top:12px">Share of orders (optional)</p>
+    <label>₦ the partner earns per completed order<input name="rate" type="number" min="0" max="1000" value="${p.rate||''}" placeholder="Leave empty if none"></label>
+    <p class="meta">Counts orders sold by sellers in the area above that were delivered and released between the dates. Needs a start date.</p>
+    <span class="err" id="ptnrErr"></span><div class="aacts"><button class="pill sm" type="submit">Save</button>${id?'<button class="pill sm red" type="button" id="ptDel">Remove partner</button>':''}</div></form>
+   ${id&&p.rate>0?`<div class="acard"><div class="acardh"><span class="aic">${ico('wallet')}</span><b>Orders ${esc(p.name)} earns from</b></div>
+    ${r.months.length?r.months.map(m=>`<div class="arow"><div class="t"><div class="ttl"><b>${mn(m.key)}</b>${bdg(m.n+' order'+(m.n===1?'':'s'))}</div><small>Owed: <b>${naira(m.owed)}</b> · order value ${naira(m.value)}</small></div><div class="aacts"><a class="pill sm alt" href="/api/admin/partner/statement?id=${id}&m=${m.key}" download>Statement (CSV)</a></div></div>`).join('')+`<p style="margin-top:10px"><b>Total so far: ${r.n} order${r.n===1?'':'s'} · ${naira(r.owed)}</b></p>`:'<p class="meta">Nothing to count yet.</p>'}</div>`:''}`;
+  const f=$('#ptnrForm'),sc=()=>f.querySelectorAll('[data-sc]').forEach(x=>x.hidden=x.dataset.sc!==f.elements.scope.value);sc();f.elements.scope.onchange=sc;
+  $('#ptBack').onclick=()=>partnerLoad();if($('#ptDel'))$('#ptDel').onclick=async()=>{if(!confirm('Remove '+p.name+'? Their banner stops showing. Past orders are not affected.'))return;const x=await apiPost('admin/partner/delete',{id});if(x.error)return toast(x.error);toast('Partner removed');refreshMe();partnerLoad()};
+  f.onsubmit=async e=>{e.preventDefault();const E=f.elements,b={id:id||undefined,on:E.on.checked,name:E.name.value,label:E.label.value,scope:E.scope.value,school:E.school.value,state:E.state.value,title:E.title.value,text:E.text.value,url:E.url.value.trim(),cta:E.cta.value,from:E.from.value,to:E.to.value,rate:E.rate.value||0};
     if(E.removeImg&&E.removeImg.checked)b.removeImg=true;else if(E.img.files[0]){try{b.img=await wideImg(E.img.files[0])}catch(x){return $('#ptnrErr').textContent='Could not read that image. Try another one.'}}
-    const res=await apiPost('admin/partner',b);if(res.error)return $('#ptnrErr').textContent=res.error;toast('Saved');refreshMe();partnerLoad()}}
+    const res=await apiPost('admin/partner',b);if(res.error)return $('#ptnrErr').textContent=res.error;toast('Saved');refreshMe();partnerLoad(res.id)}}
 // Shrinks an image to at most 1200px wide as a JPEG, small enough to store with the settings.
 function wideImg(f){return new Promise((ok,no)=>{const i=new Image(),u=URL.createObjectURL(f);i.onload=()=>{URL.revokeObjectURL(u);let w=Math.min(1200,i.naturalWidth),h=Math.round(i.naturalHeight*w/i.naturalWidth);const c=document.createElement('canvas');
   for(const q of [.82,.7,.55]){c.width=w;c.height=h;c.getContext('2d').drawImage(i,0,0,w,h);const d=c.toDataURL('image/jpeg',q);if(d.length<440000)return ok(d)}w=Math.round(w*.7);h=Math.round(h*.7);c.width=w;c.height=h;c.getContext('2d').drawImage(i,0,0,w,h);ok(c.toDataURL('image/jpeg',.6))};i.onerror=no;i.src=u})}
