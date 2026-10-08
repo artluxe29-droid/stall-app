@@ -759,7 +759,7 @@ const stars=r=>r&&r.n?`<span class="rt">★ ${r.avg.toFixed(1)} <small>(${r.n})<
 const starStr=n=>'★★★★★'.slice(0,n)+'☆☆☆☆☆'.slice(0,5-n);
 function cardHtml(i){const s=stat(i),inC=S.cart.includes(i.id);return `
    <article class="card" data-id="${i.id}"><div class="tile" style="${cv(i)}">${ic(i)}${s?`<span class="tag">${s==='sold'?'Sold':'Reserved'}</span>`:''}${i.featured&&!s?'<span class="tag ft fb">Featured</span>':''}</div>
-   <div class="cb"><h3>${esc(i.title)}</h3><div class="meta">${effScope()!=='school'&&i.school?'<b>'+esc(i.school)+'</b> · ':''}${esc(i.cond)} · ${esc(i.spot)} · ${ago(i.t)}${i.verified?' · '+VB:i.vlevel?' · '+SB(i.vlevel):''}${i.rating&&i.rating.n?' · '+stars(i.rating):''}</div>${stk(i)}${i.mine&&i.review&&i.review!=='live'?`<div class="rvw ${i.review}">${RV[i.review]}</div>`:''}
+   <div class="cb"><h3>${esc(i.title)}</h3><div class="meta">${i.soon&&!i.mine?'<b style="color:#B45309">Not open yet: '+esc(i.school)+'</b> · ':effScope()!=='school'&&i.school?'<b>'+esc(i.school)+'</b> · ':''}${esc(i.cond)} · ${esc(i.spot)} · ${ago(i.t)}${i.verified?' · '+VB:i.vlevel?' · '+SB(i.vlevel):''}${i.rating&&i.rating.n?' · '+stars(i.rating):''}</div>${stk(i)}${i.mine&&i.review&&i.review!=='live'?`<div class="rvw ${i.review}">${RV[i.review]}</div>`:''}
    <div class="cf"><span class="price">${naira(i.price)}</span><button class="pill sm ${inC?'alt':''}" data-add="${i.id}" ${s?'disabled':''}>${inC?'In bag':'Add to bag'}</button></div></div></article>`
   document.querySelectorAll('.empty').forEach(()=>{});
 }
