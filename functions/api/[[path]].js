@@ -1,5 +1,5 @@
 // Cloudflare Pages Function. Secret: PAYSTACK_SECRET. D1 binding: DB.
-import {SCHOOLS,STATES} from '../../lib/schools.js';
+import {SCHOOLS,SCHOOLS_V,STATES} from '../../lib/schools.js';
 const J=(d,s=200,h={})=>new Response(JSON.stringify(d),{status:s,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'strict-origin-when-cross-origin',...h}});
 // Every call to an outside service gives up after a few seconds, so a slow Paystack/Resend/Telegram can't hang a request.
 const T_OUT=()=>AbortSignal.timeout(10000);
@@ -75,7 +75,7 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   for(const s0 of stale)if((await env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,s0.id).run()).meta.changes)ids.push(s0.id);
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='31';
+const SCHEMA_V='32';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -138,6 +138,10 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     await env.DB.batch([env.DB.prepare('UPDATE users SET school_id=?,state=? WHERE school_id IS NULL').bind(acu.id,acu.state),env.DB.prepare('UPDATE listings SET school_id=?,state=? WHERE school_id IS NULL').bind(acu.id,acu.state),
       env.DB.prepare('UPDATE stores SET school_id=?,state=? WHERE school_id IS NULL').bind(acu.id,acu.state),env.DB.prepare('UPDATE listings SET qty_left=CASE WHEN sold=1 THEN 0 ELSE 1 END WHERE qty_left IS NULL'),
       env.DB.prepare("INSERT OR REPLACE INTO settings(k,v) VALUES('mig_nationwide','1')")])}
+  // Schools added to the list since this database was set up (names already there, including renamed or requested ones, are left alone).
+  const sv=await env.DB.prepare("SELECT v FROM settings WHERE k='schools_v'").first().catch(()=>null);
+  if(!sv||+sv.v<SCHOOLS_V){await env.DB.batch(SCHOOLS.map(([n,sh,st,k])=>env.DB.prepare('INSERT OR IGNORE INTO schools(name,short,state,kind,active,created) VALUES(?,?,?,?,1,?)').bind(n,sh,st,k,Date.now())));
+    await env.DB.prepare("INSERT OR REPLACE INTO settings(k,v) VALUES('schools_v',?)").bind(String(SCHOOLS_V)).run()}
   // Ajayi Crowther University is where Stall started, so it is open from the start; every other school opens when an admin launches it.
   await env.DB.prepare("UPDATE schools SET launch='live' WHERE short='ACU' AND launch IS NULL").run().catch(()=>{});
   await giveFounding(env,null).catch(()=>{});
