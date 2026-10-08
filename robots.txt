@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 Disallow: /api/
-Sitemap: https://stall-app.pages.dev/sitemap.xml
+Sitemap: https://stall.com.ng/sitemap.xml

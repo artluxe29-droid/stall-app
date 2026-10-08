@@ -401,7 +401,7 @@ async function refund(env,o,why){if(!['verified','disputed','under_review'].incl
 // ---- Email (Resend). Secrets: RESEND_API_KEY, and EMAIL_FROM like "Stall <hello@yourdomain.ng>" once your domain is verified in Resend.
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // Brand header: the wordmark is a PNG (email apps don't show SVG); "Stall" shows if images are blocked.
-const mailOrigin=url=>(String(url||'').match(/^https?:\/\/[^/]+/)||['https://stall-app.pages.dev'])[0];
+const mailOrigin=url=>(String(url||'').match(/^https?:\/\/[^/]+/)||['https://stall.com.ng'])[0];
 const mailHtml=(title,lines,btn,url)=>`<div style="font-family:Arial,Helvetica,sans-serif;background:#F6F2EA;padding:24px"><div style="max-width:480px;margin:auto;background:#fff;border-radius:16px;overflow:hidden">
   <div style="background:#26306E;padding:18px 28px"><img src="${mailOrigin(url)}/icons/email-wordmark-v3.png" alt="Stall" width="74" height="31" style="display:block;border:0;color:#F6F1E7;font-size:22px;font-weight:800"></div><div style="padding:24px 28px 28px"><h1 style="font-size:20px;color:#161A33;margin:0 0 10px">${esc(title)}</h1>
   ${lines.map(l=>`<p style="font-size:15px;line-height:1.5;color:#3D4160;margin:0 0 10px">${l}</p>`).join('')}
@@ -541,7 +541,7 @@ async function ping(env,uid,title,body,url,tag){try{const subs=(await env.DB.pre
     const r=await fetch(endpoint,{signal:T_OUT(),method:'POST',headers:{TTL:'86400',Urgency:'high','content-length':'0',Authorization:'vapid t='+jwt+', k='+pub}}).catch(()=>null);
     if(r&&(r.status===404||r.status===410))await env.DB.prepare('DELETE FROM push_subs WHERE endpoint=?').bind(endpoint).run();
     await setK(env,'push_last',JSON.stringify({t:Date.now(),ok:!!r&&r.status<300,err:r&&r.status>=300?'Push service said '+r.status:r?null:'Could not reach the push service'}))}}catch(e){}}
-const SITE=env=>env.SITE_URL||'https://stall-app.pages.dev';
+const SITE=env=>env.SITE_URL||'https://stall.com.ng';
 // One-time 6-digit codes (email check, password reset). Stored hashed, 15 minutes, 5 tries.
 const newCode=async(env,k,data)=>{const c=String(100000+crypto.getRandomValues(new Uint32Array(1))[0]%900000);await env.DB.prepare('INSERT OR REPLACE INTO codes(k,h,data,exp,tries) VALUES(?,?,?,?,0)').bind(k,await sha(k+':'+c),data||null,Date.now()+9e5).run();return c};
 const useCode=async(env,k,c)=>{const r=await env.DB.prepare('SELECT * FROM codes WHERE k=?').bind(k).first();if(!r||r.exp<Date.now())return{error:'That code has expired. Ask for a new one.'};
