@@ -967,7 +967,8 @@ async function route({request,env,params,waitUntil}){
     const cut=Math.floor((NOW-2*864e5)/6e5)*6e5;
     if(sp.get('mine')){w.push('l.uid=?',"(l.review!='live' OR (l.sold=1 AND l.created<=?) OR "+LCH('sc')+"!='live')");v.push(u.id,cut);lim=50;off=0}
     else if(ids.length){w.push("(l.review='live' OR l.uid=?)",`l.id IN (${ids.map(()=>'?').join(',')})`);v.push(u.id,...ids);lim=60;off=0}
-    else{w.push("l.review='live'",'(l.sold=0 OR l.created>?)',LCH('sc')+"='live'");v.push(cut);
+    // Admins see every school's items (to test and moderate before a school opens); everyone else only sees open schools.
+    else{w.push("l.review='live'",'(l.sold=0 OR l.created>?)');if(!u.is_admin)w.push(LCH('sc')+"='live'");v.push(cut);
       const q=(sp.get('q')||'').trim().slice(0,60),cat=sp.get('cat')||'all',scope=sp.get('scope')||'school';if(cat!=='all'){w.push('l.cat=?');v.push(cat)}
       if(scope==='school'&&u.school_id){w.push('l.school_id=?');v.push(u.school_id)}else if(scope==='state'&&u.state){w.push('l.state=?');v.push(u.state)}
       // Every word must appear somewhere in the title, description or meeting spot.
@@ -977,15 +978,15 @@ async function route({request,env,params,waitUntil}){
       if(sp.get('dl')==='1')w.push('u.deliv_on=1');if(sp.get('vf')==='1')w.push('(u.verified=1 OR u.vlevel>=1)');if(sp.get('r4')==='1')w.push('u.rating_n>0 AND u.rating_sum>=4*u.rating_n')}
     const wh=' FROM listings l JOIN users u ON u.id=l.uid LEFT JOIN schools sc ON sc.id=l.school_id WHERE '+w.join(' AND '),srt={lo:'l.price ASC,l.id DESC',hi:'l.price DESC,l.id DESC',top:'(u.rating_sum+6.0)/(u.rating_n+2) DESC,u.rating_n DESC,l.created DESC'}[sp.get('sort')]||`(IFNULL(l.featured_until,0)>${NOW}) DESC,l.created DESC,l.id DESC`;
     const feed=!ids.length&&!sp.get('mine'),run=async()=>{const [cn,ra]=await Promise.all([feed?env.DB.prepare('SELECT COUNT(*) c'+wh).bind(...v).first():null,
-        env.DB.prepare('SELECT l.*,u.verified AS sv,u.vlevel AS svl,u.role AS srole,u.deliv_on,u.deliv_fee,u.deliv_note,u.rating_sum,u.rating_n,sc.short AS ssh,sc.name AS snm'+wh+' ORDER BY '+srt+' LIMIT ? OFFSET ?').bind(...v,lim,off).all()]);
+        env.DB.prepare('SELECT l.*,u.verified AS sv,u.vlevel AS svl,u.role AS srole,u.deliv_on,u.deliv_fee,u.deliv_note,u.rating_sum,u.rating_n,sc.short AS ssh,sc.name AS snm,'+LCH('sc')+' AS lch'+wh+' ORDER BY '+srt+' LIMIT ? OFFSET ?').bind(...v,lim,off).all()]);
       const total=cn?cn.c:undefined,rs=ra.results;
       // Searches also look in open stores, so "jollof" finds food stalls as well as listings.
       const sq=(sp.get('q')||'').trim().slice(0,60),words=sq.split(/\s+/).filter(Boolean).slice(0,5),sc2=sp.get('scope')||'school';let storeHits=[];
-      if(feed&&words.length&&!off){const ww=["i.review='live'",'i.avail=1','s.isopen=1',LIVE,LCH('sc')+"='live'"],vv=[];for(const word of words){ww.push('(i.title LIKE ? OR i.descr LIKE ?)');vv.push('%'+word+'%','%'+word+'%')}
+      if(feed&&words.length&&!off){const ww=["i.review='live'",'i.avail=1','s.isopen=1',LIVE,...(u.is_admin?[]:[LCH('sc')+"='live'"])],vv=[];for(const word of words){ww.push('(i.title LIKE ? OR i.descr LIKE ?)');vv.push('%'+word+'%','%'+word+'%')}
         if(sc2==='school'&&u.school_id){ww.push('s.school_id=?');vv.push(u.school_id)}else if(sc2==='state'&&u.state){ww.push('s.state=?');vv.push(u.state)}
         storeHits=(await env.DB.prepare('SELECT i.id,i.title,i.price,s.id sid,s.name sname,s.cat,s.emoji FROM store_items i JOIN stores s ON s.id=i.sid JOIN users u ON u.id=s.uid LEFT JOIN schools sc ON sc.id=s.school_id WHERE '+ww.join(' AND ')+' ORDER BY i.created DESC LIMIT 8').bind(...vv).all()).results
           .map(r=>({id:'I'+r.id,title:r.title,price:r.price,store:'S'+r.sid,storeName:r.sname,cat:r.cat,emoji:r.emoji}))}
-      return{total,storeHits,listings:rs.map(r=>({sid:r.uid,id:'L'+r.id,deliv:dlv(r),rating:rat(r),vlevel:r.srole==='vendor'?0:r.svl||0,title:r.title,price:r.price,cat:r.cat,cond:r.cond,spot:r.spot,desc:r.descr,seller:r.seller,phone:r.phone,imgs:Array.from({length:r.n},(_,i)=>'/api/photo/'+r.id+'/'+i),t:r.created,sold:r.sold,featured:(r.featured_until||0)>NOW,featuredUntil:r.featured_until||0,verified:!!r.sv,qty:r.qty||1,qtyLeft:r.qty_left==null?(r.sold?0:1):r.qty_left,school:r.ssh||r.snm||'',state:r.state||'',review:r.review,reviewNote:feed?null:r.review_note}))}};
+      return{total,storeHits,listings:rs.map(r=>({sid:r.uid,id:'L'+r.id,deliv:dlv(r),rating:rat(r),vlevel:r.srole==='vendor'?0:r.svl||0,title:r.title,price:r.price,cat:r.cat,cond:r.cond,spot:r.spot,desc:r.descr,seller:r.seller,phone:r.phone,imgs:Array.from({length:r.n},(_,i)=>'/api/photo/'+r.id+'/'+i),t:r.created,sold:r.sold,featured:(r.featured_until||0)>NOW,featuredUntil:r.featured_until||0,verified:!!r.sv,qty:r.qty||1,qtyLeft:r.qty_left==null?(r.sold?0:1):r.qty_left,school:r.ssh||r.snm||'',state:r.state||'',soon:r.lch!=='live',review:r.review,reviewNote:feed?null:r.review_note}))}};
     if(!feed){const o=await run();o.listings.forEach(x=>{x.mine=x.sid===u.id;if(!x.mine)x.reviewNote=null});return J(o)}
     // Everyone at the same school (or state, or nationwide) with the same filters shares one cached copy, refreshed on any change.
     return edge('feed/'+(await ver(env))+'/'+encodeURIComponent(w.join('&')+'|'+v.join('|')+'|'+srt+'|'+lim+'|'+off),30,run)}
@@ -1033,7 +1034,7 @@ async function route({request,env,params,waitUntil}){
     if(c)waitUntil(c.put(request,res.clone()).catch(()=>{}));return res}
   if(path==='stores'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);const NOW=Math.floor(Date.now()/6e4)*6e4;
     const scope=url.searchParams.get('scope')||'school',mine=!!url.searchParams.get('mine'),w=[LIVE],v=[],up='(IFNULL(s.reach_until,0)>'+NOW+')';
-    if(mine){w.push('s.uid=?');v.push(u.id)}else w.push(LCH('sc')+"='live'");
+    if(mine){w.push('s.uid=?');v.push(u.id)}else if(!u.is_admin)w.push(LCH('sc')+"='live'");
     if(mine);else if(scope==='school'&&u.school_id){w.push("(s.school_id=? OR ("+up+" AND (s.reach='national' OR (s.reach='state' AND s.state=?))))");v.push(u.school_id,u.state)}
     else if(scope==='state'&&u.state){w.push("(s.state=? OR ("+up+" AND s.reach='national'))");v.push(u.state)}
     const run=async()=>{
@@ -1112,14 +1113,14 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       if(kind==='listing'){const L=await env.DB.prepare("SELECT l.*,u.name un,u.phone up,u.acct_no,u.acct_name,u.bank_name,u.bank_code bcode,u.bank_verified bok,u.deliv_on,u.deliv_fee,u.deliv_note,"+LCH('sc')+" lch FROM listings l JOIN users u ON u.id=l.uid LEFT JOIN schools sc ON sc.id=l.school_id WHERE l.id=? AND l.review='live' AND "+LIVE).bind(rid).first();
         if(L&&L.uid===u.id)return fail("You can't buy your own item.");
         if(!L||L.sold)return fail('An item in your bag is no longer available.');
-        if(L.lch!=='live')return fail('"'+L.title+'" isn\'t on sale yet: Stall opens at the seller\'s school soon.');
+        if(L.lch!=='live'&&!u.is_admin)return fail('"'+L.title+'" isn\'t on sale yet: Stall opens at the seller\'s school soon.');
         if(!L.acct_no||!L.acct_name)return fail('The seller for "'+L.title+'" has not set up payment details yet.');
         const tk=await env.DB.prepare('UPDATE listings SET qty_left=qty_left-?,sold=CASE WHEN qty_left-?<=0 THEN 1 ELSE 0 END WHERE id=? AND qty_left>=?').bind(q,q,rid,q).run();
         if(!tk.meta.changes)return fail(L.qty_left>0?'Only '+L.qty_left+' of "'+L.title+'" left. Reduce the quantity in your bag.':'"'+L.title+'" just sold out.');taken.push(['listing',rid,q]);
         const gk='U'+L.uid;(groups[gk]=groups[gk]||{seller:L.uid,sname:L.un,sphone:L.up,bank:L.bank_name,acct:L.acct_no,acctName:L.acct_name,bcode:L.bcode,bok:L.bok,dl:dlv(L),pickup:L.spot||'',items:[]}).items.push({kind:'listing',ref_id:L.id,title:L.title,price:L.price,q,unique:true})}
       else{const I=await env.DB.prepare('SELECT i.*,s.id sid,s.name sname,s.phone sphone,s.isopen,s.acct,s.acct_name,s.bank,s.bank_code bcode,s.bank_verified bok,s.deliv_on,s.deliv_fee,s.deliv_note,s.spot sspot,'+LCH('sc')+' lch FROM store_items i JOIN stores s ON s.id=i.sid JOIN users u ON u.id=s.uid LEFT JOIN schools sc ON sc.id=s.school_id WHERE i.id=? AND '+LIVE).bind(rid).first();
         if(!I||!I.avail||!I.isopen||I.review!=='live')return fail('An item in your bag is no longer available.');
-        if(I.lch!=='live')return fail('"'+I.title+'" isn\'t on sale yet: Stall opens at '+I.sname+'\'s school soon.');
+        if(I.lch!=='live'&&!u.is_admin)return fail('"'+I.title+'" isn\'t on sale yet: Stall opens at '+I.sname+'\'s school soon.');
         const acctNo=I.acct;if(!acctNo||!I.acct_name)return fail('The store for "'+I.title+'" has not set up payment details yet.');
         if(I.qty_left!=null){const tk=await env.DB.prepare('UPDATE store_items SET qty_left=qty_left-? WHERE id=? AND qty_left>=?').bind(q,rid,q).run();
           if(!tk.meta.changes)return fail(I.qty_left>0?'Only '+I.qty_left+' of "'+I.title+'" left. Reduce the quantity in your bag.':'"'+I.title+'" just sold out.');taken.push(['item',rid,q])}
