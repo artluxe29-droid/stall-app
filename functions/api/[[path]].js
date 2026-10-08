@@ -1267,8 +1267,10 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
         waitUntil(ping(env,other,here?who+' is here':who+' is about '+min+' min away',here?'They\'ve arrived for “'+o.title+'”. Have a look around.':'For “'+o.title+'”. Open Stall to follow along.',go,'trip'+o.id));return J({ok:true})}
       const la=+b.lat,ln=+b.lng,acc=Math.min(5000,Math.max(0,+b.acc||0));if(!okLL(la,ln))return J({error:'Location not available.'},400);
       if(trip&&trip.t&&now-trip.t<2500)return J({ok:true,skipped:true});
+      // A rough network guess shouldn't replace a sharp GPS fix from a few seconds ago.
+      if(trip&&trip.t&&now-trip.t<20000&&trip.acc&&trip.acc<=50&&acc>Math.max(150,trip.acc*4))return J({ok:true,skipped:true});
       let spd=trip&&trip.spd||0;if(trip&&trip.lat!=null&&trip.t){const dt=(now-trip.t)/1e3,v=metres(trip.lat,trip.lng,la,ln)/dt;if(dt>=2&&v<25)spd=trip.spd?.6*trip.spd+.4*v:v}
-      const d=pin?metres(la,ln,pin[0],pin[1]):null,first=!trip||trip.lat==null,near=d!=null&&d<=NEAR_M,here=d!=null&&d<=HERE_M;
+      const d=pin?metres(la,ln,pin[0],pin[1]):null,first=!trip||trip.lat==null,sure=!acc||acc<=100,near=sure&&d!=null&&d<=NEAR_M,here=sure&&d!=null&&d<=HERE_M+Math.min(acc,30);
       await env.DB.prepare('INSERT INTO trips(oid,who,lat,lng,acc,spd,t,started,near,arrived) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(oid) DO UPDATE SET lat=excluded.lat,lng=excluded.lng,acc=excluded.acc,spd=excluded.spd,t=excluded.t,near=MAX(near,excluded.near),arrived=MAX(arrived,excluded.arrived)')
         .bind(o.id,mv,la,ln,acc,spd,now,now,near?1:0,here?1:0).run();
       if(first)waitUntil(ping(env,other,mv==='seller'?'Track your order live':who+' is on the way to collect',mv==='seller'?who+' is sharing their location as they bring “'+o.title+'”.':'For “'+o.title+'”. See them on the map.',go,'trip'+o.id));
