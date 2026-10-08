@@ -423,6 +423,19 @@ footer{background:transparent}
 @media (max-width:560px){.promo{flex-direction:column;align-items:flex-start}.promo .row{flex-wrap:nowrap}.promo .row .pill{padding:12px 16px;white-space:nowrap}.pa{display:none}.trust{display:flex;overflow-x:auto;scrollbar-width:none;gap:8px}.trust div{flex:none;padding:10px 12px;font-size:13px}
   .grid{grid-template-columns:1fr 1fr;gap:12px}.tile{height:140px;margin:6px 6px 0;border-radius:15px}.cb{padding:10px 11px 12px}.card h3{font-size:14px}.price{font-size:16px}.cf .pill{padding:8px 10px;font-size:13px}
   .hrow{grid-auto-columns:46%}}
+.soon{margin-top:14px;background:#26306E;color:#F6F1E7;border-radius:24px;overflow:hidden;box-shadow:var(--sh)}
+.soon .snaw{display:flex;height:26px;padding-top:9px;position:relative}.soon .snaw::before{content:'';position:absolute;left:0;right:0;top:0;height:10px;background:#141A3D}
+.soon .snaw i{flex:1;border-radius:0 0 99px 99px;background:#F6F1E7}.soon .snaw i:nth-child(even){background:#C8F03C}
+.soon .snb{padding:16px 18px 18px}.soon .sntg{display:inline-block;background:#C8F03C;color:#26306E;font-weight:800;font-size:11px;line-height:1;letter-spacing:.12em;padding:6px 10px;border-radius:99px}
+.soon h3{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;line-height:1.05;letter-spacing:-.03em;margin:10px 0 6px;color:#fff}.soon h3 em{font-style:normal;color:#C8F03C}
+.soon p{color:#D6D9F0;font-size:14.5px;line-height:1.5;margin:0}.soon .snwl{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.soon .snwl button{flex:1 1 90px;border:1.5px solid rgba(246,241,231,.35);background:transparent;color:#fff;border-radius:14px;padding:11px 10px;font-family:inherit;font-weight:700;font-size:14.5px;cursor:pointer}
+.soon .snwl button.on,.soon .snwl button.go{background:#C8F03C;border-color:#C8F03C;color:#26306E}
+.soon .snl{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#AEB3D6;margin-top:14px}
+.soon .snok{display:flex;gap:10px;align-items:center;margin-top:14px;background:rgba(200,240,60,.12);border-radius:14px;padding:10px 12px;font-size:14px;color:#fff}.soon .snok b{color:#C8F03C}
+.soon .sntk{flex:none;width:26px;height:26px;border-radius:50%;background:#C8F03C;color:#26306E;display:grid;place-items:center;font-weight:800}
+.soon .snm{margin-top:12px;font-size:13px;color:#AEB3D6}.soon .snm button{background:none;border:0;color:#C8F03C;font:inherit;font-weight:700;padding:0;cursor:pointer;text-decoration:underline}
+.lseg button[disabled]{opacity:1;cursor:default}
 .appcard{display:flex;align-items:center;gap:12px;margin-top:12px;background:var(--card);border-radius:20px;padding:12px 14px;box-shadow:var(--sh)}
 .appcard img{width:44px;height:44px;border-radius:12px;flex:none}.appcard div{flex:1;min-width:0}.appcard b{display:block;font-weight:800}.appcard small{color:var(--muted);font-size:13px}
 .appcard .x{background:none;border:0;color:var(--muted);font-size:20px;padding:4px 6px}
@@ -610,6 +623,7 @@ small.flag,b.flag,span.flag{width:auto;height:auto;border-radius:0;box-shadow:no
         <div class="row"><button class="pill acc" id="shopNow">Shop now</button><button class="pill ghost" id="sellHero">Sell something</button></div></div>
       <div class="pa" aria-hidden="true" id="promoArt"></div>
     </div>
+    <div class="soon" id="soonCard" hidden></div>
     <div class="trust"><div><i data-ico="cap"></i><span>Students only<small>Schools across Nigeria</small></span></div><div><i data-ico="shield"></i><span>Checked payments<small>Stall confirms every payment</small></span></div><div><i data-ico="pin"></i><span>Collect on campus<small>Meet at a spot you choose</small></span></div></div>
     <div class="appcard gcard" id="guideCard" hidden><span class="gico" data-ico="sparkle"></span><div><b>New to Stall?</b><small>See how buying, selling and payments work, in about a minute</small></div><button class="pill sm" id="guideGo">Show me</button><button class="x" id="guideX" aria-label="Hide">×</button></div>
     <div class="appcard" id="appCard" hidden><img src="/icons/icon-192-v3.png" alt=""><div><b>Get the Stall app</b><small>Free · on your home screen</small></div><button class="pill sm" id="installGo">Install</button><button class="x" id="installX" aria-label="Hide">×</button></div>
@@ -743,7 +757,7 @@ const stars=r=>r&&r.n?`<span class="rt">★ ${r.avg.toFixed(1)} <small>(${r.n})<
 const starStr=n=>'★★★★★'.slice(0,n)+'☆☆☆☆☆'.slice(0,5-n);
 function cardHtml(i){const s=stat(i),inC=S.cart.includes(i.id);return `
    <article class="card" data-id="${i.id}"><div class="tile" style="${cv(i)}">${ic(i)}${s?`<span class="tag">${s==='sold'?'Sold':'Reserved'}</span>`:''}${i.featured&&!s?'<span class="tag ft fb">Featured</span>':''}</div>
-   <div class="cb"><h3>${esc(i.title)}</h3><div class="meta">${S.scope&&S.scope!=='school'&&i.school?'<b>'+esc(i.school)+'</b> · ':''}${esc(i.cond)} · ${esc(i.spot)} · ${ago(i.t)}${i.verified?' · '+VB:i.vlevel?' · '+SB(i.vlevel):''}${i.rating&&i.rating.n?' · '+stars(i.rating):''}</div>${stk(i)}${i.mine&&i.review&&i.review!=='live'?`<div class="rvw ${i.review}">${RV[i.review]}</div>`:''}
+   <div class="cb"><h3>${esc(i.title)}</h3><div class="meta">${effScope()!=='school'&&i.school?'<b>'+esc(i.school)+'</b> · ':''}${esc(i.cond)} · ${esc(i.spot)} · ${ago(i.t)}${i.verified?' · '+VB:i.vlevel?' · '+SB(i.vlevel):''}${i.rating&&i.rating.n?' · '+stars(i.rating):''}</div>${stk(i)}${i.mine&&i.review&&i.review!=='live'?`<div class="rvw ${i.review}">${RV[i.review]}</div>`:''}
    <div class="cf"><span class="price">${naira(i.price)}</span><button class="pill sm ${inC?'alt':''}" data-add="${i.id}" ${s?'disabled':''}>${inC?'In bag':'Add to bag'}</button></div></div></article>`
   document.querySelectorAll('.empty').forEach(()=>{});
 }
@@ -1354,7 +1368,7 @@ document.addEventListener('click',e=>{
   if(id0==='tbMe')openAccount();
   if(b=c('[data-newschool]')){const f=b.closest('form'),nw=f.querySelector('.newschool');nw.hidden=!nw.hidden;fillStates(f.elements.school_state);f.elements.school.disabled=!nw.hidden;return}
   if(id0==='accSchool')openSchoolPick(false);
-  if(b=c('[data-scope]')){S.scope=b.dataset.scope;save();drawScope();loadPub();return}
+  if(b=c('[data-scope]')){S.scope=b.dataset.scope;S.scopeTap=1;save();drawScope();loadPub();return}
   if(b=c('[data-stock]')){const k=b.dataset.stock,it=get(k),n=prompt('How many do you have left?',it&&it.qtyLeft!=null?it.qtyLeft:'');if(n===null)return;
     apiPost(k[0]==='L'?'listings/stock':'stores/item/stock',{id:k,qty:n.trim()}).then(r=>{if(r.error)return toast(r.error);toast('Stock updated');$('#detail').close();loadPub().then(()=>{if(k[0]==='I'&&myStore())storePage(myStore().id)})});return}
   if(b=c('[data-reach]')){startFeature({kind:'reach',target:b.dataset.reach,level:b.dataset.level,credit:!!b.dataset.credit},b);return}
@@ -1376,6 +1390,10 @@ document.addEventListener('click',e=>{
   if(c('[data-pushno]')){S.pushAsk=1;save();drawNudges();return}
   if(id0==='accGuide'||id0==='guideGo'){openGuide();return}
   if(id0==='guideX'){S.guideSeen=1;save();$('#guideCard').hidden=true;return}
+  if(b=c('[data-wl]')){joinWait(b.dataset.wl);return}
+  if(c('[data-wlx]')){S.user.wait={...S.user.wait,want:null};drawSoon();return}
+  if(id0==='soonShare'){shareSoon();return}
+  if(id0==='soonSell'){$('#sellHero').click();return}
   if(b=c('[data-gtab]')){openGuide(b.dataset.gtab);return}
   if(b=c('[data-gtry]')){guideTry(b.dataset.gtry);return}
   if(id0==='accStu'){openStudentVerify();return}
@@ -1460,7 +1478,7 @@ document.addEventListener('click',e=>{
 // Install as an app: one-tap prompt on Android/Chrome, guide page on iPhone.
 let DIP=null;const IOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
 const APPMODE=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,canInstall=()=>!APPMODE()&&(!!DIP||IOS);
-function drawScope(){const si=S.user&&S.user.schoolInfo,sc=S.scope||'school',B=(k,l)=>`<button data-scope="${k}" aria-pressed="${sc===k}">${l}</button>`;
+function drawScope(){const si=S.user&&S.user.schoolInfo,sc=effScope(),B=(k,l)=>`<button data-scope="${k}" aria-pressed="${sc===k}">${l}</button>`;
   const h=si?B('school',ico('school')+' '+esc(si.short||'My school'))+B('state',ico('pin')+' '+esc(si.state))+B('all',FLAG()+' All Nigeria'):B('all',FLAG()+' All Nigeria');['#scopeSeg','#scopeSeg2'].forEach(x=>{const el=$(x);if(el)el.innerHTML=h})}
 // ---- Headline word play: the key word changes and takes a new colour every few seconds.
 const RW=[['need','#C8F03C'],['love','#F472B6'],['want','#38BDF8'],['sell','#4ADE80'],['crave','#FACC15'],['study with','#A78BFA']],
@@ -1488,6 +1506,21 @@ if(NAIJA){document.documentElement.classList.add('naija');$('#lflag').hidden=fal
   $('#lflag').addEventListener('click',e=>{e.stopPropagation();confetti()})}
 if(!CALM)setInterval(rotateWord,2600);
 function drawGuide(){const g=$('#guideCard');if(g)g.hidden=!S.user||!!S.guideSeen}
+// Schools open one at a time. Until a student's school is live, the home screen invites them onto its waitlist.
+const schLive=()=>{const si=S.user&&S.user.schoolInfo;return !si||!si.launch||si.launch==='live'};
+const effScope=()=>{const si=S.user&&S.user.schoolInfo;if(!si)return 'all';const s=S.scope||'school';return s==='school'&&!schLive()&&!S.scopeTap?'all':s};
+function drawSoon(){const el=$('#soonCard');if(!el)return;const u=S.user,si=u&&u.schoolInfo;if(!u||u.admin||schLive()){el.hidden=true;return}
+  const nm=esc(si.short||si.name),w=u.wait||{},want=w.want,n=w.n||0,sel=si.launch==='sellers',WN={buy:'a buyer',sell:'a seller',both:'a buyer and seller'};
+  const pick=`<p class="snl">${want?'Change what you want':'I want to'}</p><div class="snwl">${[['buy','Buy'],['sell','Sell'],['both','Both']].map(([k,l])=>`<button data-wl="${k}" class="${want===k?'on':''}">${l}</button>`).join('')}</div>`;
+  const joined=want?`<div class="snok"><span class="sntk">✓</span><span>You're on the waitlist as ${WN[want]}.${n>1?` <b>${n.toLocaleString()} students</b> from ${nm} are waiting.`:''}</span></div>`:'';
+  el.innerHTML=`<div class="snaw">${'<i></i>'.repeat(9)}</div><div class="snb"><span class="sntg">${sel?'OPENING SOON':'COMING SOON'}</span>
+   <h3>${sel?`Sellers at ${nm} can set up <em>now</em>`:`Stall is coming to <em>${nm}</em>`}</h3>
+   <p>${sel?`Stall opens to buyers at ${nm} on launch day. Verify that you're a student, open your store and list your items now, so you're ready when it opens.`:`We're opening school by school. Join the waitlist and we'll tell you the moment Stall opens at ${nm}.`}</p>
+   ${sel?`<div class="snwl"><button class="go" id="soonSell">Start selling</button>${want?'':'<button data-wl="buy">Tell me when I can buy</button>'}</div>${joined}`:joined+(want?`<div class="snwl"><button class="go" id="soonShare">Invite friends at ${nm}</button></div><p class="snm">Wrong choice? <button data-wlx>Change it</button></p>`:pick)}
+   <p class="snm">Meanwhile, see what students are selling across Nigeria below.</p></div>`;el.hidden=false}
+async function joinWait(want){const r=await apiPost('me/waitlist',{want});if(r.error)return toast(r.error);S.user.wait={want:r.want,n:r.n};save();drawSoon();toast("You're on the waitlist. We'll tell you when Stall opens.")}
+function shareSoon(){const si=S.user.schoolInfo,nm=si.short||si.name,url=location.origin+'/app',text=`Stall is coming to ${nm}: buy and sell safely with students, and your money is held until you have your item. Join the waitlist: ${url}`;
+  if(navigator.share)navigator.share({title:'Stall is coming to '+nm,text}).catch(()=>{});else{navigator.clipboard&&navigator.clipboard.writeText(text).then(()=>toast('Invite copied. Paste it in your WhatsApp groups.'),()=>{})}}
 function drawInstall(){let hid=false;try{hid=localStorage.getItem('stall:hideInstall')==='1'}catch(e){}$('#appCard').hidden=!canInstall()||hid}
 async function doInstall(){if(!DIP){location.href='/install';return}DIP.prompt();const r=await DIP.userChoice.catch(()=>({}));DIP=null;drawInstall();if(r&&r.outcome==='accepted')toast('Installing Stall…')}
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();DIP=e;drawInstall()});
@@ -1811,7 +1844,7 @@ function schoolBody(f){const nw=f.querySelector('.newschool');if(nw&&!nw.hidden)
 function openSchoolPick(force){const d=$('#schDlg');d.innerHTML=`<form class="pad" id="schForm"><h2>${force?'Choose your school':'Change school'}</h2><p class="meta">Stall now covers schools across Nigeria. We'll show you what's for sale at your school first.</p>${SCP()}<span class="err" id="schErr"></span>
   <div class="acts"><button class="pill" type="submit">Save</button>${force?'':'<button class="pill alt" type="button" data-close>Cancel</button>'}</div></form>`;d.showModal();
   $('#schForm').onsubmit=async e=>{e.preventDefault();const b=schoolBody(e.target);if(b.error)return $('#schErr').textContent=b.error;const r=await apiPost('me/school',b);if(r.error)return $('#schErr').textContent=r.error;
-    d.close();toast('School saved');S.scope='school';await refreshMe();loadPub()}}
+    d.close();toast('School saved');S.scope='school';S.scopeTap=0;await refreshMe();loadPub()}}
 // Admin preview: what the fee typed in would take on a few order sizes, and roughly what Stall keeps after Paystack.
 function feePrev(f){const c={rate:+f.elements.fee_rate.value||0,min:+f.elements.fee_min.value||0,cap:+f.elements.fee_cap.value||0},
   fee=a=>Math.min(Math.max(Math.round(a*c.rate/100),c.min),c.cap,Math.floor(a/2)),ps=a=>Math.min(Math.round(a*.015)+(a>=2500?100:0),2000),tr=a=>a<=5000?10:a<=50000?25:50;
@@ -2039,7 +2072,7 @@ async function pollNews(){if(!S.user)return;const k=seenK();const r=await fetchJ
 const updBox=side=>{const L=NEWS.filter(x=>x.side===side);return L.length?`<div class="upd"><p class="lb" style="margin:0 0 4px">What's new</p>${L.slice(0,3).map(x=>`<p>${newsText(x)}</p>`).join('')}${L.length>3?`<p class="meta">and ${L.length-3} more update${L.length>4?'s':''} below</p>`:''}</div>`:''};
 async function pollPub(){if(!S.user||document.hidden)return;pollNews();const r=await fetchJ('/api/listings/ver').catch(()=>null);if(r&&typeof r.v==='number'&&r.v!==PV){PV=r.v;loadPub()}}
 async function loadPub(more){if(!S.user)return;const n=++PQ,mo=more===true,need=S.cart.filter(id=>id[0]==='L'&&!LC.has(id));if(mo){$('#more').disabled=true;$('#more').textContent='Loading…'}
-  const sc=S.user&&S.user.schoolInfo?(S.scope||'school'):'all';drawScope();
+  const sc=effScope();drawScope();
   const qs=new URLSearchParams({q,cat,sort,scope:sc,off:mo?PUB.length:0,n:mo?24:Math.min(96,Math.max(24,PUB.length)),...Object.fromEntries(Object.entries(FL).filter(([,x])=>x))});
   const[a,b,c,mL,mS]=await Promise.all([fetchJ('/api/listings?'+qs).catch(()=>null),mo?null:fetchJ('/api/stores?scope='+sc).catch(()=>null),need.length?fetchJ('/api/listings?ids='+need.join(',')).catch(()=>null):null,mo?null:fetchJ('/api/listings?mine=1').catch(()=>null),mo?null:fetchJ('/api/stores?mine=1').catch(()=>null)]);
   const own=i=>{i.mine=!!S.user&&i.sid===S.user.uid;i.multi=i.qtyLeft>1;LC.set(i.id,i)};if(mL&&mL.listings){MY=mL.listings;MY.forEach(own)}
@@ -2051,10 +2084,10 @@ const AD={tab:'overview',st:{},sum:{},n:0},OST={pending:['Waiting for payment','
 const AG=[['Home',[['overview','Overview','home','Today at a glance'],['health','System health','pulse','Payments, email, AI and storage']]],
  ['Orders & money',[['payments','Flagged orders','flag','Problems and payments waiting for your decision','review'],['orders','All orders','box','Every order and where it is'],['sellerpay','Seller payouts','wallet','Money sent to sellers after delivery','payoutsFailed'],['money','Money & earnings','money','How much moved through Stall, and what Stall earned']]],
  ['People',[['users','People','users','Students and campus vendors'],['vendors','Vendor applications','store','Approve campus shops','vendorsPending'],['ids','Student IDs','id','Check school documents','idsPending'],['verify','Verified badges','badge','Paid verified-seller requests','verifyPending'],['payouts','Bank details','lock','Confirm hand-typed payout accounts','banks'],['codes','Vendor codes','key','Invite codes for campus shops']]],
- ['Marketplace',[['items','Photo check','image','New listings the AI wasn\'t sure about','itemsReview'],['schools','Schools','school','Schools and requests to add one','schoolsPending']]],
+ ['Marketplace',[['items','Photo check','image','New listings the AI wasn\'t sure about','itemsReview'],['schools','Schools','school','Launch schools, see waitlists and requests to add one','schoolsPending']]],
  ['System',[['log','Activity','list','Who did what, and when'],['settings','Settings','gear','Business details, verification and the Android app']]]];
 const ATABS=AG.flatMap(g=>g[1].map(([k,l,,,n])=>[k,l,n])),AMETA=Object.fromEntries(AG.flatMap(g=>g[1].map(x=>[x[0],x])));
-const AF={ids:[['pending','Waiting'],['approved','Approved'],['rejected','Rejected'],['all','All']],sellerpay:[['failed','Failed'],['processing','Sending'],['paid','Paid'],['all','All']],orders:[['all','All'],['verified','Awaiting delivery'],['disputed','Problem reported'],['refunded','Refunded'],['under_review','Needs review'],['pending','Waiting for payment'],['released','Delivered'],['rejected','Rejected'],['expired','Expired']],vendors:[['all','All'],['pending','Waiting'],['active','Approved'],['suspended','Suspended']],users:[['all','Everyone'],['student','Students'],['vendor','Vendors'],['verified','Verified'],['reviewer','Reviewers']],items:[['review','Needs a look'],['rejected','Rejected'],['live','Approved']],schools:[['pending','Requested'],['active','All schools']],verify:[['pending','Waiting'],['approved','Approved, not paid'],['paid','Verified'],['rejected','Not approved'],['all','All']],money:[['all','All'],['boost','Featured'],['reach','Store reach'],['verify','Verified badges'],['store','Store fees'],['commission','Sale fees']],codes:[['all','All'],['unused','Not used'],['used','Used'],['off','Turned off']],log:[['all','Everything'],['payment','Payments'],['account','Accounts'],['money','Earnings'],['other','Other']]};
+const AF={ids:[['pending','Waiting'],['approved','Approved'],['rejected','Rejected'],['all','All']],sellerpay:[['failed','Failed'],['processing','Sending'],['paid','Paid'],['all','All']],orders:[['all','All'],['verified','Awaiting delivery'],['disputed','Problem reported'],['refunded','Refunded'],['under_review','Needs review'],['pending','Waiting for payment'],['released','Delivered'],['rejected','Rejected'],['expired','Expired']],vendors:[['all','All'],['pending','Waiting'],['active','Approved'],['suspended','Suspended']],users:[['all','Everyone'],['student','Students'],['vendor','Vendors'],['verified','Verified'],['reviewer','Reviewers']],items:[['review','Needs a look'],['rejected','Rejected'],['live','Approved']],schools:[['launch','Launch'],['active','All schools'],['pending','Requested']],verify:[['pending','Waiting'],['approved','Approved, not paid'],['paid','Verified'],['rejected','Not approved'],['all','All']],money:[['all','All'],['boost','Featured'],['reach','Store reach'],['verify','Verified badges'],['store','Store fees'],['commission','Sale fees']],codes:[['all','All'],['unused','Not used'],['used','Used'],['off','Turned off']],log:[['all','Everything'],['payment','Payments'],['account','Accounts'],['money','Earnings'],['other','Other']]};
 const AQ={payments:'Search order #, name, phone or reference',orders:'Search order #, name, phone or reference',vendors:'Search shop, name or phone',users:'Search name, matric, phone or email',codes:'Search code or shop name',log:'Search person, order # or action',items:'Search title or seller',schools:'Search school, short name or state',verify:'Search name, phone or shop',money:'Search name, item or reference'};
 const aAgo=t=>{if(!t)return'';const s=(Date.now()-t)/1e3;return s<60?'just now':s<3600?Math.floor(s/60)+' min ago':s<86400?Math.floor(s/3600)+' h ago':new Date(t).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})};
 const wa=p=>{p=String(p||'');const d=p.replace(/\D/g,'');return d?`<a class="link" target="_blank" rel="noopener" href="https://wa.me/${d[0]==='0'?'234'+d.slice(1):d}">${esc(p)}</a>`:esc(p)};
@@ -2084,6 +2117,8 @@ async function openAdmin(){const d=$('#adminDlg');AD.rev=!S.user.admin;if(AD.rev
     if(b=c('[data-iok]')){const r=await apiPost('admin/items/decide',{id:b.dataset.iok,approve:true});if(r.error)return toast(r.error);toast('Approved. Buyers can see it now.');adminSum();return adminLoad()}
     if(b=c('[data-irj]')){const f=$('#ir'+b.dataset.irj);f.hidden=!f.hidden;return}
     if(b=c('[data-sched]')){const f=$('#se'+b.dataset.sched);f.hidden=!f.hidden;return}
+    if(b=c('[data-launch]')){const l=b.dataset.l,nm=b.dataset.nm,msg={live:`Launch Stall at ${nm}?\n\nEveryone can buy and sell there, and everyone at ${nm} (waitlist included) gets a notification and an email.`,sellers:`Open ${nm} to sellers only?\n\nSellers can verify, open stores and list items now. Buyers wait until you launch. Sellers on the waitlist are told.`,soon:`Set ${nm} back to Coming soon?\n\nIts listings and stores are hidden and selling stops until you open it again.`}[l];
+      if(!confirm(msg))return;b.disabled=true;const r=await apiPost('admin/schools/launch',{id:+b.dataset.launch,launch:l});if(r.error){b.disabled=false;return toast(r.error)}toast(l==='live'?nm+' is live. Telling everyone there now.':l==='sellers'?nm+' is open to sellers.':nm+' is back to Coming soon.');adminLoad();return}
     if(b=c('[data-vrj]')){const f=$('#vr'+b.dataset.vrj);f.hidden=!f.hidden;return}
     if(b=c('[data-vok]')){const r=await apiPost('admin/verify/decide',{uid:+b.dataset.vok,approve:true});if(r.error)return toast(r.error);toast('Approved. They can now pay for the badge.');adminSum();return adminLoad()}
     if(b=c('[data-unv]')){if(!confirm('Remove this seller\'s verified badge? They would have to apply and pay again.'))return;const r=await apiPost('admin/unverify',{id:+b.dataset.unv});if(r.error)return toast(r.error);toast('Badge removed');adminSum();return adminLoad()}
@@ -2282,7 +2317,10 @@ function aItem(x){const[l,kk]={review:['Needs a look','warn'],checking:['Checkin
    <small><b>${naira(x.price)}</b> · ${esc(x.cat||'')}${x.qty_left!=null?' · '+x.qty_left+' in stock':''} · ${esc(x.who)}${x.school?' · '+esc(x.school):''}</small>${x.descr?`<small>"${esc(x.descr)}"</small>`:''}${x.review_note?`<small class="flag">${esc(x.review_note)}</small>`:''}<small>Posted ${aAgo(x.created)} · tap the photo to enlarge</small>
    ${p?`<form id="ir${x.id}" data-irf="${x.id}" class="rjf" hidden><input name="why" maxlength="160" placeholder="Reason, e.g. photo doesn't show the item"><div class="aacts"><button class="pill sm red" type="submit">Reject</button><button class="pill sm alt" type="button" data-irj="${x.id}">Cancel</button></div></form>`:''}</div>
    ${p?`<div class="aacts"><button class="pill sm" data-iok="${x.id}">Approve</button>${x.review!=='rejected'?`<button class="pill sm alt" data-irj="${x.id}">Reject</button>`:''}</div>`:''}</div>`}
-function aSchool(x){return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.name)}</b>${x.short?bdg(x.short):''}${x.active?'':bdg('Requested','warn')}</div><small>${esc(x.state)} · ${esc(x.kind||'')} · ${x.users} ${x.users===1?'person':'people'}</small>
+const LNCH={soon:['Coming soon',''],sellers:['Sellers only','warn'],live:['Live','ok']};
+function aSchool(x){const L=x.launch||'soon';return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.name)}</b>${x.short?bdg(x.short):''}${x.active?bdg(LNCH[L][0],LNCH[L][1]):bdg('Requested','warn')}</div><small>${esc(x.state)} · ${esc(x.kind||'')} · ${x.users} ${x.users===1?'person':'people'}${x.stores?' · '+x.stores+' '+(x.stores===1?'store':'stores'):''}</small>
+   ${x.waiting?`<small><b>${x.waiting} on the waitlist</b> · ${x.wbuy} to buy · ${x.wsell} to sell</small>`:''}
+   ${x.active?`<div class="aacts lseg">${Object.entries(LNCH).map(([k,[l]])=>`<button class="pill sm ${k===L?'':'alt'}" data-launch="${x.id}" data-l="${k}" data-nm="${esc(x.short||x.name)}" ${k===L?'disabled':''}>${l}</button>`).join('')}</div>`:''}
    <form id="se${x.id}" data-schf="${x.id}" class="rjf" ${x.active?'hidden':''}><input name="name" maxlength="90" value="${esc(x.name)}"><input name="short" maxlength="16" value="${esc(x.short||'')}" placeholder="Short name, e.g. UNILAG"><select name="state">${STATES.map(y=>`<option ${y===x.state?'selected':''}>${y}</option>`).join('')}</select><div class="aacts"><button class="pill sm" type="submit">${x.active?'Save':'Approve school'}</button></div></form></div>
    ${x.active?`<div class="aacts"><button class="pill sm alt" data-sched="${x.id}">Edit</button></div>`:''}</div>`}
 function aMoney(x){const k={boost:'Featured',verify:'Verified badge',store:'Store fee',reach:'Store reach',commission:'Sale fee'}[x.kind]||x.kind;
@@ -2316,7 +2354,7 @@ function loginGate(g){g.innerHTML=`<div class="gin" style="text-align:left"><h1 
   $('#lg').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('[type=submit]');b.disabled=true;const r=await apiPost('login',{id:f.elements.id.value,password:f.elements.pw.value});b.disabled=false;
     if(r.error){f.querySelector('[data-e=id]').textContent=r.error;return}
     S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();loadPub();view('shop');toast('Welcome back, '+(S.user.biz||S.user.name.split(' ')[0]))}}
-function gate(){drawGuide();
+function gate(){drawGuide();drawSoon();
   const g=$('#gate');$('#who').textContent=S.user?`Signed in as ${S.user.name} (${S.user.role==='vendor'?'campus vendor':S.user.matric||'matric not confirmed yet'}).`:'';$('#signOut').hidden=!S.user;$('#pwBtn').hidden=!S.user;$('#verifyBtn').hidden=!S.user||!!S.user.verified;$('#adminBtn').hidden=!(S.user&&(S.user.admin||S.user.reviewer));$('#adminBtn').textContent=S.user&&S.user.admin?'Admin':'Review orders';
   const isV=!!S.user&&S.user.role==='vendor';$('#sellBtn').hidden=isV;$('#sellHero').hidden=isV;
   if(S.user&&S.user.role==='vendor'&&S.user.status&&S.user.status!=='active'){g.hidden=false;g.scrollTo(0,0);const sus=S.user.status==='suspended';
