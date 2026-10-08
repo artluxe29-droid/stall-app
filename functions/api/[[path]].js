@@ -402,7 +402,7 @@ async function refund(env,o,why){if(!['verified','disputed','under_review'].incl
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // Brand header: the wordmark is a PNG (email apps don't show SVG); "Stall" shows if images are blocked.
 const mailOrigin=url=>(String(url||'').match(/^https?:\/\/[^/]+/)||['https://stall.com.ng'])[0];
-const mailHtml=(title,lines,btn,url)=>`<div style="font-family:Arial,Helvetica,sans-serif;background:#F6F2EA;padding:24px"><div style="max-width:480px;margin:auto;background:#fff;border-radius:16px;overflow:hidden">
+const mailHtml=(title,lines,btn,url)=>`<div style="font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;background:#F6F2EA;padding:24px"><div style="max-width:480px;margin:auto;background:#fff;border-radius:16px;overflow:hidden">
   <div style="background:#26306E;padding:18px 28px"><img src="${mailOrigin(url)}/icons/email-wordmark-v3.png" alt="Stall" width="74" height="31" style="display:block;border:0;color:#F6F1E7;font-size:22px;font-weight:800"></div><div style="padding:24px 28px 28px"><h1 style="font-size:20px;color:#161A33;margin:0 0 10px">${esc(title)}</h1>
   ${lines.map(l=>`<p style="font-size:15px;line-height:1.5;color:#3D4160;margin:0 0 10px">${l}</p>`).join('')}
   ${btn?`<p style="margin:18px 0 6px"><a href="${url}" style="background:#26306E;color:#fff;text-decoration:none;padding:12px 20px;border-radius:12px;font-weight:700;display:inline-block">${esc(btn)}</a></p>`:''}
@@ -411,7 +411,7 @@ const mailHtml=(title,lines,btn,url)=>`<div style="font-family:Arial,Helvetica,s
 // Awning stripe (buyer receipt by day, seller payout), Night (buyer receipt after 7pm), Full stops (refund), Weekly statement (sellers, every Monday).
 const RC={awning:{bg:'#F6F1E7',ink:'#26306E',mut:'#5B6077',rule:'#D8D0BD',top:'awning-cream',edge:'edge-cream',mark:'mark-indigo',wm:'wm-indigo',pb:'#26306E',pf:'#C8F03C',tot:'#26306E'},
   night:{bg:'#141A3D',ink:'#F6F1E7',mut:'#9AA1C9',rule:'#2E3766',top:'awning-night',edge:'edge-night',mark:'mark-cream',wm:'wm-cream',pb:'#C8F03C',pf:'#26306E',tot:'#C8F03C'}};
-const RF="font-family:Figtree,Arial,Helvetica,sans-serif",RH="font-family:'Bricolage Grotesque',Arial,Helvetica,sans-serif";
+const RF="font-family:Figtree,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif",RH="font-family:'Bricolage Grotesque',-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif";
 const NGN=n=>(n<0?'−':'')+'₦'+Math.abs(Number(n)||0).toLocaleString('en-NG');
 const dtime=t=>new Date(t).toLocaleString('en-NG',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit',timeZone:'Africa/Lagos'});
 const nightAt=t=>{const h=new Date((t||Date.now())+36e5).getUTCHours();return h>=19||h<6};
