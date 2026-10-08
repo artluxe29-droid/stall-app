@@ -18,7 +18,7 @@ Single-page web app (`index.html`) with an API running as a Cloudflare Pages Fun
 | `AI` | Workers AI | automatic listing-photo and verification checks |
 | `RESEND_API_KEY` | Secret | emails: school-email codes, password resets, order updates (resend.com) |
 | `EMAIL_FROM` | Variable | sender, e.g. `Stall <hello@yourdomain.ng>` (domain verified in Resend) |
-| `SITE_URL` | Variable (optional) | link used in emails, default `https://stall-app.pages.dev` |
+| `SITE_URL` | Variable | `https://stall.com.ng`. Used in emails and links; once set, the old `stall-app.pages.dev` address (and `www.`) redirects here |
 | `PHOTOS` | R2 bucket | photo storage (recommended; without it photos stay in D1) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Secrets | admin alerts (optional) |
 

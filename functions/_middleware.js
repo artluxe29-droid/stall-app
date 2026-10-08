@@ -1,4 +1,4 @@
-// Website at stall.ng/, app at /app.
+// Website at stall.com.ng/, app at /app.
 // - "/" with no query shows the website (welcome.html) when it's switched on in Admin -> Settings, otherwise the app.
 //   Any query string (?go=, ?reference=, ?collect=, ?l=, …) is a deep link or payment return, so it always opens the app.
 // - "/app" is always the app; "/welcome" is always the website (a private preview while it's switched off).
@@ -42,9 +42,21 @@ async function collectPage(ctx, code) {
   const out = new Response(h, r); out.headers.delete('content-length'); out.headers.set('cache-control', 'no-store'); return out;
 }
 
+// Once SITE_URL is set (e.g. https://stall.com.ng), pages opened on the old stall-app.pages.dev address, or on www., move to it for good.
+// API calls are left alone, so installed copies and payment notifications on the old address keep working during the switch.
+// Preview copies (abc123.stall-app.pages.dev) stay reachable but are kept out of search engines.
+const canonical = env => { try { return env.SITE_URL ? new URL(env.SITE_URL).host : null } catch (e) { return null } };
 export async function onRequest(ctx) {
   const u = new URL(ctx.request.url), p = u.pathname;
   if (ctx.request.method !== 'GET' && ctx.request.method !== 'HEAD') return ctx.next();
+  const ch = canonical(ctx.env);
+  if (ch && u.host !== ch && (u.host === 'stall-app.pages.dev' || u.host === 'www.' + ch) && !p.startsWith('/api/') && !p.startsWith('/.well-known/'))
+    return Response.redirect('https://' + ch + p + u.search, 301);
+  const r = await route(ctx, u, p);
+  if (!u.host.endsWith('.pages.dev')) return r;
+  const out = new Response(r.body, r); out.headers.set('X-Robots-Tag', 'noindex'); return out;
+}
+async function route(ctx, u, p) {
   if (p === '/app' || p === '/app/') return sec(asset(ctx, '/'), u.origin);
   const cm = p.match(/^\/c\/([A-Za-z0-9]{6})\/?$/), cq = p === '/' && (u.searchParams.get('collect') || '');
   if (cm || /^[A-Za-z0-9]{6}$/.test(cq)) return sec(collectPage(ctx, (cm ? cm[1] : cq).toUpperCase()));

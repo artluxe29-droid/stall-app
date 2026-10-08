@@ -10,6 +10,6 @@ code=''.join(f'<span>{c}</span>' for c in 'STALL-7K2Q9M')
 awn=''.join('<i></i>' for _ in range(8))
 for ep in sys.argv[1:]:
   h=open(ep+'.html').read()
-  for k,v in {'%GRID%':grid,'%RES%':res,'%TABS%':tabs,'%CODE%':code,'%AWN%':awn,'%DOMAIN%':'stall-app.pages.dev'}.items():h=h.replace(k,v)
+  for k,v in {'%GRID%':grid,'%RES%':res,'%TABS%':tabs,'%CODE%':code,'%AWN%':awn,'%DOMAIN%':'stall.com.ng'}.items():h=h.replace(k,v)
   h=re.sub(r'\$\{(\w+?)(\d*)\}',lambda m:svg(m.group(1),int(m.group(2) or 14)),h)
   open(ep+'.built.html','w').write(h)

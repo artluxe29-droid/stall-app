@@ -8,7 +8,12 @@
     "/install",
     "/api/*",
     "/.well-known/*",
-    "/c/*"
+    "/c/*",
+    "/welcome",
+    "/privacy",
+    "/terms",
+    "/rules",
+    "/delete-account"
   ],
   "exclude": []
 }

@@ -1,6 +1,6 @@
 # Putting Stall on Google Play
 
-Stall goes on Google Play as a **Trusted Web Activity**: a small Android app that opens stall-app.pages.dev full screen, with no browser bar. Every update you make to the website shows up in the app straight away, so you only upload a new app build when Google requires it (about once a year).
+Stall goes on Google Play as a **Trusted Web Activity**: a small Android app that opens stall.com.ng full screen, with no browser bar. Every update you make to the website shows up in the app straight away, so you only upload a new app build when Google requires it (about once a year).
 
 The app is already prepared:
 - the app manifest has a description, categories, shortcuts and screenshots
@@ -8,7 +8,7 @@ The app is already prepared:
 - in-app account deletion (**Account → Delete my account**), which Google requires, plus a public page at `/delete-account`
 - store graphics in [`store-assets/`](store-assets): six 1080×1920 phone screenshots and the 1024×500 feature graphic. The 512×512 icon is `icons/icon-512-v3.png`.
 
-> **Decide your domain first.** The Android app is tied to one web address. If you plan to move from `stall-app.pages.dev` to your own domain (e.g. `stall.ng`), do that **before** packaging; otherwise you'll have to publish a new app later.
+> **Decide your domain first.** The Android app is tied to one web address. Stall now uses `stall.com.ng` (the old `stall-app.pages.dev` address redirects to it). Make sure the domain is connected **before** packaging; otherwise you'll have to publish a new app later.
 
 ---
 
@@ -22,7 +22,7 @@ The app is already prepared:
 
 ## 2. Build the app with PWABuilder (free, in your browser)
 
-1. Open <https://www.pwabuilder.com>, enter `https://stall-app.pages.dev/app` (or your own domain + `/app`) and click **Start**. The app lives at `/app`; `/` is the website. In the Android options, check that **Start URL** is `/app`.
+1. Open <https://www.pwabuilder.com>, enter `https://stall.com.ng/app` and click **Start**. The app lives at `/app`; `/` is the website. In the Android options, check that **Start URL** is `/app`.
 2. Click **Package for stores**, then **Android → Generate package**.
 3. Fill in:
    - **Package ID:** `app.stall.twa` (or `ng.stall.app`). This can never be changed later.
@@ -43,7 +43,7 @@ The app is already prepared:
 
 1. **Create app:** name `Stall – student marketplace`, language English (United Kingdom or United States), **App**, **Free**. Accept the declarations.
 2. Work through **Dashboard → Set up your app**:
-   - **Privacy policy:** `https://stall-app.pages.dev/privacy`
+   - **Privacy policy:** `https://stall.com.ng/privacy`
    - **App access:** *All or some functionality is restricted* → add a test account the reviewers can sign in with: create a normal student account on Stall (e.g. phone `08000000000`, password of your choice) and give them those details plus "Sign in with the phone number and password".
    - **Ads:** No.
    - **Content rating:** fill in the questionnaire. Category **Shopping / marketplace**; users can interact and exchange messages; no violence or adult content.
@@ -51,7 +51,7 @@ The app is already prepared:
    - **News app:** No. **Government app:** No.
    - **Financial features:** the app takes payments for goods through a third-party processor (Paystack); it is not a bank, loan or crypto app.
    - **Data safety:** see the answers below.
-   - **Data deletion:** *Yes, users can request deletion* → URL `https://stall-app.pages.dev/delete-account`. In-app deletion: Account → Delete my account.
+   - **Data deletion:** *Yes, users can request deletion* → URL `https://stall.com.ng/delete-account`. In-app deletion: Account → Delete my account.
 3. **Store listing:** paste the text below, upload `icons/icon-512-v3.png` as the app icon, `store-assets/feature-graphic.png` as the feature graphic, and the six `store-assets/phone-*.png` files as phone screenshots. Category: **Shopping**. Contact email: your support email.
 
 ## 4. Upload, then link the app to the website
