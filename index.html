@@ -734,7 +734,7 @@ const sLogo=(s,cls)=>s.logo?`<img class="slogo" src="${esc(s.logo)}" alt="${esc(
 const sIco=(s,cls)=>{const e=String(s.emoji||s.se||'').trim(),k=ICO[e]?e:SICO[e]||SICO[e.replace(/\uFE0F/g,'')];return k?ico(k,cls):ico(ci(s.cat).i,cls)};
 const ci=id=>CATS.find(c=>c.id===id)||CATS[0];
 let SHITS=[],FL={},PUB=[],MY=[],STORES=[],PTOT=0,PQ=0,PLD=0,SN=24,qT;const LC=new Map(),items=()=>!q&&cat==='all'?[...MY.filter(m=>!PUB.some(p=>p.id===m.id)),...PUB]:PUB,get=id=>LC.get(id)||sItems().find(i=>i.id===id);
-const stat=i=>i.sold?'sold':(S.st[i.id]||'');
+const stat=i=>i.sold?'sold':i.soon&&!i.mine?'soon':(S.st[i.id]||'');
 const ago=t=>{const h=Math.round((Date.now()-t)/H);return h<1?'Just now':h<24?h+'h ago':Math.round(h/24)+'d ago'};
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;t.style.animation='none';t.offsetWidth;t.style.animation='';clearTimeout(toast.k);toast.k=setTimeout(()=>t.hidden=true,2200)}
 const io='IntersectionObserver'in window?new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.08}):null;
@@ -758,12 +758,12 @@ const stk=i=>i.qtyLeft==null||(i.qty||1)<=1&&i.qtyLeft>0?'':`<div class="stk${i.
 const stars=r=>r&&r.n?`<span class="rt">★ ${r.avg.toFixed(1)} <small>(${r.n})</small></span>`:'';
 const starStr=n=>'★★★★★'.slice(0,n)+'☆☆☆☆☆'.slice(0,5-n);
 function cardHtml(i){const s=stat(i),inC=S.cart.includes(i.id);return `
-   <article class="card" data-id="${i.id}"><div class="tile" style="${cv(i)}">${ic(i)}${s?`<span class="tag">${s==='sold'?'Sold':'Reserved'}</span>`:''}${i.featured&&!s?'<span class="tag ft fb">Featured</span>':''}</div>
+   <article class="card" data-id="${i.id}"><div class="tile" style="${cv(i)}">${ic(i)}${s?`<span class="tag">${s==='sold'?'Sold':s==='soon'?'Opens soon':'Reserved'}</span>`:''}${i.featured&&!s?'<span class="tag ft fb">Featured</span>':''}</div>
    <div class="cb"><h3>${esc(i.title)}</h3><div class="meta">${i.soon&&!i.mine?'<b style="color:#B45309">Not open yet: '+esc(i.school)+'</b> · ':effScope()!=='school'&&i.school?'<b>'+esc(i.school)+'</b> · ':''}${esc(i.cond)} · ${esc(i.spot)} · ${ago(i.t)}${i.verified?' · '+VB:i.vlevel?' · '+SB(i.vlevel):''}${i.rating&&i.rating.n?' · '+stars(i.rating):''}</div>${stk(i)}${i.mine&&i.review&&i.review!=='live'?`<div class="rvw ${i.review}">${RV[i.review]}</div>`:''}
    <div class="cf"><span class="price">${naira(i.price)}</span><button class="pill sm ${inC?'alt':''}" data-add="${i.id}" ${s?'disabled':''}>${inC?'In bag':'Add to bag'}</button></div></div></article>`
   document.querySelectorAll('.empty').forEach(()=>{});
 }
-function add(id){const i=get(id);if(!i||stat(i))return toast('No longer available');
+function add(id){const i=get(id);if(i&&stat(i)==='soon')return toast('This school isn\'t open for buying yet');if(!i||stat(i))return toast('No longer available');
   if(S.cart.includes(id)){openCart();return}
   S.cart.push(id);save();badge();render();toast('Added to bag')}
 const FEE_STORE=5000;
@@ -1213,7 +1213,7 @@ async function openLive(oid,pinMode){const d=$('#liveDlg');lvStop();Object.assig
     $('#lvMap').insertAdjacentHTML('beforeend',`<div class="lvsw" id="lvSw"><button data-lvl="map" class="${base==='map'?'on':''}">Map</button><button data-lvl="sat" class="${base==='sat'?'on':''}">Satellite</button></div><button class="lvme" id="lvMe" title="Show where I am" aria-label="Show where I am">${ico('pin')}</button>`);
     $('#lvSw').onclick=e=>{const b=e.target.closest('[data-lvl]');if(!b)return;const k=b.dataset.lvl;Object.entries(LV.layers).forEach(([n,l])=>n===k?l.addTo(m):m.removeLayer(l));S.mapSat=k==='sat'?1:0;save();
       $('#lvSw').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.lvl===k))};
-    $('#lvMe').onclick=()=>bestFix(8000,30).then(f=>{lvMark('me',f.lat,f.lng,'<div class="lvdot me"></div>','dot',f.acc);m.setView([f.lat,f.lng],Math.max(m.getZoom(),17))},()=>toast('Turn on location for Stall to see where you are'));
+    $('#lvMe').onclick=()=>bestFix(8000,30).then(f=>{lvMark('me',f.lat,f.lng,'<div class="lvdot me"></div>','dot',f.acc);m.setView([f.lat,f.lng],Math.max(m.getZoom(),17))},e=>toast(e&&e.rough?'This device can\'t find your exact location. Use a phone with GPS (location) turned on.':'Turn on location for Stall to see where you are'));
     m.on('click',e=>{if(LV.pinMode)lvSetPin(e.latlng.lat,e.latlng.lng)});setTimeout(()=>m.invalidateSize(),200)}
   await lvPoll(true);LV.poll=setInterval(()=>lvPoll(false),4000)}
 function lvStop(){clearInterval(LV.poll);LV.poll=null;if(LV.watch!=null)navigator.geolocation.clearWatch(LV.watch);LV.watch=null;if(LV.lock){LV.lock.release().catch(()=>{});LV.lock=null}
@@ -1226,12 +1226,13 @@ function lvMark(k,lat,lng,html,cls,acc){if(!LV.map)return;LV.mk=LV.mk||{};LV.acc
   if(!m)LV.mk[k]=L.marker([lat,lng],{icon:lvIcon(cls,html),keyboard:false}).addTo(LV.map);
   else{const a=m.getLatLng(),t0=performance.now(),go=t=>{const f=Math.min(1,(t-t0)/900),e=f*(2-f);m.setLatLng([a.lat+(lat-a.lat)*e,a.lng+(lng-a.lng)*e]);if(LV.acc[k])LV.acc[k].setLatLng(m.getLatLng());if(f<1)m._raf=requestAnimationFrame(go)};
     cancelAnimationFrame(m._raf);metresJS(a.lat,a.lng,lat,lng)>2000?m.setLatLng([lat,lng]):(m._raf=requestAnimationFrame(go))}
-  if(cls!=='dot')return;const r=Math.min(+acc||0,1000);
+  if(cls!=='dot')return;const r=Math.min(+acc||0,1500);
   if(r>8){if(LV.acc[k])LV.acc[k].setRadius(r);else LV.acc[k]=L.circle([lat,lng],{radius:r,color:k==='me'?'#C8F03C':'#26306E',weight:1,fillOpacity:.12,interactive:false}).addTo(LV.map)}
   else if(LV.acc[k]){LV.map.removeLayer(LV.acc[k]);delete LV.acc[k]}}
 const metresJS=(a,b,c,d)=>{const r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2;return 2*6371e3*Math.asin(Math.sqrt(x))};
 // The phone's first answer is often a rough network guess. Listen for a few seconds and keep the most exact fix.
-function bestFix(ms,good){return new Promise((ok,no)=>{if(!navigator.geolocation)return no();let best=null,id,done=false;const end=()=>{if(done)return;done=true;navigator.geolocation.clearWatch(id);clearTimeout(tm);best?ok(best):no()};
+// A fix over 1.5 km is a guess from the internet connection (laptops, or phones without GPS), often a city away: never use it.
+function bestFix(ms,good){return new Promise((ok,no)=>{if(!navigator.geolocation)return no();let best=null,id,done=false;const end=()=>{if(done)return;done=true;navigator.geolocation.clearWatch(id);clearTimeout(tm);best&&best.acc<=1500?ok(best):no({rough:best})};
   const tm=setTimeout(end,ms);id=navigator.geolocation.watchPosition(p=>{const c=p.coords;if(!best||c.accuracy<best.acc)best={lat:c.latitude,lng:c.longitude,acc:c.accuracy};if(c.accuracy<=good)end()},e=>{if(e.code===1){done=true;clearTimeout(tm);navigator.geolocation.clearWatch(id);no(e)}},{enableHighAccuracy:true,maximumAge:0,timeout:ms})})}
 const lvRm=k=>{if(LV.mk&&LV.mk[k]){LV.map.removeLayer(LV.mk[k]);delete LV.mk[k]}if(LV.acc&&LV.acc[k]){LV.map.removeLayer(LV.acc[k]);delete LV.acc[k]}};
 function lvFit(){if(!LV.map)return;const pts=Object.values(LV.mk||{}).map(m=>m.getLatLng());if(!pts.length)return;if(pts.length===1)LV.map.setView(pts[0],LV.map.getZoom()<16?17:LV.map.getZoom());else LV.map.fitBounds(L.latLngBounds(pts),{padding:[60,60],maxZoom:18})}
@@ -1256,7 +1257,7 @@ function lvControls(r){const b=$('#lvB');if(!b)return;
     $('#lvHere').onclick=e=>{if(!navigator.geolocation)return toast('Location is not available on this phone');const b=e.currentTarget;b.disabled=true;b.textContent='Finding you…';
       bestFix(12000,20).then(f=>{lvSetPin(f.lat,f.lng,true);lvMark('me',f.lat,f.lng,'<div class="lvdot me"></div>','dot',f.acc);
         $('#lvEta').textContent=f.acc>40?'Pin dropped (±'+Math.round(f.acc)+' m)':'Pin dropped';if(f.acc>40)toast('Your GPS is rough here. Tap the exact spot on the map to fix the pin.')},
-        ()=>toast('Turn on location for Stall, or tap the map instead')).finally(()=>{b.disabled=false;b.innerHTML=ico('pin')+' Use my current location'})};
+        e=>toast(e&&e.rough?'This device can\'t find your exact location (it\'s only guessing from your internet connection). Tap the spot on the map instead.':'Turn on location for Stall, or tap the map instead')).finally(()=>{b.disabled=false;b.innerHTML=ico('pin')+' Use my current location'})};
     $('#lvSave').onclick=async()=>{const x=await apiPost('orders/pin',{id:LV.oid,...LV.newPin});if(x.error)return toast(x.error);toast('Meeting spot saved');LV.pinMode=false;LV.newPin=null;lvPoll(true);if(!$('#orders').hidden)renderOrders();if(!$('#selling').hidden)renderSelling()};
     const cl=$('#lvClear');if(cl)cl.onclick=async()=>{await apiPost('orders/pin',{id:LV.oid,clear:true});toast('Pin removed');LV.newPin=null;if(LV.mk.pin){LV.map.removeLayer(LV.mk.pin);delete LV.mk.pin}lvPoll(false)};return}
   if(!r.open){b.innerHTML='';return}
@@ -1271,6 +1272,7 @@ function lvSetPin(lat,lng,center){LV.newPin={lat,lng};lvMark('pin',lat,lng,`<div
 function lvShareOn(){if(!navigator.geolocation)return toast('Location is not available on this phone. Use the time buttons instead.');
   LV.share=true;lvControls(LV.info);if(navigator.wakeLock)navigator.wakeLock.request('screen').then(l=>LV.lock=l).catch(()=>{});
   LV.watch=navigator.geolocation.watchPosition(async p=>{const c=p.coords,now=Date.now();
+    if(c.accuracy>1500){const x=$('#lvSub');if(x)x.textContent='No GPS fix yet: this device is only guessing from its internet connection. Turn on Location (GPS) on your phone, or use the time buttons.';return}
     // Skip rough network guesses once GPS has given a good fix, so the dot doesn't jump across campus.
     if(LV.good&&now-LV.good.t<30000&&c.accuracy>Math.max(100,LV.good.acc*4))return;if(c.accuracy<=50)LV.good={t:now,acc:c.accuracy};
     lvMark('me',c.latitude,c.longitude,'<div class="lvdot me"></div>','dot',c.accuracy);if(!LV.moved){LV.moved=1;lvFit()}
@@ -1576,6 +1578,20 @@ function openAccount(){const u=S.user,d=$('#accDlg');if(!u)return;const ns=NEWS.
   $('#accHelp').innerHTML=$('#helpLinks').innerHTML.split(' · ').map(x=>`<div class="hl">${x}</div>`).join('');
   pushState().then(st=>{const e=$('#pushSt');if(e)e.textContent={on:'On for this phone',off:'Off · tap to turn on',denied:'Blocked in browser settings',unsupported:'Not available in this browser'}[st]})}
 // Right after sign-up: confirm the email with a code, and if someone else already typed this matric number, explain how to claim it.
+// Until a student is verified (school document or school email), Stall shows this instead of the app.
+const VG={t:null};
+function verifyGate(g){const u=S.user,pend=u.idCheck==='pending',rej=u.idCheck==='rejected';g.hidden=false;g.classList.remove('obg');g.scrollTo(0,0);
+  g.innerHTML=`<div class="gin" style="text-align:left"><span class="tg" style="display:inline-block;background:#C8F03C;color:#26306E;font-weight:800;font-size:11px;letter-spacing:.12em;padding:6px 10px;border-radius:99px">${pend?'CHECKING':'ONE LAST STEP'}</span>
+   <h1 style="font-size:34px;margin-top:12px">${pend?'We\'re checking your student ID':'Verify you\'re a student'}</h1>
+   <p>${pend?'Thanks, '+esc((u.name||'').split(' ')[0])+'. A person on the Stall team is looking at your document. This usually takes a few hours. We\'ll send you a notification and an email as soon as it\'s approved, and this page will open the app by itself.'
+     :rej?'<b>Your last document wasn\'t accepted:</b> '+esc(u.idReason||'it wasn\'t clear enough')+'. Send a clearer photo, or a different school document.'
+     :'Stall is only for students, so everyone shows a school document before they can buy, sell or chat. Most are checked in under a minute.'}</p>
+   <div class="acts" style="margin-top:18px">${pend?'<button class="pill" id="pendRefresh">Check again</button>':'<button class="pill" id="vgGo">Verify now</button>'}</div>
+   <p class="meta" style="margin-top:16px">Accepted: student ID card, course registration form, school fees receipt or admission letter, with your name on it. Only the Stall team sees it.</p>
+   <p style="margin-top:14px"><button class="link" id="pendOut">Sign out</button></p></div>`;
+  const b=$('#vgGo');if(b)b.onclick=()=>openStudentVerify();
+  // While a check is pending, look again every 30 seconds, so the app opens the moment it's approved.
+  clearInterval(VG.t);VG.t=pend?setInterval(async()=>{await refreshMe();if(S.user&&S.user.vlevel>=1){clearInterval(VG.t);VG.t=null;toast('You\'re verified ✓ Welcome to Stall')}},30000):null}
 function afterSignup(claim){const d=$('#accDlg'),u=S.user;
   d.innerHTML=`<div class="pad"><h2>${claim?'One more step':'Confirm your email'}</h2>
    ${claim?`<div class="lnudge" style="margin:8px 0 14px"><span class="aic">${ico('shield')}</span><div><b>Your matric number is already in use</b><p class="meta">Another account typed ${esc(u.matricClaim)}. If it's yours, verify with your student ID or another school document and it moves to you. Until then your account works for buying.</p></div><button class="pill sm" type="button" id="asVer">Verify</button></div>`:''}
@@ -1596,10 +1612,10 @@ function openStudentVerify(){const u=S.user,d=$('#accDlg');if(!u)return;const lv
    ${lv>=1?'':`<div class="vstep"><h3>Or: a school email address</h3><p class="meta">Only if your school gave you an address ending in <b>.edu.ng</b> (or another domain the Stall team has added for your school). A normal Gmail or Yahoo address can't prove you're a student, so use a document above instead.</p><div id="stEm"></div></div>`}
    ${lv===1?`<p class="meta" style="margin-top:12px">You have the ${SB(1)} badge. Show a document to get ${SB(2)}.</p>`:''}
    <div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;if(!d.open)d.showModal();
-  if($('#stEm'))emailCodeForm($('#stEm'),/\.edu\.ng$/.test(u.email||'')?u.email:'',r=>{toast(r.vlevel>=1?'School email confirmed ✓':'Email confirmed. It isn\'t a school address, so it doesn\'t verify you, but you\'ll get order updates there.');openStudentVerify()});
+  if($('#stEm'))emailCodeForm($('#stEm'),/\.edu\.ng$/.test(u.email||'')?u.email:'',async r=>{toast(r.vlevel>=1?'School email confirmed ✓':'Email confirmed. It isn\'t a school address, so it doesn\'t verify you, but you\'ll get order updates there.');await refreshMe();if(r.vlevel>=1)d.close();else openStudentVerify()});
   const f=$('#idF');if(f)f.onsubmit=async e=>{e.preventDefault();const sb=f.querySelector('[type=submit]');sb.disabled=true;sb.textContent='Checking…';
     try{const photo=await shrinkPhoto(f.elements.photo.files[0]);const r=await apiPost('verify/id',{kind:f.elements.kind.value,photo});sb.disabled=false;sb.textContent='Send for checking';if(r.error)return $('#idErr').textContent=r.error;
-      await refreshMe();toast(r.status==='approved'?'Checked ✓ You\'re a verified student':'Sent. We\'ll check it soon');openStudentVerify()}catch(x){sb.disabled=false;sb.textContent='Send for checking';$('#idErr').textContent='Could not read that photo. Try another.'}}}
+      await refreshMe();toast(r.status==='approved'?'Checked ✓ You\'re a verified student':'Sent. We\'ll check it soon');if(S.user.vlevel>=1||r.status==='pending'){d.close();gate()}else openStudentVerify()}catch(x){sb.disabled=false;sb.textContent='Send for checking';$('#idErr').textContent='Could not read that photo. Try another.'}}}
 function openEmailSettings(){const u=S.user,d=$('#accDlg');if(!u)return;
   d.innerHTML=`<div class="pad"><h2>Email updates</h2><p class="meta">Get an email when someone buys from you, when your order is on the way, when you're paid or refunded, and codes to reset your password.</p>
    ${u.emailVerified?`<p style="margin-top:12px">Sending to <b>${esc(u.email)}</b> ✓</p><label class="opt" style="display:flex;gap:10px;align-items:center;margin-top:10px"><input type="checkbox" id="emOn" ${u.emailNotify?'checked':''} style="width:auto"> <span><b>Email me about my orders</b></span></label><p class="meta" style="margin-top:12px"><button class="link" id="emChange">Use a different email</button></p><div id="emBox"></div>`
@@ -2172,7 +2188,7 @@ async function openAdmin(){const d=$('#adminDlg');AD.rev=!S.user.admin;if(AD.rev
     if(f.id==='collForm'){const r=await apiPost('admin/settings',{collect_fee:f.elements.collect_fee.value});if(r.error)return toast(r.error);CFG.collectFee=+f.elements.collect_fee.value;toast('Saved');return}
     if(f.id==='foundForm'){const r=await apiPost('admin/settings',{founding_n:f.elements.founding_n.value});if(r.error)return toast(r.error);CFG.foundingN=+f.elements.founding_n.value;await loadPub();toast('Saved');return}
     if(f.id==='freeForm'){const r=await apiPost('admin/settings',{free_sales:f.elements.free_sales.value});if(r.error)return toast(r.error);CFG.freeSales=+f.elements.free_sales.value;toast('Saved');return}
-    if(f.id==='stuForm'){const r=await apiPost('admin/settings',{require_verified:f.elements.require_verified.checked,school_domains:f.elements.school_domains.value});if(r.error)return toast(r.error);AD.sum.requireVerified=f.elements.require_verified.checked;AD.sum.schoolDomains=f.elements.school_domains.value;toast('Saved');return}
+    if(f.id==='stuForm'){const r=await apiPost('admin/settings',{require_verified:f.elements.require_verified.checked,verify_gate:f.elements.verify_gate.checked,school_domains:f.elements.school_domains.value});if(r.error)return toast(r.error);AD.sum.requireVerified=f.elements.require_verified.checked;AD.sum.schoolDomains=f.elements.school_domains.value;toast('Saved');return}
     if(f.id==='andForm'){const r=await apiPost('admin/settings',{android_pkg:f.elements.android_pkg.value,android_sha:f.elements.android_sha.value});if(r.error)return toast(r.error);CFG={...CFG,androidPkg:f.elements.android_pkg.value.trim(),androidSha:f.elements.android_sha.value.toUpperCase().split(/[\s,]+/).filter(Boolean).join(',')};toast('Android app settings saved');return}
     if(f.id==='setForm'){const r=await apiPost('admin/settings',{biz_name:f.elements.biz_name.value,support_phone:f.elements.support_phone.value,support_email:f.elements.support_email.value});if(r.error)return toast(r.error);CFG={...CFG,name:f.elements.biz_name.value,phone:f.elements.support_phone.value,email:f.elements.support_email.value};drawHelp();return toast('Saved')}
     if(f.id==='schAdd'||f.dataset.schf){const r=await apiPost('admin/schools/save',{id:f.dataset.schf?+f.dataset.schf:0,name:f.elements.name.value,short:f.elements.short.value,state:f.elements.state.value});if(r.error)return toast(r.error);toast('Saved');f.reset&&f.reset();adminSum();return adminLoad()}
@@ -2193,6 +2209,7 @@ function adminTab(k){AD.tab=k;const S0=ast(k),m=AMETA[k];document.querySelectorA
      <label>Business or brand name<input name="biz_name" maxlength="120" value="${esc(CFG.name||'')}"></label><label>Support WhatsApp number<input name="support_phone" maxlength="20" value="${esc(CFG.phone||'')}" placeholder="080..."></label>
      <label>Support email<input name="support_email" type="email" maxlength="120" value="${esc(CFG.email||'')}" placeholder="support@..."></label><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>
      <form id="stuForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('id')}</span><b>Student verification</b></div><p class="meta">Students become <b>✓ Verified student</b> by showing a school document: a student ID, course registration form, school fees receipt or admission letter. This works for every school, whatever email addresses its students use. A school email ending in .edu.ng, or one of the domains below, gives the lighter <b>✓ School email</b> badge. Campus vendors don't need either.</p>
+     <label class="opt" style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="verify_gate" ${AD.sum.verifyGate?'checked':''} style="width:auto"> <span><b>Students must be verified to use Stall</b><br><small class="meta">On: new students see a "verify you're a student" page and can't buy, sell or chat until a document or school email is approved. Off: they can buy straight away.</small></span></label>
      <label class="opt" style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="require_verified" ${AD.sum.requireVerified?'checked':''} style="width:auto"> <span><b>Only verified students can sell</b><br><small class="meta">Off: anyone can list, and verified students get a badge. On: students need a badge before they can list or open a store.</small></span></label>
      <label>Other school email domains<input name="school_domains" value="${esc(AD.sum.schoolDomains||'')}" placeholder="only if your school issues its own addresses, e.g. stu.cu.edu.ng"></label><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>
      <form id="refForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('gift')}</span><b>Invite rewards</b></div><p class="meta">When someone who joined with a friend's invite link completes their first order, both get this much Stall credit. Credit can only pay part of featuring items and stores or store reach, never cash. Keep it small so paid featuring keeps its value. Set the reward to 0 to turn rewards off. ${AD.sum.referrals?`So far: ${AD.sum.referrals.n} joined by invite, ${AD.sum.referrals.p} rewarded.`:''}</p>
@@ -2390,6 +2407,8 @@ function gate(){drawGuide();drawSoon();
   const isV=!!S.user&&S.user.role==='vendor';$('#sellBtn').hidden=isV;$('#sellHero').hidden=isV;
   if(S.user&&S.user.role==='vendor'&&S.user.status&&S.user.status!=='active'){g.hidden=false;g.scrollTo(0,0);const sus=S.user.status==='suspended';
     g.innerHTML=`<div class="gin"><h1>${sus?'Account suspended':'Waiting for approval'}</h1><p>${sus?'Your shop has been suspended. Message the Stall team to find out why.':'Thanks for signing up, '+esc(S.user.biz)+'. The Stall team has been told and will approve your shop shortly. Tap below to check again.'}</p><div class="acts"><button class="pill" id="pendRefresh">Check again</button></div><p style="margin-top:14px"><button class="link" id="pendOut">Sign out</button></p></div>`;return}
+  if(S.user&&S.user.role==='student'&&S.user.verifyGate&&!(S.user.vlevel>=1)&&!S.user.admin){verifyGate(g);return}
+  clearInterval(VG.t);VG.t=null;
   if(S.user){g.hidden=true;return}
   g.hidden=false;g.scrollTo(0,0);
   if(authMode==='in'){loginGate(g);return}
