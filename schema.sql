@@ -23,12 +23,13 @@ CREATE TABLE IF NOT EXISTS users(
   bank_code TEXT, bank_name TEXT, acct_no TEXT, acct_name TEXT,
   bank_verified INTEGER,                   -- 0 = typed in by hand, waiting for an admin to confirm
   verified INTEGER NOT NULL DEFAULT 0,     -- paid verified-seller badge
-  school_id INTEGER, state TEXT            -- where they study or trade
+  school_id INTEGER, state TEXT,           -- where they study or trade
+  no_cfee INTEGER                          -- 1 = no Stall fee on their collections (partners)
 );
 CREATE TABLE IF NOT EXISTS sessions(h TEXT PRIMARY KEY, uid INTEGER NOT NULL, exp INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS attempts(k TEXT NOT NULL, t INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS attempts_k ON attempts(k,t);   -- rate limits (logins, sign-ups, uploads, payments)
-CREATE TABLE IF NOT EXISTS vendor_codes(code TEXT PRIMARY KEY, active INTEGER NOT NULL DEFAULT 1, label TEXT, created INTEGER, used_by INTEGER);
+CREATE TABLE IF NOT EXISTS vendor_codes(code TEXT PRIMARY KEY, active INTEGER NOT NULL DEFAULT 1, label TEXT, created INTEGER, used_by INTEGER, kind TEXT);  -- kind: 'vendor' (sign-up invite) or 'store' (free store)
 CREATE TABLE IF NOT EXISTS ver(id INTEGER PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0);
 INSERT OR IGNORE INTO ver(id,n) VALUES(1,0);
 
