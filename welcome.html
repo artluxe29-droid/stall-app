@@ -470,6 +470,59 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
 </style>
 </head>
 <body>
+<style>#splash{position:fixed;inset:0;z-index:2147483000;touch-action:none;cursor:pointer}#splash svg{display:block;width:100%;height:100%}.splashing .rv.in{opacity:0;transform:perspective(900px) translateY(22px) rotateX(7deg)}</style>
+<div id="splash" aria-hidden="true" data-bg="#0F1330" data-ink="#F6F1E7"><svg id="spv"><defs>
+<filter id="spg" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feGaussianBlur id="spgb" stdDeviation="0"/><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -10"/></filter>
+<filter id="sph" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feGaussianBlur id="sphb" stdDeviation="0"/><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -10"/></filter>
+<mask id="spm" maskUnits="userSpaceOnUse"><rect id="spmr" fill="#fff"/><g id="spH" filter="url(#sph)"></g></mask>
+</defs><g mask="url(#spm)"><rect id="spbg"/><g id="spI" filter="url(#spg)"><g id="spA"><path d="M20 30a8 8 0 0 1 8-8h64a8 8 0 0 1 8 8v8H20z"/><path d="M20 37h25.5v10a12.75 12.75 0 0 1-25.5 0z"/><path d="M47.3 37h25.4v10a12.7 12.7 0 0 1-25.4 0z"/><path d="M74.5 37H100v10a12.75 12.75 0 0 1-25.5 0z"/></g><ellipse id="spD"/></g></g></svg></div>
+<script>
+// Opening animation (the liquid logo, short cut): the awning forms, the dot hops and bumps it, floods the screen,
+// then drains away in bubbles to show the app underneath. About 4 seconds; a tap skips it. Not shown for payment
+// returns or shared links, or when the phone asks for reduced motion.
+(()=>{const el=document.getElementById('splash');let skip=!!location.search;try{skip=skip||matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){}
+ if(skip){el.remove();return}
+ const NS='http://www.w3.org/2000/svg',g=id=>document.getElementById(id),sv=g('spv'),cs=getComputedStyle(document.documentElement);
+ const BG=(el.dataset.bg||cs.getPropertyValue('--bg')||'#F6F2EA').trim(),INK=(el.dataset.ink||cs.getPropertyValue('--brand')||'#26306E').trim(),RT=document.documentElement.classList;RT.add('splashing');
+ const W=innerWidth||390,H=innerHeight||844,VW=1000*W/H,U=Math.min(VW,1000)/1000,KI=4.1*U;
+ sv.setAttribute('viewBox',`${-VW/2} -500 ${VW} 1000`);
+ for(const id of ['spmr','spbg']){const r=g(id);r.setAttribute('x',-VW/2-10);r.setAttribute('y',-510);r.setAttribute('width',VW+20);r.setAttribute('height',1020)}
+ for(const id of ['spg','sph','spm']){const f=g(id);f.setAttribute('x',-VW/2-60);f.setAttribute('y',-560);f.setAttribute('width',VW+120);f.setAttribute('height',1120)}
+ g('spbg').setAttribute('fill',BG);g('spI').setAttribute('fill',INK);
+ const parts=[...g('spA').children],D=g('spD'),SAT=[],HOL=[];
+ for(let i=0;i<6;i++){const c=document.createElementNS(NS,'circle');g('spI').appendChild(c);SAT.push(c)}
+ for(let i=0;i<10;i++){const c=document.createElementNS(NS,'circle');c.setAttribute('fill','#000');g('spH').appendChild(c);HOL.push(c)}
+ const cl=x=>x<0?0:x>1?1:x,ss=(a,b,t)=>{const x=cl((t-a)/(b-a));return x*x*(3-2*x)},bump=(t,a,b)=>t<=a||t>=b?0:Math.sin(Math.PI*(t-a)/(b-a)),
+  ring=(t,t0,a,f=12,d=4.5)=>t<t0?0:a*Math.exp(-(t-t0)*d)*Math.cos((t-t0)*f),qo=p=>1-(1-p)*(1-p),qi=p=>p*p,cub=p=>p*p*p,io=p=>p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;
+ const OY=-40*U,ICY=(85-59)*KI+OY,R0=11*KI,TOP=(59.75-59)*KI+OY,HOPH=ICY-R0-TOP+2*U;
+ const T_IN=.75,HOP=[1.1,2.0],FL=[2.3,3.15],DR=[3.25,4.5],END=4.55,RMAX=1.15*Math.hypot(VW/2+30,500+Math.abs(ICY));
+ let t0=null,off=0,done=false,rec=false;
+ function frame(t){
+  const emg=ss(0,T_IN,t);
+  // awning: ripple when the dot bumps it and when it lands
+  const mid=(HOP[0]+HOP[1])/2;
+  parts.forEach((p,k)=>{const dy=(-ring(t,mid-.03+Math.abs(k-2)*.06,(k===2?16:9)*U,11,4)+ring(t,HOP[1]+k*.06,10*U,12,4.5))/KI;
+   p.setAttribute('transform',`translate(0 ${OY}) scale(${KI}) translate(-60 ${-59+dy})`);p.setAttribute('opacity',emg)});
+  // the dot: crouch, hop, kiss the awning, land, then swell into the flood
+  let y=ICY;if(t>HOP[0]&&t<HOP[1]){const p=(t-HOP[0])/(HOP[1]-HOP[0]);y=ICY-HOPH*(p<.5?qo(p*2):1-qi((p-.5)*2))}
+  let v=bump(t,HOP[0]-.26,HOP[0]+.03)*.26+ring(t,HOP[1],.38,13,5.5)+bump(t,FL[0]-.3,FL[0]+.02)*.22,st=t>HOP[0]&&t<HOP[1]?bump(t,HOP[0],HOP[1])*.16:0;
+  let rx=R0*(1+v*.85)*(1-st*.5),ry=R0*(1-v)*(1+st);y+=R0-ry;
+  if(t>FL[0]){const r=R0+(RMAX-R0)*io(cl((t-FL[0])/(FL[1]-FL[0])));rx=ry=r}
+  D.setAttribute('cx',0);D.setAttribute('cy',y);D.setAttribute('rx',rx);D.setAttribute('ry',ry);D.setAttribute('opacity',emg);
+  SAT.forEach((c,i)=>{const p=cl((t-FL[0]-i*.04)/(FL[1]-FL[0]-.12)),R=RMAX*io(p),a=i/6*Math.PI*2+.6+Math.sin(i*3.1)*.5,d=R*(.62+.18*Math.sin(i*1.7));
+   c.setAttribute('cx',Math.cos(a)*d);c.setAttribute('cy',ICY+Math.sin(a)*d);c.setAttribute('r',p>0?R*(.36+.12*Math.cos(i*2.3))+R0*.2:0)});
+  // drain: holes open through everything and merge, showing the app
+  HOL.forEach((c,i)=>{const cx=-VW/2+VW*((i%4)+.5+.25*Math.sin(i*2.7))/4,cy=-500+1000*(Math.floor(i/4)%3+.5+.25*Math.cos(i*1.9))/3,s=DR[0]+((i*.37)%1)*.45,p=cl((t-s)/(DR[1]-s));
+   c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',p>0?Math.max(VW,1000)*.5*p+6:0)});
+  const goo=Math.max(18*(1-ss(T_IN*.4,T_IN+.3,t)),t>FL[0]-.05&&t<FL[1]+.05?22:0)*U;
+  g('spgb').setAttribute('stdDeviation',goo);g('spI').setAttribute('filter',goo>.08?'url(#spg)':'');
+  g('sphb').setAttribute('stdDeviation',t>DR[0]-.05?18*U:0)}
+ function tick(now){if(done)return;if(t0===null)t0=now;const t=(now-t0)/1000+off;if(t>=END){finish();return}if(t>=DR[0]+.1)RT.remove('splashing');frame(t);requestAnimationFrame(tick)}
+ function finish(){if(rec||(done&&!el.isConnected))return;done=true;RT.remove('splashing');el.remove()}
+ el.addEventListener('pointerdown',()=>{if(t0===null)return;const t=(performance.now()-t0)/1000+off;if(t<DR[0])off+=DR[0]-t});
+ frame(0);requestAnimationFrame(tick);setTimeout(finish,7000);
+ window.__splashT=t=>{rec=done=true;if(t>=DR[0]+.1)RT.remove('splashing');else RT.add('splashing');frame(t)}})();
+</script>
 <svg viewBox="0 0 24 24" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M8.8 12.2 11 14.4l4.3-4.5"/></symbol>
  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.5" r="2" fill="currentColor" stroke="none"/></symbol>
