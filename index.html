@@ -619,7 +619,7 @@ small.flag,b.flag,span.flag{width:auto;height:auto;border-radius:0;box-shadow:no
 </defs><g mask="url(#spm)"><rect id="spbg"/><g id="spI" filter="url(#spg)"><g id="spA"><path d="M20 30a8 8 0 0 1 8-8h64a8 8 0 0 1 8 8v8H20z"/><path d="M20 37h25.5v10a12.75 12.75 0 0 1-25.5 0z"/><path d="M47.3 37h25.4v10a12.7 12.7 0 0 1-25.4 0z"/><path d="M74.5 37H100v10a12.75 12.75 0 0 1-25.5 0z"/></g><ellipse id="spD"/></g></g></svg></div>
 <script>
 // Opening animation (the liquid logo, short cut): the awning forms, the dot hops and bumps it, floods the screen,
-// then drains away in bubbles to show the app underneath. About 2 seconds; a tap skips it. Not shown for payment
+// then drains away in bubbles to show the app underneath. About 4 seconds; a tap skips it. Not shown for payment
 // returns or shared links, or when the phone asks for reduced motion.
 (()=>{const el=document.getElementById('splash');let skip=!!location.search;try{skip=skip||matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){}
  if(skip){el.remove();return}
@@ -634,34 +634,34 @@ small.flag,b.flag,span.flag{width:auto;height:auto;border-radius:0;box-shadow:no
  for(let i=0;i<6;i++){const c=document.createElementNS(NS,'circle');g('spI').appendChild(c);SAT.push(c)}
  for(let i=0;i<10;i++){const c=document.createElementNS(NS,'circle');c.setAttribute('fill','#000');g('spH').appendChild(c);HOL.push(c)}
  const cl=x=>x<0?0:x>1?1:x,ss=(a,b,t)=>{const x=cl((t-a)/(b-a));return x*x*(3-2*x)},bump=(t,a,b)=>t<=a||t>=b?0:Math.sin(Math.PI*(t-a)/(b-a)),
-  ring=(t,t0,a,f=19,d=7)=>t<t0?0:a*Math.exp(-(t-t0)*d)*Math.cos((t-t0)*f),qo=p=>1-(1-p)*(1-p),qi=p=>p*p,cub=p=>p*p*p;
+  ring=(t,t0,a,f=12,d=4.5)=>t<t0?0:a*Math.exp(-(t-t0)*d)*Math.cos((t-t0)*f),qo=p=>1-(1-p)*(1-p),qi=p=>p*p,cub=p=>p*p*p,io=p=>p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;
  const OY=-40*U,ICY=(85-59)*KI+OY,R0=11*KI,TOP=(59.75-59)*KI+OY,HOPH=ICY-R0-TOP+2*U;
- const T_IN=.32,HOP=[.42,.94],FL=[1.0,1.44],DR=[1.48,1.98],END=2.0,RMAX=1.15*Math.hypot(VW/2+30,500+Math.abs(ICY));
+ const T_IN=.75,HOP=[1.1,2.0],FL=[2.3,3.15],DR=[3.25,4.5],END=4.55,RMAX=1.15*Math.hypot(VW/2+30,500+Math.abs(ICY));
  let t0=null,off=0,done=false,rec=false;
  function frame(t){
   const emg=ss(0,T_IN,t);
   // awning: ripple when the dot bumps it and when it lands
   const mid=(HOP[0]+HOP[1])/2;
-  parts.forEach((p,k)=>{const dy=(-ring(t,mid-.02+Math.abs(k-2)*.04,(k===2?16:9)*U,17,6)+ring(t,HOP[1]+k*.04,10*U,19,6))/KI;
+  parts.forEach((p,k)=>{const dy=(-ring(t,mid-.03+Math.abs(k-2)*.06,(k===2?16:9)*U,11,4)+ring(t,HOP[1]+k*.06,10*U,12,4.5))/KI;
    p.setAttribute('transform',`translate(0 ${OY}) scale(${KI}) translate(-60 ${-59+dy})`);p.setAttribute('opacity',emg)});
   // the dot: crouch, hop, kiss the awning, land, then swell into the flood
   let y=ICY;if(t>HOP[0]&&t<HOP[1]){const p=(t-HOP[0])/(HOP[1]-HOP[0]);y=ICY-HOPH*(p<.5?qo(p*2):1-qi((p-.5)*2))}
-  let v=bump(t,HOP[0]-.12,HOP[0]+.02)*.28+ring(t,HOP[1],.42,20,9),st=t>HOP[0]&&t<HOP[1]?bump(t,HOP[0],HOP[1])*.16:0;
+  let v=bump(t,HOP[0]-.26,HOP[0]+.03)*.26+ring(t,HOP[1],.38,13,5.5)+bump(t,FL[0]-.3,FL[0]+.02)*.22,st=t>HOP[0]&&t<HOP[1]?bump(t,HOP[0],HOP[1])*.16:0;
   let rx=R0*(1+v*.85)*(1-st*.5),ry=R0*(1-v)*(1+st);y+=R0-ry;
-  if(t>FL[0]){const r=R0+(RMAX-R0)*cub(cl((t-FL[0])/(FL[1]-FL[0])));rx=ry=r}
+  if(t>FL[0]){const r=R0+(RMAX-R0)*io(cl((t-FL[0])/(FL[1]-FL[0])));rx=ry=r}
   D.setAttribute('cx',0);D.setAttribute('cy',y);D.setAttribute('rx',rx);D.setAttribute('ry',ry);D.setAttribute('opacity',emg);
-  SAT.forEach((c,i)=>{const p=cl((t-FL[0]-i*.02)/(FL[1]-FL[0]-.08)),R=RMAX*cub(p),a=i/6*Math.PI*2+.6+Math.sin(i*3.1)*.5,d=R*(.62+.18*Math.sin(i*1.7));
+  SAT.forEach((c,i)=>{const p=cl((t-FL[0]-i*.04)/(FL[1]-FL[0]-.12)),R=RMAX*io(p),a=i/6*Math.PI*2+.6+Math.sin(i*3.1)*.5,d=R*(.62+.18*Math.sin(i*1.7));
    c.setAttribute('cx',Math.cos(a)*d);c.setAttribute('cy',ICY+Math.sin(a)*d);c.setAttribute('r',p>0?R*(.36+.12*Math.cos(i*2.3))+R0*.2:0)});
   // drain: holes open through everything and merge, showing the app
-  HOL.forEach((c,i)=>{const cx=-VW/2+VW*((i%4)+.5+.25*Math.sin(i*2.7))/4,cy=-500+1000*(Math.floor(i/4)%3+.5+.25*Math.cos(i*1.9))/3,s=DR[0]+((i*.37)%1)*.2,p=cl((t-s)/(DR[1]-s));
-   c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',p>0?Math.max(VW,1000)*.8*cub(p)+6:0)});
-  const goo=Math.max(14*(1-ss(T_IN*.5,T_IN+.15,t)),t>FL[0]-.05&&t<FL[1]+.05?22:0)*U;
+  HOL.forEach((c,i)=>{const cx=-VW/2+VW*((i%4)+.5+.25*Math.sin(i*2.7))/4,cy=-500+1000*(Math.floor(i/4)%3+.5+.25*Math.cos(i*1.9))/3,s=DR[0]+((i*.37)%1)*.45,p=cl((t-s)/(DR[1]-s));
+   c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',p>0?Math.max(VW,1000)*.5*p+6:0)});
+  const goo=Math.max(18*(1-ss(T_IN*.4,T_IN+.3,t)),t>FL[0]-.05&&t<FL[1]+.05?22:0)*U;
   g('spgb').setAttribute('stdDeviation',goo);g('spI').setAttribute('filter',goo>.08?'url(#spg)':'');
   g('sphb').setAttribute('stdDeviation',t>DR[0]-.05?18*U:0)}
  function tick(now){if(done)return;if(t0===null)t0=now;const t=(now-t0)/1000+off;if(t>=END){finish();return}frame(t);requestAnimationFrame(tick)}
  function finish(){if(rec||(done&&!el.isConnected))return;done=true;el.remove()}
  el.addEventListener('pointerdown',()=>{if(t0===null)return;const t=(performance.now()-t0)/1000+off;if(t<DR[0])off+=DR[0]-t});
- frame(0);requestAnimationFrame(tick);setTimeout(finish,4000);
+ frame(0);requestAnimationFrame(tick);setTimeout(finish,7000);
  window.__splashT=t=>{rec=done=true;frame(t)}})();
 </script>
 <nav><div class="nav">
