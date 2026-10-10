@@ -1442,6 +1442,7 @@ function sellerConsent(){return new Promise(res=>{let d=$('#sellOkDlg');if(!d){d
    <li>Once you mark an order <b>on the way</b> or <b>ready for pickup</b>, you're paid automatically after ${tmT('pay')} if the buyer reports no problem. If you don't move a new order on within ${tmT('send')}, the buyer is refunded.</li>
    <li>Either side can report a problem. Accept it or give your side, with photos, within ${tmT('answer')}, or it's decided for the other side.</li>
    <li><b>Strikes</b> for late cancels, no-shows, and problem reports you lose or don't answer. 3 in 30 days is a warning; 5 pauses your account for 14 days. Buyers get strikes too.</li></ul>
+   <label class="agree"><input type="checkbox" required><span>I'm responsible for making sure my school or campus allows me to sell, and for following its rules.</span></label>
    <label class="agree"><input type="checkbox" required><span>I agree to these rules, the <a href="/rules" target="_blank">seller rules</a> and the <a href="/terms" target="_blank">Terms</a>.</span></label>
    <div class="acts"><button class="pill" value="ok">I agree</button><button class="pill alt" type="button" data-no>Not now</button></div></form>`;
   let ok=false;d.querySelector('form').onsubmit=()=>{ok=true};d.querySelector('[data-no]').onclick=()=>d.close();d.addEventListener('close',()=>res(ok),{once:true});d.showModal()})}
