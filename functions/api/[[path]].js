@@ -234,7 +234,9 @@ async function strike(env,uid,kind,oid){const now=Date.now();
   else await notify(env,uid,'A strike was added to your account','Strike added',['You got a strike for '+STRIKE_WHY[kind]+'. You have '+n+' in the last '+STRIKE_DAYS+' days. At '+STRIKE_BLOCK+' your account is paused for '+BLOCK_DAYS+' days.'],...go)}
 const paused=u=>u&&u.restricted_until>Date.now()?J({error:'Your account is paused until '+dday(u.restricted_until)+' after repeated problems on orders, so you can\'t buy or list until then. Contact Stall support if you think this is wrong.'},403):null;
 // Sellers agree once to how selling works (the app asks, then retries the request).
-const sellerOk=async(env,u)=>u.seller_ok?null:J({error:'Please agree to how selling on Stall works.',need:'seller_ok'},400);
+// Sellers agree again when the selling terms change (last: 10 Oct 2026, following your school's rules).
+const SELL_TERMS=Date.UTC(2026,9,10);
+const sellerOk=async(env,u)=>u.seller_ok>=SELL_TERMS?null:J({error:'Please agree to how selling on Stall works.',need:'seller_ok'},400);
 // Referrals: everyone gets a short code. When someone who signed up with it completes their first order (buying or selling),
 // both of them get Stall credit (Admin -> Settings, default N300). Credit pays for featuring and store reach, never cash.
 // Only a real order counts: at least REF_MIN in items, so a cheap fake order between two accounts can't farm credit.
@@ -1051,7 +1053,7 @@ async function route({request,env,params,waitUntil}){
     await env.DB.prepare('INSERT INTO waitlist(uid,school_id,want,created) VALUES(?,?,?,?) ON CONFLICT(uid) DO UPDATE SET school_id=excluded.school_id,want=excluded.want').bind(u.id,u.school_id,want,Date.now()).run();
     const n=await env.DB.prepare('SELECT COUNT(*) c FROM waitlist WHERE school_id=? AND want IS NOT NULL').bind(u.school_id).first();return J({ok:true,want,n:n.c})}
   if(path==='me/seller-ok'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
-    await env.DB.prepare('UPDATE users SET seller_ok=IFNULL(seller_ok,?) WHERE id=?').bind(Date.now(),u.id).run();return J({ok:true})}
+    await env.DB.prepare('UPDATE users SET seller_ok=? WHERE id=?').bind(Date.now(),u.id).run();return J({ok:true})}
   // The app pings about once a minute while it's open on screen, so Admin can count who is using Stall right now (one write per person per minute at most).
   if(path==='me/ping'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({ok:false},401);const now=Date.now();
     if(!(u.seen>now-45e3))await env.DB.prepare('UPDATE users SET seen=? WHERE id=?').bind(now,u.id).run().catch(()=>{});return J({ok:true},200,{'cache-control':'no-store'})}
