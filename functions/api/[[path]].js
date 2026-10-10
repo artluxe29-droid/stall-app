@@ -75,7 +75,7 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   for(const s0 of stale)if((await env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,s0.id).run()).meta.changes)ids.push(s0.id);
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='36';
+const SCHEMA_V='37';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -119,7 +119,7 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'ALTER TABLE users ADD COLUMN ref_code TEXT','ALTER TABLE users ADD COLUMN referred_by INTEGER','ALTER TABLE users ADD COLUMN ref_paid INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN credit INTEGER NOT NULL DEFAULT 0',
     'CREATE UNIQUE INDEX IF NOT EXISTS users_ref_code ON users(ref_code)','CREATE INDEX IF NOT EXISTS users_referred_by ON users(referred_by)',
     'CREATE TABLE IF NOT EXISTS credit_log(id INTEGER PRIMARY KEY AUTOINCREMENT,uid INTEGER NOT NULL,amt INTEGER NOT NULL,why TEXT,t INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS credit_log_uid ON credit_log(uid,t)',
-    'ALTER TABLE stores ADD COLUMN logo TEXT','ALTER TABLE stores ADD COLUMN founding INTEGER','ALTER TABLE users ADD COLUMN matric_claim TEXT',"UPDATE collect_pays SET matric=NULL WHERE matric=(SELECT phone FROM users WHERE users.id=collect_pays.uid)",'CREATE INDEX IF NOT EXISTS stores_founding ON stores(school_id,founding)','ALTER TABLE stores ADD COLUMN logo_v INTEGER','ALTER TABLE schools ADD COLUMN launch TEXT','ALTER TABLE users ADD COLUMN seen INTEGER','CREATE TABLE IF NOT EXISTS mail_q(id INTEGER PRIMARY KEY AUTOINCREMENT,to_addr TEXT NOT NULL,subject TEXT,html TEXT,pri INTEGER NOT NULL DEFAULT 1,tries INTEGER NOT NULL DEFAULT 0,next INTEGER NOT NULL,created INTEGER NOT NULL,status TEXT NOT NULL,claim INTEGER,claimed INTEGER,sent INTEGER,err TEXT)','CREATE INDEX IF NOT EXISTS mail_q_status ON mail_q(status,next)','CREATE INDEX IF NOT EXISTS mail_q_claim ON mail_q(claim)','CREATE TABLE IF NOT EXISTS mail_count(day TEXT PRIMARY KEY,n INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS users_seen ON users(seen)','CREATE INDEX IF NOT EXISTS waitlist_school_created ON waitlist(school_id,created)',
+    'ALTER TABLE stores ADD COLUMN logo TEXT','ALTER TABLE stores ADD COLUMN founding INTEGER','ALTER TABLE users ADD COLUMN matric_claim TEXT',"UPDATE collect_pays SET matric=NULL WHERE matric=(SELECT phone FROM users WHERE users.id=collect_pays.uid)",'CREATE INDEX IF NOT EXISTS stores_founding ON stores(school_id,founding)','ALTER TABLE stores ADD COLUMN logo_v INTEGER','ALTER TABLE schools ADD COLUMN launch TEXT','ALTER TABLE users ADD COLUMN seen INTEGER','ALTER TABLE schools ADD COLUMN stu_sell INTEGER','CREATE TABLE IF NOT EXISTS mail_q(id INTEGER PRIMARY KEY AUTOINCREMENT,to_addr TEXT NOT NULL,subject TEXT,html TEXT,pri INTEGER NOT NULL DEFAULT 1,tries INTEGER NOT NULL DEFAULT 0,next INTEGER NOT NULL,created INTEGER NOT NULL,status TEXT NOT NULL,claim INTEGER,claimed INTEGER,sent INTEGER,err TEXT)','CREATE INDEX IF NOT EXISTS mail_q_status ON mail_q(status,next)','CREATE INDEX IF NOT EXISTS mail_q_claim ON mail_q(claim)','CREATE TABLE IF NOT EXISTS mail_count(day TEXT PRIMARY KEY,n INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS users_seen ON users(seen)','CREATE INDEX IF NOT EXISTS waitlist_school_created ON waitlist(school_id,created)',
     'CREATE TABLE IF NOT EXISTS waitlist(uid INTEGER PRIMARY KEY,school_id INTEGER NOT NULL,want TEXT,created INTEGER NOT NULL,told INTEGER NOT NULL DEFAULT 0)','CREATE INDEX IF NOT EXISTS waitlist_school ON waitlist(school_id,told)',
     'ALTER TABLE orders ADD COLUMN method TEXT','ALTER TABLE orders ADD COLUMN addr TEXT','ALTER TABLE orders ADD COLUMN dphone TEXT','ALTER TABLE orders ADD COLUMN dstage TEXT','ALTER TABLE orders ADD COLUMN track TEXT',
     'CREATE INDEX IF NOT EXISTS listings_school ON listings(school_id,created)','CREATE INDEX IF NOT EXISTS listings_state ON listings(state,created)','CREATE INDEX IF NOT EXISTS listings_review ON listings(review)','CREATE INDEX IF NOT EXISTS stores_school ON stores(school_id)',
@@ -148,11 +148,16 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
   await env.DB.prepare("UPDATE schools SET launch='live' WHERE short='ACU' AND launch IS NULL").run().catch(()=>{});
   await giveFounding(env,null).catch(()=>{});
   await env.DB.prepare("INSERT OR REPLACE INTO settings(k,v) VALUES('schema_v',?)").bind(SCHEMA_V).run();ready=true};
-const schoolOf=async(env,id)=>id?env.DB.prepare("SELECT id,name,short,state,IFNULL(launch,'soon') launch FROM schools WHERE id=?").bind(id).first():null;
+const schoolOf=async(env,id)=>id?env.DB.prepare("SELECT id,name,short,state,IFNULL(launch,'soon') launch,IFNULL(stu_sell,1) stu_sell FROM schools WHERE id=?").bind(id).first():null;
 // Each school opens when an admin launches it: 'soon' (students join the waitlist), 'sellers' (sellers set up early; buyers wait) or 'live'.
 // a is the alias of a joined schools row; things with no school count as live.
 const LCH=a=>`(CASE WHEN ${a}.id IS NULL THEN 'live' ELSE IFNULL(${a}.launch,'soon') END)`;
 const LAUNCH=['soon','sellers','live'];
+// Some schools don't allow students to run businesses, so Admin can turn student selling off per school (campus vendors still sell; buying and collections carry on).
+// u is the seller's users row and a the joined schools row: true when the seller may be shown to buyers.
+const SOK=(u,a)=>`(IFNULL(${u}.role,'')!='student' OR IFNULL(${a}.stu_sell,1)=1)`;
+const stuGate=async(env,u)=>{if(u.is_admin||u.role!=='student'||!u.school_id)return null;const sc=await schoolOf(env,u.school_id);if(!sc||sc.stu_sell)return null;
+  return J({error:'Students can\'t sell on Stall at '+(sc.short||sc.name)+' right now. You can still buy from campus vendors and pay for collections.',stuOff:true},403)};
 // Tells the waitlist, a few dozen people at a time (the rest follow on later runs): sellers when their school opens to sellers (told=1), everyone when it goes live (told=2).
 let TELL_T=0;
 async function tellLaunch(env){const rows=(await env.DB.prepare("SELECT w.uid,w.want,w.told,sc.name,sc.short,IFNULL(sc.launch,'soon') l FROM waitlist w JOIN schools sc ON sc.id=w.school_id WHERE (IFNULL(sc.launch,'soon')='live' AND w.told<2) OR (sc.launch='sellers' AND w.told<1 AND w.want IN ('sell','both')) LIMIT 40").all()).results;
@@ -1058,10 +1063,10 @@ async function route({request,env,params,waitUntil}){
   if(path==='listings'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);waitUntil(sweep(env).catch(()=>{}));const NOW=Math.floor(Date.now()/6e4)*6e4;waitUntil(dailyCleanup(env));waitUntil(weeklyMails(env));if(Date.now()-TELL_T>6e4){TELL_T=Date.now();waitUntil(tellLaunch(env).catch(()=>{}))}waitUntil(payJobs(env).catch(()=>{}));
     const sp=url.searchParams,ids=(sp.get('ids')||'').split(',').map(x=>+x.slice(1)).filter(x=>x>0).slice(0,60),w=[LIVE],v=[];let lim=Math.min(96,Math.max(1,+sp.get('n')||24)),off=Math.max(0,+sp.get('off')||0),total;
     const cut=Math.floor((NOW-2*864e5)/6e5)*6e5;
-    if(sp.get('mine')){w.push('l.uid=?',"(l.review!='live' OR (l.sold=1 AND l.created<=?) OR "+LCH('sc')+"!='live')");v.push(u.id,cut);lim=50;off=0}
-    else if(ids.length){w.push("(l.review='live' OR l.uid=?)",`l.id IN (${ids.map(()=>'?').join(',')})`);v.push(u.id,...ids);lim=60;off=0;if(await preLaunch(env,u)){w.push('l.uid=?');v.push(u.id)}}
+    if(sp.get('mine')){w.push('l.uid=?',"(l.review!='live' OR (l.sold=1 AND l.created<=?) OR "+LCH('sc')+"!='live' OR NOT "+SOK('u','sc')+")");v.push(u.id,cut);lim=50;off=0}
+    else if(ids.length){w.push("(l.review='live' OR l.uid=?)",`l.id IN (${ids.map(()=>'?').join(',')})`,'(l.uid=? OR '+SOK('u','sc')+')');v.push(u.id,...ids,u.id);lim=60;off=0;if(await preLaunch(env,u)){w.push('l.uid=?');v.push(u.id)}}
     // Admins see every school's items (to test and moderate before a school opens); everyone else only sees open schools.
-    else{if(await preLaunch(env,u))return J({listings:[],total:0,soon:true});w.push("l.review='live'",'(l.sold=0 OR l.created>?)');if(!u.is_admin)w.push(LCH('sc')+"='live'");v.push(cut);
+    else{if(await preLaunch(env,u))return J({listings:[],total:0,soon:true});w.push("l.review='live'",'(l.sold=0 OR l.created>?)');if(!u.is_admin)w.push(LCH('sc')+"='live'",SOK('u','sc'));v.push(cut);
       const q=(sp.get('q')||'').trim().slice(0,60),cat=sp.get('cat')||'all',scope=sp.get('scope')||'school';if(cat!=='all'){w.push('l.cat=?');v.push(cat)}
       if(scope==='school'&&u.school_id){w.push('l.school_id=?');v.push(u.school_id)}else if(scope==='state'&&u.state){w.push('l.state=?');v.push(u.state)}
       // Every word must appear somewhere in the title, description or meeting spot.
@@ -1071,20 +1076,20 @@ async function route({request,env,params,waitUntil}){
       if(sp.get('dl')==='1')w.push('u.deliv_on=1');if(sp.get('vf')==='1')w.push('(u.verified=1 OR u.vlevel>=1)');if(sp.get('r4')==='1')w.push('u.rating_n>0 AND u.rating_sum>=4*u.rating_n')}
     const wh=' FROM listings l JOIN users u ON u.id=l.uid LEFT JOIN schools sc ON sc.id=l.school_id WHERE '+w.join(' AND '),srt={lo:'l.price ASC,l.id DESC',hi:'l.price DESC,l.id DESC',top:'(u.rating_sum+6.0)/(u.rating_n+2) DESC,u.rating_n DESC,l.created DESC'}[sp.get('sort')]||`(IFNULL(l.featured_until,0)>${NOW}) DESC,l.created DESC,l.id DESC`;
     const feed=!ids.length&&!sp.get('mine'),run=async()=>{const [cn,ra]=await Promise.all([feed?env.DB.prepare('SELECT COUNT(*) c'+wh).bind(...v).first():null,
-        env.DB.prepare('SELECT l.*,u.verified AS sv,u.vlevel AS svl,u.role AS srole,u.deliv_on,u.deliv_fee,u.deliv_note,u.rating_sum,u.rating_n,sc.short AS ssh,sc.name AS snm,'+LCH('sc')+' AS lch'+wh+' ORDER BY '+srt+' LIMIT ? OFFSET ?').bind(...v,lim,off).all()]);
+        env.DB.prepare('SELECT l.*,u.verified AS sv,u.vlevel AS svl,u.role AS srole,u.deliv_on,u.deliv_fee,u.deliv_note,u.rating_sum,u.rating_n,sc.short AS ssh,sc.name AS snm,'+LCH('sc')+' AS lch,'+SOK('u','sc')+' AS sok'+wh+' ORDER BY '+srt+' LIMIT ? OFFSET ?').bind(...v,lim,off).all()]);
       const total=cn?cn.c:undefined,rs=ra.results;
       // Searches also look in open stores, so "jollof" finds food stalls as well as listings.
       const sq=(sp.get('q')||'').trim().slice(0,60),words=sq.split(/\s+/).filter(Boolean).slice(0,5),sc2=sp.get('scope')||'school';let storeHits=[];
-      if(feed&&words.length&&!off){const ww=["i.review='live'",'i.avail=1','s.isopen=1',LIVE,...(u.is_admin?[]:[LCH('sc')+"='live'"])],vv=[];for(const word of words){ww.push('(i.title LIKE ? OR i.descr LIKE ?)');vv.push('%'+word+'%','%'+word+'%')}
+      if(feed&&words.length&&!off){const ww=["i.review='live'",'i.avail=1','s.isopen=1',LIVE,...(u.is_admin?[]:[LCH('sc')+"='live'",SOK('u','sc')])],vv=[];for(const word of words){ww.push('(i.title LIKE ? OR i.descr LIKE ?)');vv.push('%'+word+'%','%'+word+'%')}
         if(sc2==='school'&&u.school_id){ww.push('s.school_id=?');vv.push(u.school_id)}else if(sc2==='state'&&u.state){ww.push('s.state=?');vv.push(u.state)}
         storeHits=(await env.DB.prepare('SELECT i.id,i.title,i.price,s.id sid,s.name sname,s.cat,s.emoji FROM store_items i JOIN stores s ON s.id=i.sid JOIN users u ON u.id=s.uid LEFT JOIN schools sc ON sc.id=s.school_id WHERE '+ww.join(' AND ')+' ORDER BY i.created DESC LIMIT 8').bind(...vv).all()).results
           .map(r=>({id:'I'+r.id,title:r.title,price:r.price,store:'S'+r.sid,storeName:r.sname,cat:r.cat,emoji:r.emoji}))}
-      return{total,storeHits,listings:rs.map(r=>({sid:r.uid,id:'L'+r.id,deliv:dlv(r),rating:rat(r),vlevel:r.srole==='vendor'?0:r.svl||0,title:r.title,price:r.price,cat:r.cat,cond:r.cond,spot:r.spot,desc:r.descr,seller:r.seller,phone:r.phone,imgs:Array.from({length:r.n},(_,i)=>'/api/photo/'+r.id+'/'+i),t:r.created,sold:r.sold,featured:(r.featured_until||0)>NOW,featuredUntil:r.featured_until||0,verified:!!r.sv,qty:r.qty||1,qtyLeft:r.qty_left==null?(r.sold?0:1):r.qty_left,school:r.ssh||r.snm||'',state:r.state||'',soon:r.lch!=='live',review:r.review,reviewNote:feed?null:r.review_note}))}};
+      return{total,storeHits,listings:rs.map(r=>({sid:r.uid,id:'L'+r.id,deliv:dlv(r),rating:rat(r),vlevel:r.srole==='vendor'?0:r.svl||0,title:r.title,price:r.price,cat:r.cat,cond:r.cond,spot:r.spot,desc:r.descr,seller:r.seller,phone:r.phone,imgs:Array.from({length:r.n},(_,i)=>'/api/photo/'+r.id+'/'+i),t:r.created,sold:r.sold,featured:(r.featured_until||0)>NOW,featuredUntil:r.featured_until||0,verified:!!r.sv,qty:r.qty||1,qtyLeft:r.qty_left==null?(r.sold?0:1):r.qty_left,school:r.ssh||r.snm||'',state:r.state||'',soon:r.lch!=='live',stuOff:!r.sok,review:r.review,reviewNote:feed?null:r.review_note}))}};
     if(!feed){const o=await run();o.listings.forEach(x=>{x.mine=x.sid===u.id;if(!x.mine)x.reviewNote=null});return J(o)}
     // Everyone at the same school (or state, or nationwide) with the same filters shares one cached copy, refreshed on any change.
     return edge('feed/'+(await ver(env))+'/'+encodeURIComponent(w.join('&')+'|'+v.join('|')+'|'+srt+'|'+lim+'|'+off),30,run)}
   if(path==='listings'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);
-    if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);await ensure(env);{const x=paused(u)||await vGate(env,u)||await soonGate(env,u)||await sellerOk(env,u);if(x)return x}
+    if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);await ensure(env);{const x=paused(u)||await vGate(env,u)||await soonGate(env,u)||await stuGate(env,u)||await sellerOk(env,u);if(x)return x}
     const b=await request.json().catch(()=>({})),t=k=>String(b[k]||'').trim(),price=Math.round(+b.price),imgs=Array.isArray(b.imgs)?b.imgs:[];
     if(b.bank_code){if(!BANKS[b.bank_code])return J({error:'Choose a valid bank.'},400);
       const seen=!b.bank_manual&&await bankSeen(env,b.bank_code,b.acct_no),manual=!seen;if(seen)b.acct_name=seen;
@@ -1129,18 +1134,18 @@ async function route({request,env,params,waitUntil}){
     if(c)waitUntil(c.put(request,res.clone()).catch(()=>{}));return res}
   if(path==='stores'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);const NOW=Math.floor(Date.now()/6e4)*6e4;
     const scope=url.searchParams.get('scope')||'school',mine=!!url.searchParams.get('mine'),w=[LIVE],v=[],up='(IFNULL(s.reach_until,0)>'+NOW+')';
-    if(mine){w.push('s.uid=?');v.push(u.id)}else if(await preLaunch(env,u))return J({stores:[],soon:true});else if(!u.is_admin)w.push(LCH('sc')+"='live'");
+    if(mine){w.push('s.uid=?');v.push(u.id)}else if(await preLaunch(env,u))return J({stores:[],soon:true});else if(!u.is_admin)w.push(LCH('sc')+"='live'",SOK('u','sc'));
     if(mine);else if(scope==='school'&&u.school_id){w.push("(s.school_id=? OR ("+up+" AND (s.reach='national' OR (s.reach='state' AND s.state=?))))");v.push(u.school_id,u.state)}
     else if(scope==='state'&&u.state){w.push("(s.state=? OR ("+up+" AND s.reach='national'))");v.push(u.state)}
     const run=async()=>{
-    const ss=(await env.DB.prepare('SELECT s.*,u.role,u.phone AS up,u.matric,u.verified AS ov,u.vlevel AS svl,u.rating_sum,u.rating_n,sc.short AS ssh,sc.name AS snm FROM stores s JOIN users u ON u.id=s.uid LEFT JOIN schools sc ON sc.id=s.school_id WHERE '+w.join(' AND ')+' ORDER BY (IFNULL(s.featured_until,0)>'+NOW+') DESC,(s.school_id=?) DESC,s.created DESC LIMIT 300').bind(...v,u.school_id||0).all()).results;
+    const ss=(await env.DB.prepare('SELECT s.*,'+SOK('u','sc')+' AS sok,u.role,u.phone AS up,u.matric,u.verified AS ov,u.vlevel AS svl,u.rating_sum,u.rating_n,sc.short AS ssh,sc.name AS snm FROM stores s JOIN users u ON u.id=s.uid LEFT JOIN schools sc ON sc.id=s.school_id WHERE '+w.join(' AND ')+' ORDER BY (IFNULL(s.featured_until,0)>'+NOW+') DESC,(s.school_id=?) DESC,s.created DESC LIMIT 300').bind(...v,u.school_id||0).all()).results;
     const sids=ss.map(x=>x.id),its=sids.length?(await env.DB.prepare('SELECT * FROM store_items WHERE sid IN ('+sids.map(()=>'?').join(',')+")"+(mine?'':" AND review='live'")+" ORDER BY created DESC").bind(...sids).all()).results:[];
-    return{stores:ss.map(s=>({id:'S'+s.id,logo:s.logo?'/api/store-logo/'+s.id+'?v='+(s.logo_v||0):null,deliv:dlv(s),rating:rat(s),uid:s.uid,vlevel:s.role==='vendor'?0:s.svl||0,name:s.name,emoji:s.emoji,cat:s.cat,desc:s.descr,spot:s.spot,phone:s.phone,open:!!s.isopen,vendor:!!s.vendor,featured:(s.featured_until||0)>NOW,featuredUntil:s.featured_until||0,founding:s.founding||0,verified:!!s.ov,school:s.ssh||s.snm||'',state:s.state||'',reach:(s.reach_until||0)>NOW?s.reach:'school',reachUntil:(s.reach_until||0)>NOW?s.reach_until:0,items:its.filter(i=>i.sid===s.id).map(i=>({id:'I'+i.id,title:i.title,price:i.price,desc:i.descr,avail:!!i.avail&&i.qty_left!==0,qtyLeft:i.qty_left,review:i.review,reviewNote:mine?i.review_note:null,imgs:Array.from({length:i.n},(_,k)=>'/api/photo/-'+i.id+'/'+k)}))}))}};
+    return{stores:ss.map(s=>({id:'S'+s.id,logo:s.logo?'/api/store-logo/'+s.id+'?v='+(s.logo_v||0):null,deliv:dlv(s),rating:rat(s),uid:s.uid,vlevel:s.role==='vendor'?0:s.svl||0,name:s.name,emoji:s.emoji,cat:s.cat,desc:s.descr,spot:s.spot,phone:s.phone,open:!!s.isopen,vendor:!!s.vendor,featured:(s.featured_until||0)>NOW,featuredUntil:s.featured_until||0,founding:s.founding||0,stuOff:!s.sok,verified:!!s.ov,school:s.ssh||s.snm||'',state:s.state||'',reach:(s.reach_until||0)>NOW?s.reach:'school',reachUntil:(s.reach_until||0)>NOW?s.reach_until:0,items:its.filter(i=>i.sid===s.id).map(i=>({id:'I'+i.id,title:i.title,price:i.price,desc:i.descr,avail:!!i.avail&&i.qty_left!==0,qtyLeft:i.qty_left,review:i.review,reviewNote:mine?i.review_note:null,imgs:Array.from({length:i.n},(_,k)=>'/api/photo/-'+i.id+'/'+k)}))}))}};
     return mine?J(await run()):edge('stores/'+(await ver(env))+'/'+encodeURIComponent(v.join('|')),30,run)}
   if(path.startsWith('stores/')&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
     if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);
     const b=await request.json().catch(()=>({})),mine=await env.DB.prepare('SELECT id FROM stores WHERE uid=?').bind(u.id).first(),ok=()=>bump().then(()=>J({ok:true}));
-    if(path==='stores/create'){const d=b.d||{},ref=String(b.reference||'');{const x=await soonGate(env,u);if(x)return x}
+    if(path==='stores/create'){const d=b.d||{},ref=String(b.reference||'');{const x=await soonGate(env,u)||await stuGate(env,u);if(x)return x}
       if(!/^[\w-]{6,80}$/.test(ref))return J({error:'Invalid payment reference.'},400);
       // Older app versions: payment is checked here; newer ones go through pay/start and pay/confirm.
       if(await env.DB.prepare('SELECT 1 FROM pending_pay WHERE ref=?').bind(ref).first()){const f=await fulfil(env,ref);return f.error?J(f,400):J({ok:true,id:f.id})}
@@ -1159,7 +1164,7 @@ async function route({request,env,params,waitUntil}){
       await env.DB.prepare('UPDATE stores SET '+ks.map(k=>k+'=?').join(',')+',logo_v=? WHERE id=?').bind(...ks.map(k=>up[k]),Date.now(),mine.id).run();return ok()}
     if(path==='stores/delivery'){const d=dlvIn(b);if(d.error)return J(d,400);await env.DB.prepare('UPDATE stores SET deliv_on=?,deliv_fee=?,deliv_note=? WHERE id=?').bind(d.on,d.fee,d.note,mine.id).run();return ok()}
     if(path==='stores/toggle'){await env.DB.prepare('UPDATE stores SET isopen=1-isopen WHERE id=?').bind(mine.id).run();return ok()}
-    if(path==='stores/item'){{const x=paused(u)||await vGate(env,u)||await soonGate(env,u)||await sellerOk(env,u);if(x)return x}const t=k=>String(b[k]||'').trim(),price=Math.round(+b.price),imgs=Array.isArray(b.imgs)?b.imgs:[];
+    if(path==='stores/item'){{const x=paused(u)||await vGate(env,u)||await soonGate(env,u)||await stuGate(env,u)||await sellerOk(env,u);if(x)return x}const t=k=>String(b[k]||'').trim(),price=Math.round(+b.price),imgs=Array.isArray(b.imgs)?b.imgs:[];
       if(t('title').length<3||t('title').length>80)return J({error:'Enter a title of 3 to 80 characters.'},400);
       if(!(price>=MIN_PRICE&&price<=10000000))return J({error:price>=1&&price<MIN_PRICE?'The minimum price is ₦500.':'Enter a valid price.'},400);
       if(imgs.length<1||imgs.length>8||!imgs.every(imgOk))return J({error:'Add 1 to 8 photos (JPEG, PNG or WebP).'},400);
@@ -1205,17 +1210,19 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       fail=async(m)=>{await undo();return J({error:m},400)};
     for(const id of Object.keys(counts)){const q=counts[id],kind=id[0]==='L'?'listing':id[0]==='I'?'item':null,rid=+id.slice(1);
       if(!kind||!rid)return fail('Invalid item in bag.');
-      if(kind==='listing'){const L=await env.DB.prepare("SELECT l.*,u.name un,u.phone up,u.acct_no,u.acct_name,u.bank_name,u.bank_code bcode,u.bank_verified bok,u.deliv_on,u.deliv_fee,u.deliv_note,"+LCH('sc')+" lch FROM listings l JOIN users u ON u.id=l.uid LEFT JOIN schools sc ON sc.id=l.school_id WHERE l.id=? AND l.review='live' AND "+LIVE).bind(rid).first();
+      if(kind==='listing'){const L=await env.DB.prepare("SELECT l.*,u.name un,u.phone up,u.acct_no,u.acct_name,u.bank_name,u.bank_code bcode,u.bank_verified bok,u.deliv_on,u.deliv_fee,u.deliv_note,"+LCH('sc')+" lch,"+SOK('u','sc')+" sok FROM listings l JOIN users u ON u.id=l.uid LEFT JOIN schools sc ON sc.id=l.school_id WHERE l.id=? AND l.review='live' AND "+LIVE).bind(rid).first();
         if(L&&L.uid===u.id)return fail("You can't buy your own item.");
         if(!L||L.sold)return fail('An item in your bag is no longer available.');
         if(L.lch!=='live')return fail('"'+L.title+'" isn\'t on sale yet: Stall opens at the seller\'s school soon.');
+        if(!L.sok)return fail('"'+L.title+'" is no longer on sale.');
         if(!L.acct_no||!L.acct_name)return fail('The seller for "'+L.title+'" has not set up payment details yet.');
         const tk=await env.DB.prepare('UPDATE listings SET qty_left=qty_left-?,sold=CASE WHEN qty_left-?<=0 THEN 1 ELSE 0 END WHERE id=? AND qty_left>=?').bind(q,q,rid,q).run();
         if(!tk.meta.changes)return fail(L.qty_left>0?'Only '+L.qty_left+' of "'+L.title+'" left. Reduce the quantity in your bag.':'"'+L.title+'" just sold out.');taken.push(['listing',rid,q]);
         const gk='U'+L.uid;(groups[gk]=groups[gk]||{seller:L.uid,sname:L.un,sphone:L.up,bank:L.bank_name,acct:L.acct_no,acctName:L.acct_name,bcode:L.bcode,bok:L.bok,dl:dlv(L),pickup:L.spot||'',items:[]}).items.push({kind:'listing',ref_id:L.id,title:L.title,price:L.price,q,unique:true})}
-      else{const I=await env.DB.prepare('SELECT i.*,s.id sid,s.name sname,s.phone sphone,s.isopen,s.acct,s.acct_name,s.bank,s.bank_code bcode,s.bank_verified bok,s.deliv_on,s.deliv_fee,s.deliv_note,s.spot sspot,'+LCH('sc')+' lch FROM store_items i JOIN stores s ON s.id=i.sid JOIN users u ON u.id=s.uid LEFT JOIN schools sc ON sc.id=s.school_id WHERE i.id=? AND '+LIVE).bind(rid).first();
+      else{const I=await env.DB.prepare('SELECT i.*,s.id sid,s.name sname,s.phone sphone,s.isopen,s.acct,s.acct_name,s.bank,s.bank_code bcode,s.bank_verified bok,s.deliv_on,s.deliv_fee,s.deliv_note,s.spot sspot,'+LCH('sc')+' lch,'+SOK('u','sc')+' sok FROM store_items i JOIN stores s ON s.id=i.sid JOIN users u ON u.id=s.uid LEFT JOIN schools sc ON sc.id=s.school_id WHERE i.id=? AND '+LIVE).bind(rid).first();
         if(!I||!I.avail||!I.isopen||I.review!=='live')return fail('An item in your bag is no longer available.');
         if(I.lch!=='live')return fail('"'+I.title+'" isn\'t on sale yet: Stall opens at '+I.sname+'\'s school soon.');
+        if(!I.sok)return fail('"'+I.title+'" is no longer on sale.');
         const acctNo=I.acct;if(!acctNo||!I.acct_name)return fail('The store for "'+I.title+'" has not set up payment details yet.');
         if(I.qty_left!=null){const tk=await env.DB.prepare('UPDATE store_items SET qty_left=qty_left-? WHERE id=? AND qty_left>=?').bind(q,rid,q).run();
           if(!tk.meta.changes)return fail(I.qty_left>0?'Only '+I.qty_left+' of "'+I.title+'" left. Reduce the quantity in your bag.':'"'+I.title+'" just sold out.');taken.push(['item',rid,q])}
@@ -1673,7 +1680,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       if(f==='launch')w.push("(IFNULL(s.launch,'soon')!='soon' OR EXISTS(SELECT 1 FROM waitlist x WHERE x.school_id=s.id AND x.want IS NOT NULL))");
       if(q){w.push('(s.name LIKE ? OR s.short LIKE ? OR s.state LIKE ?)');v.push(like,like,like)}
       const W=k=>"(SELECT COUNT(*) FROM waitlist x WHERE x.school_id=s.id AND x.want IN ("+k+"))";
-      return list('schools s',"s.id,s.name,s.short,s.state,s.kind,s.active,s.created,IFNULL(s.launch,'soon') AS launch,(SELECT COUNT(*) FROM users WHERE school_id=s.id) AS users,"+W("'buy','sell','both'")+" AS waiting,"+W("'buy','both'")+" AS wbuy,"+W("'sell','both'")+" AS wsell,(SELECT COUNT(*) FROM stores WHERE school_id=s.id) AS stores",w,v,f==='launch'?"(CASE IFNULL(s.launch,'soon') WHEN 'live' THEN 0 WHEN 'sellers' THEN 1 ELSE 2 END),waiting DESC,s.name":'s.name')}
+      return list('schools s',"s.id,s.name,s.short,s.state,s.kind,s.active,s.created,IFNULL(s.launch,'soon') AS launch,IFNULL(s.stu_sell,1) AS stu_sell,(SELECT COUNT(*) FROM users WHERE school_id=s.id) AS users,"+W("'buy','sell','both'")+" AS waiting,"+W("'buy','both'")+" AS wbuy,"+W("'sell','both'")+" AS wsell,(SELECT COUNT(*) FROM stores WHERE school_id=s.id) AS stores",w,v,f==='launch'?"(CASE IFNULL(s.launch,'soon') WHEN 'live' THEN 0 WHEN 'sellers' THEN 1 ELSE 2 END),waiting DESC,s.name":'s.name')}
     if(path==='admin/schools/launch'&&request.method==='POST'){const id=+b.id,l=String(b.launch||'');if(!LAUNCH.includes(l))return J({error:'Choose Coming soon, Sellers only or Live.'},400);
       const sc=await schoolOf(env,id);if(!sc)return J({error:'School not found.'},404);if(sc.launch===l)return J({ok:true,launch:l});
       await env.DB.prepare('UPDATE schools SET launch=?,active=1 WHERE id=?').bind(l,id).run();
@@ -1681,6 +1688,14 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       if(l==='live')await env.DB.prepare('INSERT OR IGNORE INTO waitlist(uid,school_id,want,created) SELECT id,school_id,NULL,? FROM users WHERE school_id=?').bind(Date.now(),id).run();
       await bumpVer(env);await logA(env,a,'other',{soon:'set school to Coming soon',sellers:'opened school to sellers',live:'launched school'}[l],(sc.short||sc.name)+' · '+sc.state);
       TELL_T=Date.now();waitUntil(tellLaunch(env).catch(()=>{}));return J({ok:true,launch:l})}
+    if(path==='admin/schools/stusell'&&request.method==='POST'){if(!a.is_admin)return J({error:'Only admins can change this.'},403);const id=+b.id,on=b.on?1:0;const sc=await schoolOf(env,id);if(!sc)return J({error:'School not found.'},404);if(sc.stu_sell===on)return J({ok:true,on:!!on});
+      await env.DB.prepare('UPDATE schools SET stu_sell=? WHERE id=?').bind(on?null:0,id).run();await bumpVer(env);
+      await logA(env,a,'other',on?'allowed students to sell':'stopped students selling',(sc.short||sc.name)+' · '+sc.state);
+      // Students who wanted to sell there hear that they can now (their items and stores show again by themselves).
+      if(on&&sc.launch!=='soon')waitUntil((async()=>{const rs=(await env.DB.prepare("SELECT DISTINCT u.id FROM users u LEFT JOIN waitlist w ON w.uid=u.id WHERE u.school_id=? AND u.role='student' AND IFNULL(u.status,'active')='active' AND (u.seller_ok IS NOT NULL OR w.want IN ('sell','both') OR EXISTS(SELECT 1 FROM listings WHERE uid=u.id) OR EXISTS(SELECT 1 FROM stores WHERE uid=u.id)) LIMIT 400").bind(id).all()).results,nm=sc.short||sc.name,url=SITE(env)+'/app';
+        for(let i=0;i<rs.length;i+=10)await Promise.all(rs.slice(i,i+10).map(r=>notify(env,r.id,'Students can sell on Stall at '+nm+' again','You can sell on Stall again',['Students at <b>'+esc(sc.name)+'</b> can sell on Stall again. Any items and store you already had are back on show to buyers.'],'Open Stall',url)));
+        if(MQ_DIRTY){MQ_DIRTY=false;await drainMail(env).catch(()=>{})}})().catch(()=>{}));
+      return J({ok:true,on:!!on})}
     if(path==='admin/schools/save'&&request.method==='POST'){const n=String(b.name||'').trim().slice(0,90),sh=String(b.short||'').trim().toUpperCase().slice(0,16)||null,st=String(b.state||'');
       if(n.length<4||!STATES.includes(st))return J({error:'Enter the full name and choose a state.'},400);
       if(b.id){await env.DB.prepare('UPDATE schools SET name=?,short=?,state=?,active=1 WHERE id=?').bind(n,sh,st,+b.id).run();await env.DB.batch(['users','listings','stores'].map(tb=>env.DB.prepare('UPDATE '+tb+' SET state=? WHERE school_id=?').bind(st,+b.id)))}
@@ -1824,7 +1839,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
         const sub=await subFor(env,{name:c.rname,bank_code:c.bank_code,acct_no:c.acct_no,bank_verified:c.bank_verified});if(sub.error)return J({error:'The class rep\'s bank account isn\'t ready for payments yet. Ask them to check it on Stall.'},400);
         // Accounts the team marks fee-free (e.g. a partner association) collect with no Stall fee; payers still cover Paystack's charge.
         const st=c.rnf?0:await collectFee(env),ch=collectCharge(c.amount,st);w={amount:c.amount+ch,label:'Class: '+c.title,split:{subaccount:sub.code,transaction_charge:st*100,bearer:'subaccount'}};data={cid:c.id,code:c.code,amount:c.amount,fee:st}}
-      else if(kind==='store'){{const x=paused(u)||await soonGate(env,u)||await sellerOk(env,u);if(x)return x}if(u.role==='student'&&!(u.vlevel>=1)&&(await getK(env,'require_verified'))!=='0')return J({error:'Verify that you\'re a student before you sell: confirm your school email or upload your student ID in Account → Verify.',verify:true},403);const d=b.d||{},bad=storeBad(d);if(bad)return J({error:bad},400);if(await env.DB.prepare('SELECT 1 FROM stores WHERE uid=?').bind(u.id).first())return J({error:'You already have a store.'},409);
+      else if(kind==='store'){{const x=paused(u)||await soonGate(env,u)||await stuGate(env,u)||await sellerOk(env,u);if(x)return x}if(u.role==='student'&&!(u.vlevel>=1)&&(await getK(env,'require_verified'))!=='0')return J({error:'Verify that you\'re a student before you sell: confirm your school email or upload your student ID in Account → Verify.',verify:true},403);const d=b.d||{},bad=storeBad(d);if(bad)return J({error:bad},400);if(await env.DB.prepare('SELECT 1 FROM stores WHERE uid=?').bind(u.id).first())return J({error:'You already have a store.'},409);
         if(u.role==='vendor'&&u.status!=='active')return J({error:'Your shop is not approved yet.'},403);
         // A free store code opens the store with no fee and a numbered Founding Seller badge, even past the usual limit.
         if(b.code){const code=String(b.code).trim().toUpperCase().slice(0,20),now=Date.now();if(!await allow(env,'scode:'+u.id,10,36e5))return slow();

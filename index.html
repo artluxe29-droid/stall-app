@@ -923,7 +923,7 @@ function openDetail(id){
   d.innerHTML=`<button class="dx" data-close aria-label="Close">×</button>${gal(i)}<div class="pad">
    <div class="dprice">${naira(i.price)}</div><h2 class="dtitle">${esc(i.title)}</h2>
    <p class="meta">${i.featured&&!s?'<span class="tag ft" style="position:static;display:inline-block;margin-right:6px">Featured</span>':''}${esc(i.cond)} · Meet at ${esc(i.spot)} · ${ago(i.t)}</p>${dlvLine(i.deliv)}
-   ${stk(i)}${own&&i.review&&i.review!=='live'?`<div class="rvw ${i.review}" style="margin-top:10px">${RV[i.review]}${i.reviewNote&&i.review==='rejected'?': '+esc(i.reviewNote):''}${i.review==='rejected'?' Delete it and post again with a clear photo of the actual item.':' Buyers will see it once it passes.'}</div>`:''}
+   ${stk(i)}${own&&i.stuOff?'<div class="rvw review" style="margin-top:10px">Hidden from buyers: students can\'t sell at your school right now.</div>':''}${own&&i.review&&i.review!=='live'?`<div class="rvw ${i.review}" style="margin-top:10px">${RV[i.review]}${i.reviewNote&&i.review==='rejected'?': '+esc(i.reviewNote):''}${i.review==='rejected'?' Delete it and post again with a clear photo of the actual item.':' Buyers will see it once it passes.'}</div>`:''}
    <div class="dsep"></div><p style="color:var(--muted)">${esc(i.desc||'No extra details.')}</p>
    <p style="margin-top:14px;font-weight:600">Sold by ${esc(i.seller)}${i.school?' · '+esc(i.school):''}${i.verified?' '+VB:''} ${SB(i.vlevel)}</p><p class="meta"><button class="link" data-share="${id}" style="margin-right:10px">${ico('share')} Share</button>${own?'':`<button class="link" data-report="listing" data-target="${id}" style="margin-right:10px">${ico('flag')} Report</button>`}${i.rating&&i.rating.n?stars(i.rating)+' ':'No ratings yet '}<button class="link" data-reviews="${i.sid}" data-rname="${esc(i.seller)}">${i.rating&&i.rating.n?'See reviews':''}</button></p>
    ${own&&!s?boostBox(id,'listing',i.featured,i.featuredUntil):''}
@@ -1590,6 +1590,7 @@ document.addEventListener('click',e=>{
   if(id0==='tbSell'){S.user&&S.user.role==='vendor'?(myStore()?storePage(myStore().id):view('stores')):$('#sellBtn').click()}
   if(id==='bagBtn')openCart();
   if(id==='goCheckout')openCheckout();
+  if((id==='sellBtn'||id==='sellHero'||id==='sellEmpty'||id==='openStore'&&!myStore())&&stuOff())return toast(stuMsg());
   if(id==='sellBtn'||id==='sellHero'||id==='sellEmpty'){const f=$('#form').elements;f.seller.value=S.user.name;f.phone.value=S.user.phone;wireBankVerify($('#form'));earnAll();$('#sell').showModal()}
   if(id==='gNext'){si++;gate()}
   if(id==='toIn'){authMode='in';S.obSeen=1;save();clearTimeout(obT);$('#gate').classList.remove('obg');gate()}
@@ -1944,6 +1945,9 @@ const allStores=()=>STORES;
 const sItems=()=>allStores().flatMap(s=>s.items.map(it=>({...it,cat:s.cat,spot:s.spot,seller:s.name,phone:s.phone||'',multi:true,se:s.emoji,cond:'',t:0})));
 const uid=()=>S.user?(S.user.id||S.user.matric):'';
 // Which store is mine: matched on the account id (the store list no longer carries the owner's matric number).
+// Admin can turn student selling off at a school (some schools don't allow student businesses); buying and collections carry on.
+const stuOff=()=>!!(S.user&&S.user.role==='student'&&S.user.schoolInfo&&S.user.schoolInfo.stu_sell===0),
+  stuMsg=()=>'Students can\'t sell on Stall at '+(S.user.schoolInfo.short||S.user.schoolInfo.name)+' right now. You can still buy from campus vendors and pay for collections.';
 const myStore=()=>S.user?STORES.find(s=>s.uid===S.user.uid):undefined;
 let cur='';
 function refresh(){render();if(!$('#store').hidden)storePage(cur);if($('#cart').open)openCart()}
@@ -1963,6 +1967,7 @@ function storePage(id){
    <div class="sbtn">${!own?`<button class="pill acc" data-chat="${s.id}">Message the store</button>`:''}${own?`<button class="pill alt" data-kit="status">${ico('megaphone')} Now on Stall kit</button>`:`<button class="pill alt" data-sharestore="${s.id}">${ico('share')} Share store</button>`}${!own?`<button class="link" data-report="store" data-target="${s.id}">${ico('flag')} Report</button>`:''}</div></div>
    <div class="wrap" style="padding-top:18px;max-width:760px">${s.desc?`<p style="color:var(--muted)">${esc(s.desc)}</p>`:""}<p class="meta ico-line">${ico('pin')} ${esc(s.spot)}</p>${dlvLine(s.deliv)}
    ${own&&!s.logo?`<div class="lnudge"><span class="aic">${ico('image')}</span><div><b>Add your logo</b><p class="meta">Many stores use the same icon. A logo helps buyers spot you quickly and remember you.</p></div><button class="pill sm" data-look="1">Add logo</button></div>`:''}
+   ${own&&s.stuOff?'<div class="rvw review" style="margin-top:10px">Your store is hidden from buyers: students can\'t sell at your school right now. It shows again as soon as that changes.</div>':''}
    ${own?`<div class="acts"><button class="pill sm" id="addItem">Add item</button><button class="pill sm alt" data-look="1">${s.logo?'Change logo':'Logo & icon'}</button><button class="pill sm alt" data-bulk="store">Add several</button><button class="pill sm alt" data-dlvset="store">Delivery${s.deliv&&s.deliv.on?' · '+naira(s.deliv.fee):': off'}</button><button class="pill sm alt" data-toggle="1">${s.open?'Close store':'Open store'}</button><button class="pill sm alt" data-sset="1">Store settings</button></div>${boostBox(s.id,'store',s.featured,s.featuredUntil)}${reachBox(s)}`:''}
    <div style="margin-top:14px">${s.items.length?s.items.map(it=>{const q=qty(it.id),ok=s.open&&it.avail,t2={...it,cat:s.cat,se:s.emoji};return `<div class="line"><div class="mini" data-item="${it.id}" style="${cv(t2)};cursor:pointer">${ic(t2)}</div><div class="t"><b>${esc(it.title)}</b><span class="meta">${esc(it.desc||'')}</span>${stk({...it,qty:it.qtyLeft==null?1:2})}${own&&it.review&&it.review!=='live'?`<div class="rvw ${it.review}">${RV[it.review]}${it.reviewNote&&it.review==='rejected'?': '+esc(it.reviewNote):''}</div>`:''}<span class="price" style="font-size:17px">${naira(it.price)}</span></div>
     ${ok?(q?`<span class="step"><button data-dec="${it.id}" aria-label="Remove one">−</button><b>${q}</b><button data-inc="${it.id}" aria-label="Add one">+</button></span>`:`<button class="pill sm" data-inc="${it.id}">Add</button>`):`<span class="meta">${s.open?'Sold out':'Closed'}</span>`}
@@ -2306,6 +2311,9 @@ async function openAdmin(){const d=$('#adminDlg');AD.rev=!S.user.admin;if(AD.rev
       const [d,m]=v.split(',').map(Number);return mailAct({act:'plan',day:d,month:m})}
     if(b=c('[data-mact]')){b.disabled=true;await mailAct({act:b.dataset.mact});return}
     if(b=c('[data-wl]')){AD.wl={id:+b.dataset.wl,nm:b.dataset.nm,q:'',want:'',page:0};return adminTab('wait')}
+    if(b=c('[data-stusell]')){const on=b.dataset.on==='1',nm=b.dataset.nm;
+      if(!confirm(on?`Let students sell at ${nm} again?\n\nTheir items and stores show to buyers again, and students there who wanted to sell are told.`:`Stop students selling at ${nm}?\n\nStudents there can't list items or open stores, and their items and stores are hidden from buyers. Campus vendors keep selling, and buying and collections carry on.`))return;
+      b.disabled=true;const r=await apiPost('admin/schools/stusell',{id:+b.dataset.stusell,on});if(r.error){b.disabled=false;return toast(r.error)}toast(on?'Students can sell at '+nm+' again.':'Student selling is off at '+nm+'.');adminLoad();return}
     if(b=c('[data-sched]')){const f=$('#se'+b.dataset.sched);f.hidden=!f.hidden;return}
     if(b=c('[data-launch]')){const l=b.dataset.l,nm=b.dataset.nm,msg={live:`Launch Stall at ${nm}?\n\nEveryone can buy and sell there, and everyone at ${nm} (waitlist included) gets a notification and an email.`,sellers:`Open ${nm} to sellers only?\n\nSellers can verify, open stores and list items now. Buyers wait until you launch. Sellers on the waitlist are told.`,soon:`Set ${nm} back to Coming soon?\n\nIts listings and stores are hidden and selling stops until you open it again.`}[l];
       if(!confirm(msg))return;b.disabled=true;const r=await apiPost('admin/schools/launch',{id:+b.dataset.launch,launch:l});if(r.error){b.disabled=false;return toast(r.error)}toast(l==='live'?nm+' is live. Telling everyone there now.':l==='sellers'?nm+' is open to sellers.':nm+' is back to Coming soon.');adminLoad();return}
@@ -2601,8 +2609,9 @@ function aItem(x){const[l,kk]={review:['Needs a look','warn'],checking:['Checkin
    ${p?`<form id="ir${x.id}" data-irf="${x.id}" class="rjf" hidden><input name="why" maxlength="160" placeholder="Reason, e.g. photo doesn't show the item"><div class="aacts"><button class="pill sm red" type="submit">Reject</button><button class="pill sm alt" type="button" data-irj="${x.id}">Cancel</button></div></form>`:''}</div>
    ${p?`<div class="aacts"><button class="pill sm" data-iok="${x.id}">Approve</button>${x.review!=='rejected'?`<button class="pill sm alt" data-irj="${x.id}">Reject</button>`:''}</div>`:''}</div>`}
 const LNCH={soon:['Coming soon',''],sellers:['Sellers only','warn'],live:['Live','ok']};
-function aSchool(x){const L=x.launch||'soon';return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.name)}</b>${x.short?bdg(x.short):''}${x.active?bdg(LNCH[L][0],LNCH[L][1]):bdg('Requested','warn')}</div><small>${esc(x.state)} · ${esc(x.kind||'')} · ${x.users} ${x.users===1?'person':'people'}${x.stores?' · '+x.stores+' '+(x.stores===1?'store':'stores'):''}</small>
+function aSchool(x){const L=x.launch||'soon';return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.name)}</b>${x.short?bdg(x.short):''}${x.active?bdg(LNCH[L][0],LNCH[L][1]):bdg('Requested','warn')}${x.active&&!x.stu_sell?bdg('Students can\'t sell','bad'):''}</div><small>${esc(x.state)} · ${esc(x.kind||'')} · ${x.users} ${x.users===1?'person':'people'}${x.stores?' · '+x.stores+' '+(x.stores===1?'store':'stores'):''}</small>
    ${x.waiting?`<small><b>${x.waiting} on the waitlist</b> · ${x.wbuy} to buy · ${x.wsell} to sell · <button class="link" type="button" data-wl="${x.id}" data-nm="${esc(x.short||x.name)}">See who's waiting</button></small>`:''}
+   ${x.active?`<small>Students can sell here: <b>${x.stu_sell?'On':'Off'}</b> · <button class="link" type="button" data-stusell="${x.id}" data-on="${x.stu_sell?0:1}" data-nm="${esc(x.short||x.name)}">${x.stu_sell?'Turn off':'Turn on'}</button></small>`:''}
    ${x.active?`<div class="aacts lseg">${Object.entries(LNCH).map(([k,[l]])=>`<button class="pill sm ${k===L?'':'alt'}" data-launch="${x.id}" data-l="${k}" data-nm="${esc(x.short||x.name)}" ${k===L?'disabled':''}>${l}</button>`).join('')}</div>`:''}
    <form id="se${x.id}" data-schf="${x.id}" class="rjf" ${x.active?'hidden':''}><input name="name" maxlength="90" value="${esc(x.name)}"><input name="short" maxlength="16" value="${esc(x.short||'')}" placeholder="Short name, e.g. UNILAG"><select name="state">${STATES.map(y=>`<option ${y===x.state?'selected':''}>${y}</option>`).join('')}</select><div class="aacts"><button class="pill sm" type="submit">${x.active?'Save':'Approve school'}</button></div></form></div>
    ${x.active?`<div class="aacts"><button class="pill sm alt" data-sched="${x.id}">Edit</button></div>`:''}</div>`}
