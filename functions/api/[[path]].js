@@ -75,7 +75,7 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   for(const s0 of stale)if((await env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,s0.id).run()).meta.changes)ids.push(s0.id);
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='35';
+const SCHEMA_V='36';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -119,7 +119,7 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'ALTER TABLE users ADD COLUMN ref_code TEXT','ALTER TABLE users ADD COLUMN referred_by INTEGER','ALTER TABLE users ADD COLUMN ref_paid INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN credit INTEGER NOT NULL DEFAULT 0',
     'CREATE UNIQUE INDEX IF NOT EXISTS users_ref_code ON users(ref_code)','CREATE INDEX IF NOT EXISTS users_referred_by ON users(referred_by)',
     'CREATE TABLE IF NOT EXISTS credit_log(id INTEGER PRIMARY KEY AUTOINCREMENT,uid INTEGER NOT NULL,amt INTEGER NOT NULL,why TEXT,t INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS credit_log_uid ON credit_log(uid,t)',
-    'ALTER TABLE stores ADD COLUMN logo TEXT','ALTER TABLE stores ADD COLUMN founding INTEGER','ALTER TABLE users ADD COLUMN matric_claim TEXT',"UPDATE collect_pays SET matric=NULL WHERE matric=(SELECT phone FROM users WHERE users.id=collect_pays.uid)",'CREATE INDEX IF NOT EXISTS stores_founding ON stores(school_id,founding)','ALTER TABLE stores ADD COLUMN logo_v INTEGER','ALTER TABLE schools ADD COLUMN launch TEXT','ALTER TABLE users ADD COLUMN seen INTEGER','CREATE INDEX IF NOT EXISTS users_seen ON users(seen)','CREATE INDEX IF NOT EXISTS waitlist_school_created ON waitlist(school_id,created)',
+    'ALTER TABLE stores ADD COLUMN logo TEXT','ALTER TABLE stores ADD COLUMN founding INTEGER','ALTER TABLE users ADD COLUMN matric_claim TEXT',"UPDATE collect_pays SET matric=NULL WHERE matric=(SELECT phone FROM users WHERE users.id=collect_pays.uid)",'CREATE INDEX IF NOT EXISTS stores_founding ON stores(school_id,founding)','ALTER TABLE stores ADD COLUMN logo_v INTEGER','ALTER TABLE schools ADD COLUMN launch TEXT','ALTER TABLE users ADD COLUMN seen INTEGER','CREATE TABLE IF NOT EXISTS mail_q(id INTEGER PRIMARY KEY AUTOINCREMENT,to_addr TEXT NOT NULL,subject TEXT,html TEXT,pri INTEGER NOT NULL DEFAULT 1,tries INTEGER NOT NULL DEFAULT 0,next INTEGER NOT NULL,created INTEGER NOT NULL,status TEXT NOT NULL,claim INTEGER,claimed INTEGER,sent INTEGER,err TEXT)','CREATE INDEX IF NOT EXISTS mail_q_status ON mail_q(status,next)','CREATE INDEX IF NOT EXISTS mail_q_claim ON mail_q(claim)','CREATE TABLE IF NOT EXISTS mail_count(day TEXT PRIMARY KEY,n INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS users_seen ON users(seen)','CREATE INDEX IF NOT EXISTS waitlist_school_created ON waitlist(school_id,created)',
     'CREATE TABLE IF NOT EXISTS waitlist(uid INTEGER PRIMARY KEY,school_id INTEGER NOT NULL,want TEXT,created INTEGER NOT NULL,told INTEGER NOT NULL DEFAULT 0)','CREATE INDEX IF NOT EXISTS waitlist_school ON waitlist(school_id,told)',
     'ALTER TABLE orders ADD COLUMN method TEXT','ALTER TABLE orders ADD COLUMN addr TEXT','ALTER TABLE orders ADD COLUMN dphone TEXT','ALTER TABLE orders ADD COLUMN dstage TEXT','ALTER TABLE orders ADD COLUMN track TEXT',
     'CREATE INDEX IF NOT EXISTS listings_school ON listings(school_id,created)','CREATE INDEX IF NOT EXISTS listings_state ON listings(state,created)','CREATE INDEX IF NOT EXISTS listings_review ON listings(review)','CREATE INDEX IF NOT EXISTS stores_school ON stores(school_id)',
@@ -161,7 +161,7 @@ async function tellLaunch(env){const rows=(await env.DB.prepare("SELECT w.uid,w.
   for(let i=0;i<rows.length;i+=10)await Promise.all(rows.slice(i,i+10).map(r=>{const nm=r.short||r.name,sell=r.want==='sell'||r.want==='both',fs='The first '+fN+' stores at your school get a numbered Founding Seller badge.';
     return r.l==='live'?notify(env,r.uid,'Stall is now open at '+nm,'Stall is open at '+nm,['Stall is now live at <b>'+esc(r.name)+'</b>. Buy and sell with students at your school, and your money is held until your item is in your hands.',...(sell?['Open your store or list your first item today. '+fs]:[])],'Open Stall',url)
       :notify(env,r.uid,'Sellers can now set up on Stall at '+nm,'Set up your stall at '+nm,['Stall opens at <b>'+esc(r.name)+'</b> soon, and sellers can get ready now.','Verify that you\'re a student, open your store and list your items. They go live to buyers on launch day. '+fs],'Start selling',url)}));
-  return rows.length}
+  if(MQ_DIRTY){MQ_DIRTY=false;await drainMail(env).catch(()=>{})}return rows.length}
 // Selling, stores and collections wait until the school opens (to sellers or everyone). Admins can always try things out.
 // With the verification gate on (the default), a student can't buy, sell, chat or pay until a school document or school email is approved.
 const vGate=async(env,u)=>u&&u.role==='student'&&!(u.vlevel>=1)&&!u.is_admin&&(await getK(env,'verify_gate'))!=='0'?J({error:'Your student verification isn\'t approved yet. You can use Stall as soon as it is.',needVerify:true},403):null;
@@ -542,16 +542,70 @@ async function weeklyMails(env){if(!env.RESEND_API_KEY||Date.now()-WK_AT<6e4)ret
     const nx=rs.length?rs[rs.length-1].seller:-1;
     if(!(await env.DB.prepare('UPDATE settings SET v=? WHERE k=? AND v=?').bind(String(nx),k,String(cur)).run()).meta.changes)return;
     for(const r of rs){const w=await weekOf(env,r.seller,ws);if(w.n)await mailTo(env,r.seller,w.subject,mailReceipt(w,'Open Stall',SITE(env)+'/app?go=selling'))}}catch(e){}}
-async function sendEmail(env,to,subject,html){if(!env.RESEND_API_KEY||!to)return{skipped:true};
+// Sends one email straight away (sign-in codes, password resets, Admin tests). Everything else goes through the email queue below.
+async function sendEmail(env,to,subject,html,tries=0){if(!env.RESEND_API_KEY||!to)return{skipped:true};
   try{const r=await fetch('https://api.resend.com/emails',{signal:T_OUT(),method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'content-type':'application/json'},body:JSON.stringify({from:env.EMAIL_FROM||'Stall <onboarding@resend.dev>',to:[to],subject,html})});
-    const j=await r.json().catch(()=>({}));const ok=r.ok&&!!j.id;await setK(env,'email_last',JSON.stringify({t:Date.now(),ok,err:ok?null:String(j.message||j.name||('HTTP '+r.status)).slice(0,200)}));return ok?{ok:true}:{error:j.message||'Email failed'}}
+    const j=await r.json().catch(()=>({}));if(r.status===429&&!/quota/.test(j.name||'')&&tries<3){await sleep(700*(tries+1));return sendEmail(env,to,subject,html,tries+1)}
+    const ok=r.ok&&!!j.id;if(ok)await mailCount(env,1);await setK(env,'email_last',JSON.stringify({t:Date.now(),ok,err:ok?null:String(j.message||j.name||('HTTP '+r.status)).slice(0,200)}));return ok?{ok:true}:{error:j.message||'Email failed'}}
   catch(e){await setK(env,'email_last',JSON.stringify({t:Date.now(),ok:false,err:String(e&&e.message||e).slice(0,200)})).catch(()=>{});return{error:'Email failed'}}}
 // Order emails go only to confirmed email addresses, and only if the person hasn't turned them off.
 // html replaces the standard email, e.g. with a receipt.
 async function notify(env,uid,subject,title,lines,btn,url,html){try{await ping(env,uid,title,String(lines[0]||'').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').slice(0,180),url?new URL(url).pathname+new URL(url).search:'/');
   await mailTo(env,uid,subject,html||mailHtml(title,lines,btn,url))}catch(e){}}
 async function mailTo(env,uid,subject,html){const u=await env.DB.prepare('SELECT email,email_verified,email_notify FROM users WHERE id=?').bind(uid).first();
-  if(!u||!u.email_verified||!u.email_notify||!u.email)return;await sendEmail(env,u.email,subject,html)}
+  if(!u||!u.email_verified||!u.email_notify||!u.email)return;await enqueueMail(env,u.email,subject,html)}
+// ---- Email queue. Order, launch and statement emails wait in mail_q and go out in batches at a pace the email provider accepts.
+// Busy moments (a school launching, a rush of orders) just make the queue longer; nothing is dropped. Failed sends are retried with
+// growing gaps; when the plan's daily or monthly allowance is used up, the rest wait for it to reset instead of failing.
+const sleep=ms=>new Promise(z=>setTimeout(z,ms));
+let MQ_DIRTY=false,DRAINING=0;
+const MQ_DAY=()=>new Date().toISOString().slice(0,10); // the provider counts its allowance by UTC day
+async function enqueueMail(env,to,subject,html,pri=1){const t=Date.now();await env.DB.prepare("INSERT INTO mail_q(to_addr,subject,html,pri,next,created,status) VALUES(?,?,?,?,?,?,'q')").bind(to,subject,html,pri,t,t).run();MQ_DIRTY=true}
+const mailCaps=async env=>{const d=await getK(env,'mail_day_cap'),m=await getK(env,'mail_month_cap');return{day:d==null?100:+d,month:m==null?3000:+m}};
+const mailUsage=async env=>{const d=MQ_DAY(),r=await env.DB.batch([env.DB.prepare('SELECT IFNULL(SUM(n),0) n FROM mail_count WHERE day=?').bind(d),env.DB.prepare('SELECT IFNULL(SUM(n),0) n FROM mail_count WHERE day LIKE ?').bind(d.slice(0,7)+'%')]);return{day:r[0].results[0].n,month:r[1].results[0].n}};
+async function mailCount(env,n){if(!(n>0))return;await env.DB.prepare('INSERT INTO mail_count(day,n) VALUES(?,?) ON CONFLICT(day) DO UPDATE SET n=n+excluded.n').bind(MQ_DAY(),n).run().catch(()=>{});
+  // A Telegram heads-up at 80% and 100% of the day's or month's allowance, once each.
+  try{const c=await mailCaps(env),u=await mailUsage(env),d=MQ_DAY(),said=(await getK(env,'mail_alerted'))||'',msgs=[];
+    for(const [k,lim,used,key] of [['today',c.day,u.day,d],['this month',c.month,u.month,d.slice(0,7)]])if(lim)for(const pc of [100,80])if(used>=lim*pc/100){const tag=key+':'+pc;if(!said.includes(tag)){msgs.push([tag,'Stall email: '+used.toLocaleString()+' of '+lim.toLocaleString()+' emails used '+k+' ('+pc+'%).'+(pc===100?' The rest are waiting in the queue and go out when the allowance resets. Upgrade the Resend plan, then set the new limits in Admin → System health.':' Consider upgrading the Resend plan before you run out.')])}break}
+    if(msgs.length){await setK(env,'mail_alerted',(said.split(' ').slice(-20).concat(msgs.map(x=>x[0]))).join(' '));for(const m of msgs)await tg(env,m[1])}}catch(e){}}
+// For Admin → System health: what has been sent against the plan's allowance, and what is waiting.
+async function mailStats(env){const [c,u]=await Promise.all([mailCaps(env),mailUsage(env)]),r=await env.DB.batch([env.DB.prepare("SELECT COUNT(*) n,MIN(next) nx FROM mail_q WHERE status IN ('q','s')"),env.DB.prepare("SELECT COUNT(*) n FROM mail_q WHERE status='failed' AND created>?").bind(Date.now()-7*864e5),env.DB.prepare("SELECT err FROM mail_q WHERE status='failed' ORDER BY id DESC LIMIT 1")]);
+  const q=r[0].results[0],held=JSON.parse((await getK(env,'mail_held'))||'null');return{capDay:c.day,capMonth:c.month,day:u.day,month:u.month,queued:q.n,waitUntil:q.n&&q.nx>Date.now()+6e4?q.nx:null,heldWhy:held&&held.until>Date.now()?held.why:null,failed:r[1].results[0].n,lastFail:r[2].results[0]?r[2].results[0].err:null}}
+const nextUTCDay=()=>{const t=new Date();t.setUTCHours(24,0,0,0);return +t},nextUTCMonth=()=>{const t=new Date();t.setUTCDate(1);t.setUTCHours(0,0,0,0);t.setUTCMonth(t.getUTCMonth()+1);return +t};
+async function mailHold(env,until,why){await env.DB.prepare("UPDATE mail_q SET next=? WHERE status='q' AND next<?").bind(until,until).run();await setK(env,'mail_held',JSON.stringify({until,why}))}
+// Marks one claimed batch as sent, retried later, or failed for good.
+async function mailDone(env,rows,res){const t=Date.now();
+  if(res.ok){await env.DB.batch(rows.map(r=>env.DB.prepare("UPDATE mail_q SET status='sent',sent=?,html=NULL,err=NULL WHERE id=?").bind(t,r.id)));await mailCount(env,rows.length);await setK(env,'email_last',JSON.stringify({t,ok:true,err:null}));return}
+  await setK(env,'email_last',JSON.stringify({t,ok:false,err:String(res.err||'Email failed').slice(0,200)}));
+  await env.DB.batch(rows.map(r=>res.final||r.tries+1>=8?env.DB.prepare("UPDATE mail_q SET status='failed',tries=tries+1,err=? WHERE id=?").bind(String(res.err||'').slice(0,200),r.id)
+    :env.DB.prepare("UPDATE mail_q SET status='q',tries=tries+1,next=?,err=? WHERE id=?").bind(t+Math.min(36e5,6e4*2**r.tries),String(res.err||'').slice(0,200),r.id)))}
+// One provider call for up to 50 emails. Returns {ok} or {retry|final|quota, err}.
+async function resendBatch(env,rows){const from=env.EMAIL_FROM||'Stall <onboarding@resend.dev>';
+  try{const r=await fetch('https://api.resend.com/emails/batch',{signal:AbortSignal.timeout(20000),method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'content-type':'application/json'},body:JSON.stringify(rows.map(x=>({from,to:[x.to_addr],subject:x.subject,html:x.html})))});
+    const j=await r.json().catch(()=>({})),err=j.message||j.name||'HTTP '+r.status;
+    if(r.ok&&Array.isArray(j.data))return{ok:true};
+    if(r.status===429)return /daily/.test(j.name||'')?{quota:'day',err}:/month/.test(j.name||'')?{quota:'month',err}:{rate:true,err};
+    if(r.status>=400&&r.status<500&&r.status!==408)return{bad:true,err};
+    return{err}}catch(e){return{err:String(e&&e.message||e)}}}
+async function drainMail(env,maxMs=20000){if(!env.RESEND_API_KEY||Date.now()-DRAINING<6e4)return 0;DRAINING=Date.now();const end=Date.now()+maxMs;let sent=0;
+  try{await ensure(env);await env.DB.prepare("UPDATE mail_q SET status='q' WHERE status='s' AND claimed<?").bind(Date.now()-3e5).run();
+    while(Date.now()<end){const cap=await mailCaps(env),use=await mailUsage(env);let room=50;
+      if(cap.month&&use.month>=cap.month){await mailHold(env,nextUTCMonth(),'month');break}
+      if(cap.day&&use.day>=cap.day){await mailHold(env,nextUTCDay(),'day');break}
+      if(cap.day)room=Math.min(room,cap.day-use.day);if(cap.month)room=Math.min(room,cap.month-use.month);
+      const now=Date.now(),cid=now*1000+Math.floor(Math.random()*1000);
+      await env.DB.prepare("UPDATE mail_q SET status='s',claim=?,claimed=? WHERE id IN (SELECT id FROM mail_q WHERE status='q' AND next<=? ORDER BY pri,id LIMIT ?)").bind(cid,now,now,room).run();
+      const rows=(await env.DB.prepare("SELECT id,to_addr,subject,html,tries FROM mail_q WHERE claim=? AND status='s' ORDER BY pri,id").bind(cid).all()).results;
+      if(!rows.length)break;
+      const res=await resendBatch(env,rows);
+      if(res.ok){await mailDone(env,rows,res);sent+=rows.length}
+      else if(res.quota){await env.DB.prepare("UPDATE mail_q SET status='q' WHERE claim=? AND status='s'").bind(cid).run();await mailHold(env,res.quota==='month'?nextUTCMonth():nextUTCDay(),res.quota);break}
+      else if(res.rate){await env.DB.prepare("UPDATE mail_q SET status='q' WHERE claim=? AND status='s'").bind(cid).run();await sleep(1500);continue}
+      else if(res.bad&&rows.length>1){// One bad address can sink a whole batch: send these one at a time so only that one fails.
+        for(const x of rows){const one=await resendBatch(env,[x]);if(one.rate||one.quota){await env.DB.prepare("UPDATE mail_q SET status='q' WHERE id=? AND status='s'").bind(x.id).run();continue}await mailDone(env,[x],one.ok?one:{...one,final:!!one.bad});if(one.ok)sent++;await sleep(550)}}
+      else await mailDone(env,rows,{...res,final:!!res.bad});
+      await sleep(550)}}
+  finally{DRAINING=0}return sent}
 // The receipt email for an order, or undefined (then the standard email is sent).
 async function rcMail(env,oid,side,btn,url){try{const o=await env.DB.prepare('SELECT * FROM orders WHERE id=?').bind(oid).first(),m=o&&await receiptFor(env,o,side);return m?mailReceipt(m,btn,url):undefined}catch(e){}}
 // ---- Push notifications (Web Push). Keys are made on first use and kept in settings (or set VAPID_PUBLIC / VAPID_PRIVATE_JWK).
@@ -643,7 +697,8 @@ async function cleanup(env,a){const now=Date.now(),D=864e5;
   await setK(env,'cleanup_at',now);const res={receipts:rc,listings:old.length,orphans:orph};
   if(a||rc||old.length||orph)await logA(env,a,'other','cleaned up storage','Storage',{detail:`Removed ${rc} old receipt photos, ${old.length} old sold listings, ${orph} unused photos`});
   return res}
-const dailyCleanup=async env=>{try{const t=+(await getK(env,'cleanup_at'))||0;if(Date.now()-t>864e5){await setK(env,'cleanup_at',Date.now());await cleanup(env,null)}}catch(e){}};
+const dailyCleanup=async env=>{try{const t=+(await getK(env,'cleanup_at'))||0;if(Date.now()-t>864e5){await setK(env,'cleanup_at',Date.now());await cleanup(env,null);const n=Date.now();
+  await env.DB.batch([env.DB.prepare("DELETE FROM mail_q WHERE status='sent' AND sent<?").bind(n-7*864e5),env.DB.prepare("DELETE FROM mail_q WHERE status='failed' AND created<?").bind(n-30*864e5),env.DB.prepare('DELETE FROM mail_count WHERE day<?').bind(new Date(n-400*864e5).toISOString().slice(0,10))])}}catch(e){}};
 
 // Nigerian mobile numbers: 11 digits like 080…, 081…, 070…, 090…, 091…. Obvious made-up numbers are refused at sign-up,
 // and odd-looking ones (long runs of one digit, counting sequences) are flagged for the Stall team to look at.
@@ -746,7 +801,7 @@ async function fulfil(env,ref,opt={}){await ensure(env);const p=await env.DB.pre
     await env.DB.prepare('UPDATE pending_pay SET done=0 WHERE ref=?').bind(ref).run();return{error:'Could not finish this payment yet. It will be retried. Reference '+ref}}}
 // Any unexpected error comes back as a clear JSON message (not Cloudflare's error page, which the app would read as a lost
 // connection), and the Stall team gets the details on Telegram.
-export async function onRequest(ctx){try{return await route(ctx)}catch(e){
+export async function onRequest(ctx){try{const res=await route(ctx);if(MQ_DIRTY){MQ_DIRTY=false;try{ctx.waitUntil(drainMail(ctx.env).catch(()=>{}))}catch(x){}}return res}catch(e){
   const id=Math.random().toString(36).slice(2,8).toUpperCase(),path=[].concat(ctx.params.path||[]).join('/'),msg=String(e&&e.message||e).slice(0,300);
   console.error('api error',id,path,e&&e.stack||e);try{ctx.waitUntil(tg(ctx.env,'Stall server error '+id+' on /api/'+path+' ('+ctx.request.method+'):\n'+msg))}catch(x){}
   return new Response(JSON.stringify({error:'Something went wrong on Stall\'s side. The team has been alerted. Please try again in a moment (error '+id+').',errorId:id}),{status:500,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}})}}
@@ -1434,7 +1489,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       const ai=JSON.parse(await getK(env,'ai_last')||'null'),mo=new Date();mo.setUTCDate(1);mo.setUTCHours(-1,0,0,0);
       const m=(await env.DB.batch([env.DB.prepare("SELECT COUNT(*) c FROM verify_requests WHERE status='pending'"),env.DB.prepare('SELECT IFNULL(SUM(amount),0) c FROM payments'),env.DB.prepare('SELECT IFNULL(SUM(amount),0) c FROM payments WHERE created>=?').bind(+mo),env.DB.prepare('SELECT (SELECT COUNT(*) FROM listings WHERE featured_until>?)+(SELECT COUNT(*) FROM stores WHERE featured_until>?) c').bind(Date.now(),Date.now()),env.DB.prepare('SELECT COUNT(*) c FROM users WHERE verified=1')])).map(x=>x.results[0].c);
       const q2=(await env.DB.batch([env.DB.prepare("SELECT (SELECT COUNT(*) FROM listings WHERE review IN ('review','checking'))+(SELECT COUNT(*) FROM store_items WHERE review IN ('review','checking')) c"),env.DB.prepare('SELECT COUNT(*) c FROM schools WHERE active=0')])).map(x=>x.results[0].c);
-      return J({itemsReview:q2[0],schoolsPending:q2[1],verifyPending:m[0],earned:m[1],earnedMonth:m[2],boosts:m[3],verifiedCount:m[4],review:r[0],delivery:r[1],vendorsPending:r[2],banks:r[3]+r[4],students:r[5],vendors:r[6],stores:r[7],released:r[8],today:r[9],aiOn:!!env.AI,r2On:!!env.PHOTOS,webhook:!!(await getK(env,'webhook_seen')),aiLast:ai,psMode:!env.PAYSTACK_SECRET?'none':/^sk_live_/.test(env.PAYSTACK_SECRET)?'live':'test',bankLast:JSON.parse(await getK(env,'bank_last')||'null'),payoutLast:JSON.parse(await getK(env,'payout_last')||'null'),pushLast:JSON.parse(await getK(env,'push_last')||'null'),pushSubs:(await env.DB.prepare('SELECT COUNT(DISTINCT uid) c FROM push_subs').first()).c,emailOn:!!env.RESEND_API_KEY,emailFrom:env.EMAIL_FROM||'',emailLast:JSON.parse(await getK(env,'email_last')||'null'),idsPending:(await env.DB.prepare("SELECT COUNT(*) c FROM id_checks WHERE status='pending'").first()).c,requireVerified:(await getK(env,'require_verified'))!=='0',verifyGate:(await getK(env,'verify_gate'))!=='0',refReward:await refReward(env),refCap:await refCap(env),creditPct:await creditPct(env),creditOut:(await env.DB.prepare('SELECT IFNULL(SUM(credit),0) c FROM users').first()).c,referrals:(await env.DB.prepare('SELECT COUNT(*) n,IFNULL(SUM(ref_paid),0) p FROM users WHERE referred_by IS NOT NULL').first()),schoolDomains:(await getK(env,'school_domains'))||'',studentsVerified:(await env.DB.prepare('SELECT COUNT(*) c FROM users WHERE vlevel>=1').first()).c,payoutsFailed:(await env.DB.prepare("SELECT COUNT(*) c FROM payouts WHERE status='failed'").first()).c,bal:await (async()=>{const v=JSON.parse(await getK(env,'bal_last')||'null');return v&&Date.now()-v.t<10*6e4?v:await balanceCheck(env).catch(()=>v)})(),autoMax:AUTO_MAX,held:(await env.DB.prepare("SELECT IFNULL(SUM(amount-IFNULL(fee,0)),0) c FROM orders WHERE status IN ('verified','disputed') AND paid_via='paystack'").first()).c,cleanupAt:+(await getK(env,'cleanup_at'))||0},200,{'cache-control':'no-store'})}
+      return J({itemsReview:q2[0],schoolsPending:q2[1],verifyPending:m[0],earned:m[1],earnedMonth:m[2],boosts:m[3],verifiedCount:m[4],review:r[0],delivery:r[1],vendorsPending:r[2],banks:r[3]+r[4],students:r[5],vendors:r[6],stores:r[7],released:r[8],today:r[9],aiOn:!!env.AI,r2On:!!env.PHOTOS,webhook:!!(await getK(env,'webhook_seen')),aiLast:ai,psMode:!env.PAYSTACK_SECRET?'none':/^sk_live_/.test(env.PAYSTACK_SECRET)?'live':'test',bankLast:JSON.parse(await getK(env,'bank_last')||'null'),payoutLast:JSON.parse(await getK(env,'payout_last')||'null'),pushLast:JSON.parse(await getK(env,'push_last')||'null'),pushSubs:(await env.DB.prepare('SELECT COUNT(DISTINCT uid) c FROM push_subs').first()).c,emailOn:!!env.RESEND_API_KEY,emailFrom:env.EMAIL_FROM||'',emailLast:JSON.parse(await getK(env,'email_last')||'null'),mail:await mailStats(env),idsPending:(await env.DB.prepare("SELECT COUNT(*) c FROM id_checks WHERE status='pending'").first()).c,requireVerified:(await getK(env,'require_verified'))!=='0',verifyGate:(await getK(env,'verify_gate'))!=='0',refReward:await refReward(env),refCap:await refCap(env),creditPct:await creditPct(env),creditOut:(await env.DB.prepare('SELECT IFNULL(SUM(credit),0) c FROM users').first()).c,referrals:(await env.DB.prepare('SELECT COUNT(*) n,IFNULL(SUM(ref_paid),0) p FROM users WHERE referred_by IS NOT NULL').first()),schoolDomains:(await getK(env,'school_domains'))||'',studentsVerified:(await env.DB.prepare('SELECT COUNT(*) c FROM users WHERE vlevel>=1').first()).c,payoutsFailed:(await env.DB.prepare("SELECT COUNT(*) c FROM payouts WHERE status='failed'").first()).c,bal:await (async()=>{const v=JSON.parse(await getK(env,'bal_last')||'null');return v&&Date.now()-v.t<10*6e4?v:await balanceCheck(env).catch(()=>v)})(),autoMax:AUTO_MAX,held:(await env.DB.prepare("SELECT IFNULL(SUM(amount-IFNULL(fee,0)),0) c FROM orders WHERE status IN ('verified','disputed') AND paid_via='paystack'").first()).c,cleanupAt:+(await getK(env,'cleanup_at'))||0},200,{'cache-control':'no-store'})}
     if(path==='admin/orders'&&request.method==='GET'){await sweep(env);
       let st=a.is_admin?url.searchParams.get('status')||'flagged':'flagged';const w=[],v=[];
       if(st==='flagged')w.push("status IN ('under_review','disputed')");
@@ -1590,6 +1645,13 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       await env.DB.prepare('UPDATE '+tbl+' SET review=?,review_note=? WHERE id=?').bind(b.approve?'live':'rejected',why,id).run();await bump();
       await logA(env,a,'account',b.approve?'approved listing':'rejected listing',t.title+' ('+k+')',{detail:why});return J({ok:true})}
     // Who is using Stall: live now (last 5 minutes), today (Lagos time), the last 7 days, and all accounts; overall, by state and by school.
+    // Email plan limits, "send queued now" and "retry failed".
+    if(path==='admin/mail'&&request.method==='POST'){if(!a.is_admin)return J({error:'Not allowed'},403);const act=String(b.act||'');
+      if(act==='plan'){const d=Math.max(0,Math.floor(+b.day||0)),m=Math.max(0,Math.floor(+b.month||0));await setK(env,'mail_day_cap',d);await setK(env,'mail_month_cap',m);
+        await env.DB.prepare("UPDATE mail_q SET next=? WHERE status='q' AND next>?").bind(Date.now(),Date.now()).run();await setK(env,'mail_held','');await logA(env,a,'other','changed email limits',(d?d+' a day':'no daily limit')+', '+(m?m+' a month':'no monthly limit'))}
+      else if(act==='retry'){const r=await env.DB.prepare("UPDATE mail_q SET status='q',tries=0,next=? WHERE status='failed'").bind(Date.now()).run();await logA(env,a,'other','retried failed emails',String(r.meta.changes))}
+      else if(act!=='drain')return J({error:'Unknown action.'},400);
+      const sent=await drainMail(env,20000);return J({ok:true,sent,mail:await mailStats(env)})}
     if(path==='admin/active'&&request.method==='GET'){if(!a.is_admin)return J({error:'Not allowed'},403);const now=Date.now(),day=new Date(now+36e5);day.setUTCHours(0,0,0,0);
       const L=now-3e5,D=+day-36e5,W=now-7*864e5,cols=`SUM(CASE WHEN u.seen>=${L} THEN 1 ELSE 0 END) live,SUM(CASE WHEN u.seen>=${D} THEN 1 ELSE 0 END) today,SUM(CASE WHEN u.seen>=${W} THEN 1 ELSE 0 END) week,COUNT(*) users`;
       const [t,st,sc]=await env.DB.batch([env.DB.prepare('SELECT '+cols+' FROM users u'),
@@ -1826,7 +1888,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
   // Scheduled jobs. Pages can't run on a timer, so an outside scheduler (e.g. cron-job.org every 5 minutes) calls /api/cron?key=CRON_KEY.
   // Without it, timers still run, but only when people use the app.
   if(path==='cron'){if(!env.CRON_KEY||!sameStr(url.searchParams.get('key')||'',env.CRON_KEY))return J({error:'Not found'},404);
-    SWEPT=0;await sweep(env);await payJobs(env).catch(()=>{});await dailyCleanup(env);await weeklyMails(env);await setK(env,'cron_at',Date.now());return J({ok:true},200,{'cache-control':'no-store'})}
+    SWEPT=0;await sweep(env);await payJobs(env).catch(()=>{});await dailyCleanup(env);await weeklyMails(env);await tellLaunch(env).catch(()=>{});MQ_DIRTY=false;await drainMail(env,25000).catch(()=>{});await setK(env,'cron_at',Date.now());return J({ok:true},200,{'cache-control':'no-store'})}
   if(path==='banks')return J({banks:Object.entries(BANKS).map(([code,name])=>({code,name}))});
   if(path==='bank/resolve'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);
     const b=await request.json().catch(()=>({})),code=String(b.bank_code||''),acct=String(b.acct_no||'').replace(/\D/g,'');
