@@ -75,7 +75,7 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   for(const s0 of stale)if((await env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,s0.id).run()).meta.changes)ids.push(s0.id);
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='34';
+const SCHEMA_V='35';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -119,7 +119,7 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'ALTER TABLE users ADD COLUMN ref_code TEXT','ALTER TABLE users ADD COLUMN referred_by INTEGER','ALTER TABLE users ADD COLUMN ref_paid INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN credit INTEGER NOT NULL DEFAULT 0',
     'CREATE UNIQUE INDEX IF NOT EXISTS users_ref_code ON users(ref_code)','CREATE INDEX IF NOT EXISTS users_referred_by ON users(referred_by)',
     'CREATE TABLE IF NOT EXISTS credit_log(id INTEGER PRIMARY KEY AUTOINCREMENT,uid INTEGER NOT NULL,amt INTEGER NOT NULL,why TEXT,t INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS credit_log_uid ON credit_log(uid,t)',
-    'ALTER TABLE stores ADD COLUMN logo TEXT','ALTER TABLE stores ADD COLUMN founding INTEGER','ALTER TABLE users ADD COLUMN matric_claim TEXT',"UPDATE collect_pays SET matric=NULL WHERE matric=(SELECT phone FROM users WHERE users.id=collect_pays.uid)",'CREATE INDEX IF NOT EXISTS stores_founding ON stores(school_id,founding)','ALTER TABLE stores ADD COLUMN logo_v INTEGER','ALTER TABLE schools ADD COLUMN launch TEXT',
+    'ALTER TABLE stores ADD COLUMN logo TEXT','ALTER TABLE stores ADD COLUMN founding INTEGER','ALTER TABLE users ADD COLUMN matric_claim TEXT',"UPDATE collect_pays SET matric=NULL WHERE matric=(SELECT phone FROM users WHERE users.id=collect_pays.uid)",'CREATE INDEX IF NOT EXISTS stores_founding ON stores(school_id,founding)','ALTER TABLE stores ADD COLUMN logo_v INTEGER','ALTER TABLE schools ADD COLUMN launch TEXT','ALTER TABLE users ADD COLUMN seen INTEGER','CREATE INDEX IF NOT EXISTS users_seen ON users(seen)','CREATE INDEX IF NOT EXISTS waitlist_school_created ON waitlist(school_id,created)',
     'CREATE TABLE IF NOT EXISTS waitlist(uid INTEGER PRIMARY KEY,school_id INTEGER NOT NULL,want TEXT,created INTEGER NOT NULL,told INTEGER NOT NULL DEFAULT 0)','CREATE INDEX IF NOT EXISTS waitlist_school ON waitlist(school_id,told)',
     'ALTER TABLE orders ADD COLUMN method TEXT','ALTER TABLE orders ADD COLUMN addr TEXT','ALTER TABLE orders ADD COLUMN dphone TEXT','ALTER TABLE orders ADD COLUMN dstage TEXT','ALTER TABLE orders ADD COLUMN track TEXT',
     'CREATE INDEX IF NOT EXISTS listings_school ON listings(school_id,created)','CREATE INDEX IF NOT EXISTS listings_state ON listings(state,created)','CREATE INDEX IF NOT EXISTS listings_review ON listings(review)','CREATE INDEX IF NOT EXISTS stores_school ON stores(school_id)',
@@ -992,6 +992,9 @@ async function route({request,env,params,waitUntil}){
     const n=await env.DB.prepare('SELECT COUNT(*) c FROM waitlist WHERE school_id=? AND want IS NOT NULL').bind(u.school_id).first();return J({ok:true,want,n:n.c})}
   if(path==='me/seller-ok'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
     await env.DB.prepare('UPDATE users SET seller_ok=IFNULL(seller_ok,?) WHERE id=?').bind(Date.now(),u.id).run();return J({ok:true})}
+  // The app pings about once a minute while it's open on screen, so Admin can count who is using Stall right now (one write per person per minute at most).
+  if(path==='me/ping'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({ok:false},401);const now=Date.now();
+    if(!(u.seen>now-45e3))await env.DB.prepare('UPDATE users SET seen=? WHERE id=?').bind(now,u.id).run().catch(()=>{});return J({ok:true},200,{'cache-control':'no-store'})}
   if(path==='me'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
     // Independent lookups go to the database together: each round trip from Nigeria to the database costs time.
     const [v,ic,si,rv,fl]=await Promise.all([env.DB.prepare('SELECT status,reason FROM verify_requests WHERE uid=?').bind(u.id).first(),env.DB.prepare('SELECT status,reason FROM id_checks WHERE uid=?').bind(u.id).first(),schoolOf(env,u.school_id),getK(env,'require_verified'),freeLeft(env,u.id)]);
@@ -1586,6 +1589,24 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       if(!t)return J({error:'Not found.'},404);const why=b.approve?null:String(b.reason||'Photo does not match the description').slice(0,200);
       await env.DB.prepare('UPDATE '+tbl+' SET review=?,review_note=? WHERE id=?').bind(b.approve?'live':'rejected',why,id).run();await bump();
       await logA(env,a,'account',b.approve?'approved listing':'rejected listing',t.title+' ('+k+')',{detail:why});return J({ok:true})}
+    // Who is using Stall: live now (last 5 minutes), today (Lagos time), the last 7 days, and all accounts; overall, by state and by school.
+    if(path==='admin/active'&&request.method==='GET'){if(!a.is_admin)return J({error:'Not allowed'},403);const now=Date.now(),day=new Date(now+36e5);day.setUTCHours(0,0,0,0);
+      const L=now-3e5,D=+day-36e5,W=now-7*864e5,cols=`SUM(CASE WHEN u.seen>=${L} THEN 1 ELSE 0 END) live,SUM(CASE WHEN u.seen>=${D} THEN 1 ELSE 0 END) today,SUM(CASE WHEN u.seen>=${W} THEN 1 ELSE 0 END) week,COUNT(*) users`;
+      const [t,st,sc]=await env.DB.batch([env.DB.prepare('SELECT '+cols+' FROM users u'),
+        env.DB.prepare("SELECT IFNULL(sc.state,IFNULL(u.state,'Unknown')) state,"+cols+' FROM users u LEFT JOIN schools sc ON sc.id=u.school_id GROUP BY 1 ORDER BY live DESC,today DESC,week DESC,users DESC'),
+        env.DB.prepare("SELECT sc.id,sc.name,sc.short,sc.state,IFNULL(sc.launch,'soon') launch,"+cols+' FROM users u JOIN schools sc ON sc.id=u.school_id GROUP BY sc.id ORDER BY live DESC,today DESC,week DESC,users DESC LIMIT 300')]);
+      return J({t:now,total:t.results[0],states:st.results,schools:sc.results},200,{'cache-control':'no-store'})}
+    // Everyone on one school's waitlist: 50 a page, searchable, or the whole list as a CSV file.
+    if(path==='admin/waitlist'&&request.method==='GET'){if(!a.is_admin)return J({error:'Not allowed'},403);const sid=+url.searchParams.get('school'),want=url.searchParams.get('want')||'';
+      const w=['w.school_id=?','w.want IS NOT NULL'],v=[sid];if(want==='buy')w.push("w.want IN ('buy','both')");if(want==='sell')w.push("w.want IN ('sell','both')");
+      if(q){w.push('(u.name LIKE ? OR u.phone LIKE ? OR u.email LIKE ? OR u.matric LIKE ?)');v.push(like,like,like,like)}
+      const from='waitlist w JOIN users u ON u.id=w.uid',wh=' WHERE '+w.join(' AND '),cols="u.id,u.name,u.phone,u.email,u.matric,u.role,IFNULL(u.vlevel,0) vlevel,u.seen,w.want,w.created,w.told";
+      if(url.searchParams.get('csv')){const rs=(await env.DB.prepare('SELECT '+cols+' FROM '+from+wh+' ORDER BY w.created').bind(...v).all()).results,sc=await schoolOf(env,sid);
+        const cell=x=>{x=x==null?'':String(x);return /[",\n]/.test(x)||/^[=+\-@]/.test(x)?'"'+x.replace(/^([=+\-@])/,"'$1").replace(/"/g,'""')+'"':x};
+        const csv='Name,Phone,Email,Matric,Wants to,Verified,Joined,Told\n'+rs.map(r=>[r.name,r.phone,r.email,r.matric,r.want,r.vlevel>=1?'yes':'no',new Date(r.created).toISOString().slice(0,10),['no','sellers opening','launch'][r.told]||''].map(cell).join(',')).join('\n');
+        return new Response(csv,{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="stall-waitlist-'+String(sc&&(sc.short||sc.name)||sid).replace(/[^A-Za-z0-9]+/g,'-')+'.csv"','cache-control':'no-store'}})}
+      const P=50,total=(await env.DB.prepare('SELECT COUNT(*) c FROM '+from+wh).bind(...v).first()).c,rs=(await env.DB.prepare('SELECT '+cols+' FROM '+from+wh+' ORDER BY w.created DESC LIMIT ? OFFSET ?').bind(...v,P,pg*P).all()).results;
+      return J({items:rs,total,ps:P},200,{'cache-control':'no-store'})}
     if(path==='admin/schools'&&request.method==='GET'){const f=url.searchParams.get('f')||'pending',w=[f==='pending'?'s.active=0':'s.active=1'],v=[];
       if(f==='launch')w.push("(IFNULL(s.launch,'soon')!='soon' OR EXISTS(SELECT 1 FROM waitlist x WHERE x.school_id=s.id AND x.want IS NOT NULL))");
       if(q){w.push('(s.name LIKE ? OR s.short LIKE ? OR s.state LIKE ?)');v.push(like,like,like)}
