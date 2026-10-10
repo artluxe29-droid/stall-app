@@ -165,6 +165,8 @@ async function tellLaunch(env){const rows=(await env.DB.prepare("SELECT w.uid,w.
 // Selling, stores and collections wait until the school opens (to sellers or everyone). Admins can always try things out.
 // With the verification gate on (the default), a student can't buy, sell, chat or pay until a school document or school email is approved.
 const vGate=async(env,u)=>u&&u.role==='student'&&!(u.vlevel>=1)&&!u.is_admin&&(await getK(env,'verify_gate'))!=='0'?J({error:'Your student verification isn\'t approved yet. You can use Stall as soon as it is.',needVerify:true},403):null;
+// Accounts at a school Stall hasn't launched see no marketplace at all: no items, no stores (their own still show to them).
+const preLaunch=async(env,u)=>{if(!u||u.is_admin||!u.school_id)return false;const sc=await schoolOf(env,u.school_id);return !sc||sc.launch!=='live'};
 const soonGate=async(env,u)=>{if(u.is_admin||!u.school_id)return null;const sc=await schoolOf(env,u.school_id);if(!sc||sc.launch!=='soon')return null;
   return J({error:'Stall isn\'t open at '+(sc.short||sc.name)+' yet. Join the waitlist on the home screen and we\'ll tell you the moment it opens.',soon:true},403)};
 // Checks a new listing's first photo against its title and description. Returns {ok:true}, {ok:false,why} or {ok:null,why}.
@@ -999,9 +1001,9 @@ async function route({request,env,params,waitUntil}){
     const sp=url.searchParams,ids=(sp.get('ids')||'').split(',').map(x=>+x.slice(1)).filter(x=>x>0).slice(0,60),w=[LIVE],v=[];let lim=Math.min(96,Math.max(1,+sp.get('n')||24)),off=Math.max(0,+sp.get('off')||0),total;
     const cut=Math.floor((NOW-2*864e5)/6e5)*6e5;
     if(sp.get('mine')){w.push('l.uid=?',"(l.review!='live' OR (l.sold=1 AND l.created<=?) OR "+LCH('sc')+"!='live')");v.push(u.id,cut);lim=50;off=0}
-    else if(ids.length){w.push("(l.review='live' OR l.uid=?)",`l.id IN (${ids.map(()=>'?').join(',')})`);v.push(u.id,...ids);lim=60;off=0}
+    else if(ids.length){w.push("(l.review='live' OR l.uid=?)",`l.id IN (${ids.map(()=>'?').join(',')})`);v.push(u.id,...ids);lim=60;off=0;if(await preLaunch(env,u)){w.push('l.uid=?');v.push(u.id)}}
     // Admins see every school's items (to test and moderate before a school opens); everyone else only sees open schools.
-    else{w.push("l.review='live'",'(l.sold=0 OR l.created>?)');if(!u.is_admin)w.push(LCH('sc')+"='live'");v.push(cut);
+    else{if(await preLaunch(env,u))return J({listings:[],total:0,soon:true});w.push("l.review='live'",'(l.sold=0 OR l.created>?)');if(!u.is_admin)w.push(LCH('sc')+"='live'");v.push(cut);
       const q=(sp.get('q')||'').trim().slice(0,60),cat=sp.get('cat')||'all',scope=sp.get('scope')||'school';if(cat!=='all'){w.push('l.cat=?');v.push(cat)}
       if(scope==='school'&&u.school_id){w.push('l.school_id=?');v.push(u.school_id)}else if(scope==='state'&&u.state){w.push('l.state=?');v.push(u.state)}
       // Every word must appear somewhere in the title, description or meeting spot.
@@ -1069,7 +1071,7 @@ async function route({request,env,params,waitUntil}){
     if(c)waitUntil(c.put(request,res.clone()).catch(()=>{}));return res}
   if(path==='stores'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);const NOW=Math.floor(Date.now()/6e4)*6e4;
     const scope=url.searchParams.get('scope')||'school',mine=!!url.searchParams.get('mine'),w=[LIVE],v=[],up='(IFNULL(s.reach_until,0)>'+NOW+')';
-    if(mine){w.push('s.uid=?');v.push(u.id)}else if(!u.is_admin)w.push(LCH('sc')+"='live'");
+    if(mine){w.push('s.uid=?');v.push(u.id)}else if(await preLaunch(env,u))return J({stores:[],soon:true});else if(!u.is_admin)w.push(LCH('sc')+"='live'");
     if(mine);else if(scope==='school'&&u.school_id){w.push("(s.school_id=? OR ("+up+" AND (s.reach='national' OR (s.reach='state' AND s.state=?))))");v.push(u.school_id,u.state)}
     else if(scope==='state'&&u.state){w.push("(s.state=? OR ("+up+" AND s.reach='national'))");v.push(u.state)}
     const run=async()=>{
