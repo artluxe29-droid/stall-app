@@ -402,12 +402,20 @@ section{position:relative}
 .final{padding:var(--s7) 0}
 .final .box{position:relative;overflow:hidden;padding:var(--s6) var(--s5);border-radius:var(--r-xl);background:linear-gradient(135deg,#232B66,#181E48);border:1px solid var(--line-2);display:flex;flex-wrap:wrap;gap:var(--s4);align-items:center;justify-content:space-between}
 .final .box::after{content:'';position:absolute;right:-10%;top:-60%;width:60%;height:200%;background:radial-gradient(closest-side,rgba(200,240,60,.18),transparent);pointer-events:none}
-.final .h2{max-width:16ch}
-.final .box{min-height:300px}.final .box>*{position:relative;z-index:1}
-.peek{position:absolute!important;z-index:0!important;right:7%;bottom:-170px;width:210px;padding:8px;border-radius:34px;background:linear-gradient(145deg,#1F2942,#0B1120);box-shadow:0 30px 60px -20px rgba(0,0,0,.9);transform:rotate(-12deg);transition:transform .8s var(--ease)}
-.final .box.in .peek{transform:rotate(-8deg) translateY(-20px)}
-.peek img{border-radius:27px;aspect-ratio:9/16;object-fit:cover;width:100%}
-@media(min-width:861px){.final .box{flex-direction:column;align-items:flex-start;justify-content:center}.final .box h2,.final .box .cta{max-width:62%}}
+.final .h2{max-width:none;font-size:clamp(30px,3.3vw,46px)}
+.final .box{display:grid;grid-template-columns:1.25fr .75fr;gap:var(--s5);align-items:center;min-height:0}.final .box>*{position:relative;z-index:1}
+.final .lead{margin:var(--s2) 0 var(--s3);max-width:46ch}
+.fin-ticks{list-style:none;margin:0 0 var(--s4);padding:0;display:flex;flex-wrap:wrap;gap:10px 22px;font-size:15px;color:var(--ink-2)}
+.fin-ticks li{display:flex;align-items:center;gap:9px}.fin-ticks i{width:18px;height:18px;border-radius:50%;background:var(--acc-soft);position:relative;flex:none}
+.fin-ticks i::after{content:'';position:absolute;left:6px;top:3.5px;width:4px;height:8px;border:solid var(--acc);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.fin-art{position:relative;display:grid;place-items:center;aspect-ratio:1;max-width:300px;width:100%;justify-self:center}
+.fin-ring{position:absolute;inset:6%;border-radius:50%;background:radial-gradient(closest-side,rgba(200,240,60,.16),transparent 70%);border:1px solid rgba(200,240,60,.18)}
+.fin-ring::after{content:'';position:absolute;inset:14%;border-radius:50%;border:1px dashed rgba(246,241,231,.12);animation:finspin 40s linear infinite}
+.fin-art svg{position:relative;width:62%;overflow:visible;filter:drop-shadow(0 18px 30px rgba(200,240,60,.25))}
+.fin-art .aw{fill:var(--acc)}.fin-art .dt{fill:var(--ink);transform-box:fill-box;transform-origin:50% 100%;animation:findrop 3.4s cubic-bezier(.5,0,.5,1) infinite}
+.fin-tag{position:absolute;bottom:-4%;font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--muted)}
+@keyframes findrop{0%,8%{transform:translateY(-38px) scale(.4);opacity:0}22%{opacity:1}38%{transform:translateY(0) scale(1.12,.86)}46%{transform:translateY(-6px) scale(.96,1.04)}54%,86%{transform:none;opacity:1}100%{transform:translateY(0) scale(1);opacity:0}}
+@keyframes finspin{to{transform:rotate(360deg)}}
 .final .box::before{content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:linear-gradient(120deg,rgba(200,240,60,.6),transparent 40%,transparent 60%,rgba(59,130,246,.5));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
 .mark{font-size:clamp(96px,20vw,280px);font-weight:800;letter-spacing:-.06em;line-height:.8;margin-top:var(--s5);background:linear-gradient(180deg,rgba(241,245,249,.10),rgba(241,245,249,0) 85%);-webkit-background-clip:text;background-clip:text;color:transparent;user-select:none;white-space:nowrap}
 .mark .wm{display:block;width:min(100%,960px);height:auto;color:#181D45}
@@ -444,7 +452,7 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
  .chip-card{min-width:0;max-width:172px;padding:9px 11px;transform:translateZ(40px)}.chip-card .in{gap:9px}.chip-card .bub,.chip-card .lk{width:32px!important;height:32px!important}.chip-card b{font-size:12.5px}.chip-card small{font-size:11px}
  .chip-card.c0{left:-14px;top:12%}.chip-card.c1{display:none}.chip-card.c2{right:-8px;top:auto;bottom:14%;max-width:190px}.chip-card.c2 b{white-space:normal}.chip-card.c2 .meter{width:90px}
  .halo{width:300px;height:300px;margin:-150px}.floor{height:30%}
- .peek{display:none}
+ .final .box{grid-template-columns:1fr;gap:var(--s3)}.fin-art{order:-1;max-width:150px;justify-self:start}.final .box::after{display:none}.fin-tag{display:none}
  .strip .w{flex-direction:column;align-items:flex-start;gap:var(--s2)}.strip .marquee{width:100%}
  .pair{grid-template-columns:1fr;gap:12px;padding:var(--s3) 20px}.pair .arw{transform:rotate(90deg)}
  .diagram{padding:var(--s2) 4px var(--s3);border-radius:var(--r-lg)}.diagram .legend{padding:0 14px;gap:12px 18px}
@@ -739,7 +747,12 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
  </div>
 </section>
 
-<section class="final"><div class="w"><div class="box rv"><div class="peek" aria-hidden="true"><img data-src="/site/orders.webp" alt="" width="450" height="800" id="peekImg"></div><h2 class="h2">Your campus marketplace is one tap away.</h2><div class="cta" style="margin:0"><a class="btn acc" href="#get">Get the app</a><a class="btn ghost" href="/app">Open in browser</a></div></div></div></section>
+<section class="final"><div class="w"><div class="box rv">
+<div class="fin-txt"><span class="kicker">Ready when you are</span><h2 class="h2">Your campus marketplace <br class="fin-br">is one tap away.</h2><p class="lead">Buy from students and vendors at your school. Your money waits safely until the item is in your hands.</p>
+<ul class="fin-ticks"><li><i></i>Pay safely in the app</li><li><i></i>Meet on campus</li><li><i></i>Release only when you have it</li></ul>
+<div class="cta" style="margin:0"><a class="btn acc" href="#get">Get the app</a><a class="btn ghost" href="/app">Open in browser</a></div></div>
+<div class="fin-art" aria-hidden="true"><div class="fin-ring"></div><svg viewBox="14 14 92 92"><g class="aw"><path d="M20 30a8 8 0 0 1 8-8h64a8 8 0 0 1 8 8v8H20z"/><path d="M20 37h25.5v10a12.75 12.75 0 0 1-25.5 0z"/><path d="M47.3 37h25.4v10a12.7 12.7 0 0 1-25.4 0z"/><path d="M74.5 37H100v10a12.75 12.75 0 0 1-25.5 0z"/></g><circle class="dt" cx="60" cy="85" r="11"/></svg><span class="fin-tag">stall.com.ng</span></div>
+</div></div></section>
 </main>
 
 <footer><div class="w">
@@ -924,7 +937,6 @@ $('#wform').addEventListener('submit',async e=>{e.preventDefault();const t=$('#w
 $$('[data-fq]').forEach(b=>b.addEventListener('click',()=>{$$('[data-fq]').forEach(x=>x.setAttribute('aria-selected',x===b));['fqB','fqS','fqE'].forEach(id=>$('#'+id).hidden=id!==b.dataset.fq)}));
 // ---- features: count up the class-dues example when it shows; lazy-load the closing phone
 $$('[data-cnt]').forEach(el=>onView(el,()=>countUp(el,+el.dataset.cnt,n=>String(n)),.6));
-onView($('.final'),()=>{const i=$('#peekImg');if(i&&i.dataset.src){i.src=i.dataset.src}},.01);
 // ---- campus sign-up
 let SUPPORT='';
 $('#ambF').addEventListener('submit',async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button');b.disabled=true;
