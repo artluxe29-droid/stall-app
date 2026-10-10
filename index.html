@@ -608,6 +608,36 @@ small.flag,b.flag,span.flag{width:auto;height:auto;border-radius:0;box-shadow:no
   .sec{margin:22px 0 10px}.sec h3{font-size:19px}
 }
 @media (prefers-reduced-motion:reduce){.hc{transition:none}.hc:hover{transform:none}}
+
+/* Schools Stall hasn't opened yet: a full-screen page instead of the app (sellers can set up early when a school is opened to sellers) */
+.pre{position:fixed;inset:0;z-index:35;background:#141A3D;color:#F6F1E7;overflow:auto;display:flex;flex-direction:column}
+.pre[hidden]{display:none}
+.pre .paw{display:flex;height:44px;flex:none}.pre .paw i{flex:1;border-radius:0 0 99px 99px;background:#F6F1E7}.pre .paw i:nth-child(even){background:#26306E}
+.pre .pin{width:100%;max-width:520px;margin:0 auto;padding:24px 22px calc(28px + env(safe-area-inset-bottom,0px));flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.pre .pgl{position:relative;width:150px;height:150px;margin:8px 0 22px}
+.pre .pgl::before{content:'';position:absolute;inset:-26px;border-radius:50%;background:radial-gradient(closest-side,rgba(200,240,60,.22),transparent);animation:prGlow 3.2s ease-in-out infinite}
+.pre .pgl svg{position:relative;width:100%;height:100%;overflow:visible}
+.pre .pgl .pd{animation:prHop 2.4s cubic-bezier(.45,0,.55,1) infinite;transform-origin:60px 96px}
+@keyframes prHop{0%,58%,100%{transform:none}70%{transform:translateY(-16px) scale(.94,1.06)}82%{transform:translateY(0) scale(1.1,.9)}90%{transform:scale(.97,1.03)}}
+@keyframes prGlow{0%,100%{opacity:.6;transform:scale(.92)}50%{opacity:1;transform:scale(1.06)}}
+.pre .ptag{display:inline-block;background:#C8F03C;color:#141A3D;font:800 11px/1 "Bricolage Grotesque",sans-serif;letter-spacing:.14em;padding:7px 11px;border-radius:99px}
+.pre h1{margin:14px 0 10px;font:800 clamp(32px,9vw,46px)/1.02 "Bricolage Grotesque",sans-serif;letter-spacing:-.03em}
+.pre h1 em{font-style:normal;color:#C8F03C}
+.pre .plead{margin:0;color:#C9CCE4;font-size:16px;line-height:1.5;max-width:420px}
+.pre .pcard{margin-top:22px;width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:22px;padding:18px}
+.pre .snl{margin:0 0 10px;font-weight:700;font-size:14px;color:#F6F1E7}
+.pre .snwl{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.pre .snwl button{font:700 15px/1 Figtree,sans-serif;padding:13px 18px;border-radius:99px;border:1.5px solid rgba(246,241,231,.35);background:transparent;color:#F6F1E7;cursor:pointer}
+.pre .snwl button.on,.pre .snwl button.go{background:#C8F03C;border-color:#C8F03C;color:#141A3D}
+.pre .snok{display:flex;gap:10px;align-items:flex-start;text-align:left;font-size:14.5px;line-height:1.45;color:#E3E5F3;margin-bottom:14px}
+.pre .sntk{flex:none;width:22px;height:22px;border-radius:50%;background:#C8F03C;color:#141A3D;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+.pre .snm{margin:12px 0 0;font-size:13px;color:#9AA1C9}.pre .snm button{background:none;border:0;color:#C8F03C;font:inherit;font-weight:700;cursor:pointer;padding:0}
+.pre .pft{margin-top:22px;font-size:12.5px;color:#7E86B5}.pre .pft button{background:none;border:0;color:#C9CCE4;font:inherit;text-decoration:underline;cursor:pointer;padding:0;margin-left:4px}
+.prebar{position:sticky;top:52px;z-index:9;max-width:1080px;margin:10px auto 0;padding:0 18px}
+.prebar>div{display:flex;gap:10px;align-items:center;background:#141A3D;color:#F6F1E7;border-radius:16px;padding:12px 14px;font-size:14px;line-height:1.4}
+.prebar b{color:#C8F03C}.prebar button{margin-left:auto;flex:none;background:#F6F1E7;color:#141A3D;border:0;border-radius:99px;font:700 13px/1 Figtree,sans-serif;padding:9px 12px;cursor:pointer}
+body.presell #tbShop,body.presell #tbOrders,body.presell #navShop,body.presell #navOrders,body.presell #bagBtn{display:none!important}
+@media (prefers-reduced-motion:reduce){.pre .pgl .pd,.pre .pgl::before{animation:none}}
 </style>
 </head>
 <body>
@@ -679,6 +709,8 @@ small.flag,b.flag,span.flag{width:auto;height:auto;border-radius:0;box-shadow:no
   <button class="nl bag" id="bagBtn" aria-label="Open bag"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8V6a3 3 0 016 0v2"/></svg><b id="badge" hidden>0</b></button>
 </div></nav>
 <div id="notice" class="notice" role="status" hidden></div>
+<div id="preBar" class="prebar" hidden></div>
+<div id="pre" class="pre" hidden></div>
 <div class="tabbar" role="navigation" aria-label="Main"><button id="tbShop" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M10 21v-5h4v5"/><circle cx="12" cy="11.2" r="2" fill="currentColor" stroke="none"/></svg>Home</button><button id="tbStores"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14l2 5H3z"/><path d="M3 9a3 3 0 0 0 6 0a3 3 0 0 0 6 0a3 3 0 0 0 6 0"/><path d="M5 12.5V20M19 12.5V20M4 20h16"/><circle cx="12" cy="16.5" r="2" fill="currentColor" stroke="none"/></svg>Stores</button><button id="tbSell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12.3V4.5a1 1 0 0 1 1-1h7.8l8.2 8.2a1.5 1.5 0 0 1 0 2.1l-6.7 6.7a1.5 1.5 0 0 1-2.1 0z"/><circle cx="8" cy="8" r="2" fill="currentColor" stroke="none"/></svg>Sell</button><button id="tbOrders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h3"/><circle cx="15.3" cy="12" r="2" fill="currentColor" stroke="none"/></svg>Orders<i class="ndot" hidden></i></button><button id="tbMe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><circle cx="18.6" cy="4.6" r="2" fill="currentColor" stroke="none"/></svg>Account<i class="ndot" hidden></i></button></div>
 
 <section id="shop">
@@ -1429,7 +1461,7 @@ async function renderSelling(){setTimeout(checkMilestones,1200);const [r,w]=awai
     const r=await apiPost('orders/rate-buyer',{id:+f.dataset.brateform,stars:+f.elements.stars.value});if(r.error)return toast(r.error);toast('Thanks for rating the buyer');renderSelling()});
   $('#sellingList').querySelectorAll('[data-codeform]').forEach(f=>f.onsubmit=async e=>{e.preventDefault();const r=await apiPost('orders/code',{id:f.dataset.codeform,code:f.elements.code.value});
     if(r.error)return toast(r.error);toast('Order released');renderSelling()})}
-function view(v){['shop','stores','store','orders','selling'].forEach(x=>$('#'+x).hidden=x!==v);drawNews();
+function view(v){if(document.body.classList.contains('presell')&&(v==='shop'||v==='orders'))v='selling';['shop','stores','store','orders','selling'].forEach(x=>$('#'+x).hidden=x!==v);drawNews();
   const tb={shop:'tbShop',stores:'tbStores',store:'tbStores',orders:'tbOrders',selling:'tbMe'}[v];document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('on',b.id===tb));const ad=$('#accDlg');if(ad.open)ad.close();scrollTo({top:0});if(v==='orders')renderOrders();if(v==='selling')renderSelling();if(v==='stores')renderStores()}
 document.addEventListener('click',e=>{
   const t=e.target,c=s=>t.closest(s);
@@ -1493,7 +1525,8 @@ document.addEventListener('click',e=>{
   if(b=c('[data-wl]')){joinWait(b.dataset.wl);return}
   if(c('[data-wlx]')){S.user.wait={...S.user.wait,want:null};drawSoon();return}
   if(id0==='soonShare'){shareSoon();return}
-  if(id0==='soonSell'){$('#sellHero').click();return}
+  if(id0==='soonSell'){PRE_SELL=true;drawSoon();view('selling');return}
+  if(id0==='preBack'){PRE_SELL=false;drawSoon();return}
   if(b=c('[data-gtab]')){openGuide(b.dataset.gtab);return}
   if(b=c('[data-gtry]')){guideTry(b.dataset.gtry);return}
   if(id0==='accStu'){openStudentVerify();return}
@@ -1566,7 +1599,7 @@ document.addEventListener('click',e=>{
   if(id==='more')loadPub(true);
   if(id==='moreStores'){SN+=24;renderStores()}
   if(id==='noticeGo'){view(NEWS.some(x=>x.side==='buy')?'orders':'selling')}
-  if(id==='signOut'||id==='pendOut'){apiPost('logout',{});authMode='in';S.user=null;S.me={};save();si=SL.length;$('#store').innerHTML='';gate()}
+  if(id==='signOut'||id==='pendOut'||id==='preOut'){apiPost('logout',{});authMode='in';S.user=null;S.me={};save();si=SL.length;$('#store').innerHTML='';gate()}
   if(id==='navOrders'||id==='viewOrders'){$('#done').close();view('orders')}
   if(id==='navSelling')view('selling')
   if(id==='navShop'||id==='home'||id==='toShop')view('shop');
@@ -1630,15 +1663,24 @@ function drawPartner(){const el=$('#partnerCard');if(!el)return;const ps=(S.user
     if('IntersectionObserver' in window)new IntersectionObserver(es=>{PTV=es[0].isIntersecting;if(PTV&&!document.hidden&&!el.hidden)ptSeen(+el.dataset.pid)},{threshold:.5}).observe(el);else PTV=true}
   el._go=d=>{if(((S.user&&S.user.partners)||[]).length>1)go(d)};
   show();el.hidden=false;restart()}
-function drawSoon(){const el=$('#soonCard');if(!el)return;const u=S.user,si=u&&u.schoolInfo;if(!u||u.admin||schLive()){el.hidden=true;return}
+let PRE_SELL=false;
+function drawSoon(){const card=$('#soonCard');if(card)card.hidden=true;const p=$('#pre'),bar=$('#preBar'),u=S.user,si=u&&u.schoolInfo;
+  const pre=!!u&&!u.admin&&!schLive();document.body.classList.toggle('prelaunch',pre);
+  if(!pre){p.hidden=true;bar.hidden=true;document.body.classList.remove('presell');PRE_SELL=false;return}
   const nm=esc(si.short||si.name),w=u.wait||{},want=w.want,n=w.n||0,sel=si.launch==='sellers',WN={buy:'a buyer',sell:'a seller',both:'a buyer and seller'};
+  if(sel&&PRE_SELL){p.hidden=true;document.body.classList.add('presell');
+    bar.innerHTML=`<div><span>You're setting up early. <b>Buyers at ${nm} can't see your store yet</b>: it opens to them on launch day.</span><button id="preBack">Coming soon page</button></div>`;bar.hidden=false;
+    if(!$('#shop').hidden||!$('#orders').hidden)view('selling');return}
+  document.body.classList.remove('presell');bar.hidden=true;
   const pick=`<p class="snl">${want?'Change what you want':'I want to'}</p><div class="snwl">${[['buy','Buy'],['sell','Sell'],['both','Both']].map(([k,l])=>`<button data-wl="${k}" class="${want===k?'on':''}">${l}</button>`).join('')}</div>`;
   const joined=want?`<div class="snok"><span class="sntk">✓</span><span>You're on the waitlist as ${WN[want]}.${n>1?` <b>${n.toLocaleString()} students</b> from ${nm} are waiting.`:''}</span></div>`:'';
-  el.innerHTML=`<div class="snaw">${'<i></i>'.repeat(9)}</div><div class="snb"><span class="sntg">${sel?'OPENING SOON':'COMING SOON'}</span>
-   <h3>${sel?`Sellers at ${nm} can set up <em>now</em>`:`Stall is coming to <em>${nm}</em>`}</h3>
-   <p>${sel?`Stall opens to buyers at ${nm} on launch day. Verify that you're a student, open your store and list your items now, so you're ready when it opens.`:`We're opening school by school. Join the waitlist and we'll tell you the moment Stall opens at ${nm}.`}</p>
-   ${sel?`<div class="snwl"><button class="go" id="soonSell">Start selling</button>${want?'':'<button data-wl="buy">Tell me when I can buy</button>'}</div>${joined}`:joined+(want?`<div class="snwl"><button class="go" id="soonShare">Invite friends at ${nm}</button></div><p class="snm">Wrong choice? <button data-wlx>Change it</button></p>`:pick)}
-   <p class="snm">Meanwhile, see what students are selling across Nigeria below.</p></div>`;el.hidden=false}
+  const art=`<div class="pgl" aria-hidden="true"><svg viewBox="18 20 84 78"><g fill="#F6F1E7"><path d="M20 30a8 8 0 0 1 8-8h64a8 8 0 0 1 8 8v8H20z"/><path d="M20 37h25.5v10a12.75 12.75 0 0 1-25.5 0z"/><path d="M47.3 37h25.4v10a12.7 12.7 0 0 1-25.4 0z"/><path d="M74.5 37H100v10a12.75 12.75 0 0 1-25.5 0z"/><circle class="pd" cx="60" cy="85" r="11"/></g></svg></div>`;
+  const body=sel
+   ?`<span class="ptag">SELLERS FIRST</span><h1>Stall opens at <em>${nm}</em> soon</h1><p class="plead">Sellers can set up now. Verify that you're a student, open your store and list your items, so you're ready the moment buyers arrive on launch day.</p>
+     <div class="pcard"><div class="snwl"><button class="go" id="soonSell">Set up my store</button>${want?'':'<button data-wl="buy">I just want to buy</button>'}</div>${joined?'<div style="height:12px"></div>'+joined:''}</div>`
+   :`<span class="ptag">COMING SOON</span><h1>Stall is coming to <em>${nm}</em></h1><p class="plead">The safe way to buy and sell on campus. We're opening school by school. Join the waitlist and we'll tell you the moment Stall opens at ${nm}.</p>
+     <div class="pcard">${joined+(want?`<div class="snwl"><button class="go" id="soonShare">Invite friends at ${nm}</button></div><p class="snm">Wrong choice? <button data-wlx>Change it</button></p>`:pick)}</div>`;
+  p.innerHTML=`<div class="paw">${'<i></i>'.repeat(11)}</div><div class="pin">${art}${body}<p class="pft">Signed in as ${esc(u.name||'')}<button id="preOut">Sign out</button></p></div>`;p.hidden=false}
 async function joinWait(want){const r=await apiPost('me/waitlist',{want});if(r.error)return toast(r.error);S.user.wait={want:r.want,n:r.n};save();drawSoon();toast("You're on the waitlist. We'll tell you when Stall opens.")}
 function shareSoon(){const si=S.user.schoolInfo,nm=si.short||si.name,url=location.origin+'/app',text=`Stall is coming to ${nm}: buy and sell safely with students, and your money is held until you have your item. Join the waitlist: ${url}`;
   if(navigator.share)navigator.share({title:'Stall is coming to '+nm,text}).catch(()=>{});else{navigator.clipboard&&navigator.clipboard.writeText(text).then(()=>toast('Invite copied. Paste it in your WhatsApp groups.'),()=>{})}}
