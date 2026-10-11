@@ -475,6 +475,7 @@ footer{padding:var(--s6) 0 calc(var(--s5) + env(safe-area-inset-bottom,0));borde
 }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}}
 .paused,.paused *{animation-play-state:paused!important}
+.brk{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;width:min(560px,calc(100% - 32px));background:#F6F1E7;color:#141A3D;border-radius:18px;padding:14px 44px 14px 16px;display:flex;gap:12px;align-items:flex-start;box-shadow:0 18px 50px rgba(0,0,0,.35)}.brk[hidden]{display:none}.brk i{flex:none;width:10px;height:10px;border-radius:50%;background:#26306E;margin-top:7px}.brk b{display:block;font-size:15px}.brk p{margin:2px 0 0;font-size:14px;line-height:1.45;color:#3A3F5C}.brk button{position:absolute;right:8px;top:8px;width:30px;height:30px;border:0;border-radius:50%;background:transparent;color:#141A3D;font-size:20px;line-height:1;cursor:pointer}.brk button:hover{background:rgba(20,26,61,.08)}
 </style>
 </head>
 <body>
@@ -944,7 +945,7 @@ $('#ambF').addEventListener('submit',async e=>{e.preventDefault();const f=e.targ
  const sp=String(SUPPORT||'').replace(/\D/g,'').replace(/^0/,'234');if(sp){const a=$('#ambWa');a.href='https://wa.me/'+sp+'?text='+encodeURIComponent(`Hi Stall, I'm ${f.name.value} from ${f.school.value}. I'd love to bring Stall to my campus.`);a.hidden=false}});
 
 // ---- settings from Admin: timers, fee, contact
-getJ('/api/config').then(c=>{SUPPORT=c.phone||'';Object.assign(TM,c.timers||{});$$('[data-t]').forEach(e=>{const k=e.dataset.t;e.textContent=dur(TM[k],k==='hand')});
+getJ('/api/config').then(c=>{SUPPORT=c.phone||'';window.__brk=c.brk||null;window.showBrk&&showBrk(c.brk);Object.assign(TM,c.timers||{});$$('[data-t]').forEach(e=>{const k=e.dataset.t;e.textContent=dur(TM[k],k==='hand')});
  const f=c.fee;if(f)$$('[data-fee]').forEach(e=>e.textContent=f.rate+'% of the item price, at most ₦'+Number(f.cap).toLocaleString('en-NG'));
  const w=String(c.phone||'').replace(/\D/g,'').replace(/^0/,'234'),L=[w?`<a href="https://wa.me/${w}">WhatsApp ${esc(c.phone)}</a>`:'',c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:''].filter(Boolean);
  if(L.length)$('#contact').innerHTML=L.join('')+'<a href="#league">Bring Stall to your campus</a>'}).catch(()=>{});
@@ -1002,6 +1003,14 @@ $('#gsteps').addEventListener('click',async e=>{const b=e.target.closest('button
  if(b.hasAttribute('data-copy')){const link=location.origin+'/#get';try{await navigator.clipboard.writeText(link);toast('Link copied. Paste it in your browser.')}catch(_){prompt('Copy this link',link)}}});
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+</script>
+<div class="brk" id="brk" role="status" hidden><i></i><div><b>Stall is taking a short break</b><p id="brkMsg"></p></div><button type="button" id="brkX" aria-label="Close">×</button></div>
+<script>
+// Shown while Stall is paused (Admin → Website → Short break message). Closing it hides it for this visit.
+function showBrk(k){const el=document.getElementById('brk');if(!el||!k)return;try{if(sessionStorage.getItem('st:brk'))return}catch(e){}
+  document.getElementById('brkMsg').textContent=k.msg||'We\'re building something better, and we\'ll be back. Sign up and join the waitlist, and you\'ll be the first to know when Stall returns.';el.hidden=false;
+  document.getElementById('brkX').onclick=()=>{el.hidden=true;try{sessionStorage.setItem('st:brk','1')}catch(e){}}}
+if(window.__brk)showBrk(window.__brk);
 </script>
 </body>
 </html>

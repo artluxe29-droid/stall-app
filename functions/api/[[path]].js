@@ -1037,7 +1037,7 @@ async function route({request,env,params,waitUntil}){
     if(m.length>=3){const md=m.map(r=>r.price).sort((a,b)=>a-b)[m.length>>1];m=m.filter(r=>r.price>=md/3&&r.price<=md*3)}
     if(m.length<3)return J({n:m.length});const p=m.map(r=>r.price).sort((a,b)=>a-b),q=x=>{const v=p[Math.min(p.length-1,Math.round(x*(p.length-1)))];return v>=1000?Math.round(v/100)*100:Math.round(v/50)*50};
     return J({n:m.length,sold:m.filter(r=>r.sold).length,low:q(.25),mid:q(.5),high:q(.75),cond:cond&&same.length>=3?cond:null})}
-  if(path==='config'){await tmr(env);return J({timers:{hand:TM.hand/6e4,answer:TM.answer/36e5,send:TM.send/36e5,pay:TM.pay/36e5},creditPct:await creditPct(env),collectFee:await collectFee(env),fee:await feeCfg(env),freeSales:await freeSales(env),foundingN:await foundingN(env),emailOn:!!env.RESEND_API_KEY,androidPkg:(await getK(env,'android_pkg'))||'',androidSha:(await getK(env,'android_sha'))||'',name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES},200,{'cache-control':'public, max-age=60'})}
+  if(path==='config'){await tmr(env);return J({timers:{hand:TM.hand/6e4,answer:TM.answer/36e5,send:TM.send/36e5,pay:TM.pay/36e5},creditPct:await creditPct(env),collectFee:await collectFee(env),fee:await feeCfg(env),freeSales:await freeSales(env),foundingN:await foundingN(env),emailOn:!!env.RESEND_API_KEY,androidPkg:(await getK(env,'android_pkg'))||'',androidSha:(await getK(env,'android_sha'))||'',name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES,brk:(await getK(env,'brk_on'))==='1'?{msg:(await getK(env,'brk_msg'))||''}:null},200,{'cache-control':'public, max-age=60'})}
   if(path==='schools'&&request.method==='GET'){await ensure(env);return J({schools:(await env.DB.prepare("SELECT id,name,short,state,kind,IFNULL(launch,'soon') launch FROM schools WHERE active=1 ORDER BY name").all()).results,states:STATES},200,{'cache-control':'public, max-age=600'})}
   if(path==='me/delivery'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
     const d=dlvIn(await request.json().catch(()=>({})));if(d.error)return J(d,400);
@@ -1721,10 +1721,14 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       return J({ok:true,what})}
     if(path==='admin/site'&&request.method==='GET'){const since=new Date(Date.now()+36e5-6*864e5).toISOString().slice(0,10);
       const f={};for(const r of (await env.DB.prepare('SELECT k,SUM(n) n FROM site_stats WHERE day>=? GROUP BY k').bind(since).all()).results)f[r.k]=r.n;
-      return J({on:(await getK(env,'site_on'))==='1',funnel:f,ambassadors:(await env.DB.prepare("SELECT id,name,phone,school,note,created,IFNULL(status,'new') status FROM ambassadors ORDER BY (IFNULL(status,'new')='done'),id DESC LIMIT 50").all()).results,supportPhone:(await getK(env,'support_phone'))||''},200,{'cache-control':'no-store'})}
+      return J({on:(await getK(env,'site_on'))==='1',brkOn:(await getK(env,'brk_on'))==='1',brkMsg:(await getK(env,'brk_msg'))||'',funnel:f,ambassadors:(await env.DB.prepare("SELECT id,name,phone,school,note,created,IFNULL(status,'new') status FROM ambassadors ORDER BY (IFNULL(status,'new')='done'),id DESC LIMIT 50").all()).results,supportPhone:(await getK(env,'support_phone'))||''},200,{'cache-control':'no-store'})}
     if(path==='admin/site/lead'&&request.method==='POST'){const st=['new','contacted','done'].includes(b.status)?b.status:'new';
       await env.DB.prepare('UPDATE ambassadors SET status=? WHERE id=?').bind(st,+b.id).run();return J({ok:true})}
-    if(path==='admin/settings'&&request.method==='POST'){if('site_on' in b){await setK(env,'site_on',b.site_on?'1':'0');await logA(env,a,'other',b.site_on?'switched the website on':'switched the website off','')}
+    if(path==='admin/settings'&&request.method==='POST'){
+      // "Taking a short break" message on the website and in the app, with optional wording of the admin's own.
+      if('brk_msg' in b)await setK(env,'brk_msg',String(b.brk_msg||'').trim().slice(0,300));
+      if('brk_on' in b){await setK(env,'brk_on',b.brk_on?'1':'0');await logA(env,a,'other',b.brk_on?'showed the short break message':'removed the short break message','')}
+      if('site_on' in b){await setK(env,'site_on',b.site_on?'1':'0');await logA(env,a,'other',b.site_on?'switched the website on':'switched the website off','')}
       for(const k of ['biz_name','support_phone','support_email'])if(k in b)await setK(env,k,String(b[k]||'').trim().slice(0,120));
       if('ref_reward' in b){const v=Math.round(+b.ref_reward);if(!(v>=0&&v<=5000))return J({error:'Enter a referral reward from ₦0 to ₦5,000.'},400);await setK(env,'ref_reward',v)}
       if('ref_cap' in b){const v=Math.round(+b.ref_cap);if(!(v>=0&&v<=50000))return J({error:'Enter a monthly cap from ₦0 to ₦50,000.'},400);await setK(env,'ref_cap',v)}
