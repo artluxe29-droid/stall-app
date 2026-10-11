@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Stall is taking a short break</title>
+<meta name="description" content="Stall is taking a short break. We're building something better, and we'll be back soon.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#26306E">
+<meta property="og:title" content="Stall is taking a short break">
+<meta property="og:description" content="We're building something better, and we'll be back soon.">
+<meta property="og:image" content="/icons/og-default.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/brand/fonts/figtree-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/brand/fonts.css">
+<style>
+/* Shown to everyone except Stall staff while the app is closed (Admin → Settings → Website → Close the app). */
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:#26306E;color:#F6F1E7;font:400 16px/1.5 "Figtree",-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased;
+  display:grid;place-items:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+main{max-width:440px;text-align:center;display:grid;gap:14px;justify-items:center}
+svg{width:64px;height:auto}
+h1{font-family:"Bricolage Grotesque","Figtree",system-ui,sans-serif;font-weight:800;font-size:clamp(28px,7vw,36px);line-height:1.1;letter-spacing:-.02em;margin:10px 0 0;text-wrap:balance}
+p{margin:0;opacity:.85;line-height:1.55}
+footer{margin-top:28px;font-size:13px;opacity:.6}
+footer a{color:inherit}
+</style>
+</head>
+<body>
+<main>
+  <svg viewBox="18 20 84 78" aria-hidden="true"><path d="M20 30a8 8 0 0 1 8-8h64a8 8 0 0 1 8 8v8H20z" fill="#F6F1E7"/><path d="M20 37h25.5v10a12.75 12.75 0 0 1-25.5 0zM47.3 37h25.4v10a12.7 12.7 0 0 1-25.4 0zM74.5 37H100v10a12.75 12.75 0 0 1-25.5 0z" fill="#F6F1E7"/><circle cx="60" cy="85" r="11" fill="#C8F03C"/></svg>
+  <h1>Stall is taking a short break</h1>
+  <p id="msg">We're building something better, and we'll be back soon. Thank you for your patience. We can't wait to show you what's next.</p>
+  <footer>stall.com.ng · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>
+</main>
+<script>
+// Use the admin's own wording if they've written one.
+fetch('/api/config').then(r=>r.json()).then(c=>{if(c.brk&&c.brk.msg)document.getElementById('msg').textContent=c.brk.msg}).catch(()=>{});
+</script>
+</body>
+</html>
