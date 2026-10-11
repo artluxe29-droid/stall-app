@@ -1008,7 +1008,7 @@ if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch
 <script>
 // Shown while Stall is paused (Admin → Website → Short break message). Closing it hides it for this visit.
 function showBrk(k){const el=document.getElementById('brk');if(!el||!k)return;try{if(sessionStorage.getItem('st:brk'))return}catch(e){}
-  document.getElementById('brkMsg').textContent=k.msg||'We\'re building something better, and we\'ll be back. Sign up and join the waitlist, and you\'ll be the first to know when Stall returns.';el.hidden=false;
+  document.getElementById('brkMsg').textContent=k.msg||'We\'re building something better, and we\'ll be back soon. Thank you for your patience. We can\'t wait to show you what\'s next.';el.hidden=false;
   document.getElementById('brkX').onclick=()=>{el.hidden=true;try{sessionStorage.setItem('st:brk','1')}catch(e){}}}
 if(window.__brk)showBrk(window.__brk);
 </script>

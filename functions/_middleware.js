@@ -3,12 +3,29 @@
 //   Any query string (?go=, ?reference=, ?collect=, ?l=, …) is a deep link or payment return, so it always opens the app.
 // - "/app" is always the app; "/welcome" is always the website (a private preview while it's switched off).
 // - "/install" goes to the website's install section when the website is on (posters and old links keep working).
+// - While the app is closed (Admin -> Settings -> Website), only admins and reviewers can open the app; everyone else gets the website.
+//   "/staff" always serves the app so staff can sign in; anyone else who signs in there sees a "closed" screen.
 // Only these paths run this code (see _routes.json), so photos, scripts and styles are served directly.
 let ON = null, AT = 0;
 async function siteOn(env) {
   if (ON !== null && Date.now() - AT < 30e3) return ON;
   try { const r = await env.DB.prepare("SELECT v FROM settings WHERE k='site_on'").first(); ON = !!r && r.v === '1' } catch (e) { ON = false }
   AT = Date.now(); return ON;
+}
+let CL = null, CAT = 0;
+async function appClosed(env) {
+  if (CL !== null && Date.now() - CAT < 30e3) return CL;
+  try { const r = await env.DB.prepare("SELECT v FROM settings WHERE k='app_closed'").first(); CL = !!r && r.v === '1' } catch (e) { CL = false }
+  CAT = Date.now(); return CL;
+}
+// Signed in as an admin or reviewer? (Same session cookie and hashing as the API.)
+async function isStaff(ctx) {
+  const t = ((ctx.request.headers.get('cookie') || '').match(/(?:^|; )stall_s=([^;]*)/) || [])[1]; if (!t) return false;
+  try {
+    const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map(x => x.toString(16).padStart(2, '0')).join('');
+    const r = await ctx.env.DB.prepare("SELECT u.is_admin a, u.reviewer v FROM sessions s JOIN users u ON u.id=s.uid WHERE s.h=? AND s.exp>?").bind(h, Date.now()).first();
+    return !!r && (!!r.a || !!r.v);
+  } catch (e) { return false }
 }
 const asset = (ctx, path) => ctx.env.ASSETS.fetch(new Request(new URL(path, ctx.request.url), ctx.request));
 // Cloudflare doesn't apply _headers to pages that go through a Function, so the app and website pages get the same security headers here.
@@ -57,6 +74,11 @@ export async function onRequest(ctx) {
   const out = new Response(r.body, r); out.headers.set('X-Robots-Tag', 'noindex'); return out;
 }
 async function route(ctx, u, p) {
+  if (p === '/staff' || p === '/staff/') return sec(asset(ctx, '/'), u.origin);
+  if (await appClosed(ctx.env)) {
+    const app = p === '/app' || p === '/app/' || p.startsWith('/c/') || (p === '/' && (!!u.search || !(await siteOn(ctx.env))));
+    if (app && !(await isStaff(ctx))) return p === '/' && !u.search ? sec(asset(ctx, '/welcome'), u.origin) : Response.redirect(new URL('/', u), 302);
+  }
   if (p === '/app' || p === '/app/') return sec(asset(ctx, '/'), u.origin);
   const cm = p.match(/^\/c\/([A-Za-z0-9]{6})\/?$/), cq = p === '/' && (u.searchParams.get('collect') || '');
   if (cm || /^[A-Za-z0-9]{6}$/.test(cq)) return sec(collectPage(ctx, (cm ? cm[1] : cq).toUpperCase()));

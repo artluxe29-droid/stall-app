@@ -5,6 +5,8 @@
     "/",
     "/app",
     "/app/",
+    "/staff",
+    "/staff/",
     "/install",
     "/api/*",
     "/.well-known/*",
