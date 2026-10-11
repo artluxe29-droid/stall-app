@@ -3,8 +3,9 @@
 //   Any query string (?go=, ?reference=, ?collect=, ?l=, …) is a deep link or payment return, so it always opens the app.
 // - "/app" is always the app; "/welcome" is always the website (a private preview while it's switched off).
 // - "/install" goes to the website's install section when the website is on (posters and old links keep working).
-// - While the app is closed (Admin -> Settings -> Website), only admins and reviewers can open the app; everyone else gets the website.
-//   "/staff" always serves the app so staff can sign in; anyone else who signs in there sees a "closed" screen.
+// - While the app is closed (Admin -> Settings -> Website), everyone except admins and reviewers gets the "taking a short break"
+//   page on every Stall page and link (the privacy, terms and delete-account pages stay readable).
+//   "/staff" always serves the app so staff can sign in; anyone else who signs in there sees the same "closed" screen.
 // Only these paths run this code (see _routes.json), so photos, scripts and styles are served directly.
 let ON = null, AT = 0;
 async function siteOn(env) {
@@ -26,6 +27,14 @@ async function isStaff(ctx) {
     const r = await ctx.env.DB.prepare("SELECT u.is_admin a, u.reviewer v FROM sessions s JOIN users u ON u.id=s.uid WHERE s.h=? AND s.exp>?").bind(h, Date.now()).first();
     return !!r && (!!r.a || !!r.v);
   } catch (e) { return false }
+}
+// Pages that stay readable while the app is closed.
+const OPEN = new Set(['/privacy', '/terms', '/delete-account']);
+// 503 + Retry-After tells search engines and caches this is temporary, so nothing stores the break page in place of Stall.
+async function closedPage(ctx) {
+  const r = await ctx.env.ASSETS.fetch(new Request(new URL('/break', ctx.request.url), ctx.request));
+  const out = new Response(r.body, { status: 503, headers: r.headers }); out.headers.set('Retry-After', '3600'); out.headers.set('cache-control', 'no-store');
+  return sec(out);
 }
 const asset = (ctx, path) => ctx.env.ASSETS.fetch(new Request(new URL(path, ctx.request.url), ctx.request));
 // Cloudflare doesn't apply _headers to pages that go through a Function, so the app and website pages get the same security headers here.
@@ -75,10 +84,7 @@ export async function onRequest(ctx) {
 }
 async function route(ctx, u, p) {
   if (p === '/staff' || p === '/staff/') return sec(asset(ctx, '/'), u.origin);
-  if (await appClosed(ctx.env)) {
-    const app = p === '/app' || p === '/app/' || p.startsWith('/c/') || (p === '/' && (!!u.search || !(await siteOn(ctx.env))));
-    if (app && !(await isStaff(ctx))) return p === '/' && !u.search ? sec(asset(ctx, '/welcome'), u.origin) : Response.redirect(new URL('/', u), 302);
-  }
+  if (!p.startsWith('/api/') && !p.startsWith('/.well-known/') && !OPEN.has(p) && await appClosed(ctx.env) && !(await isStaff(ctx))) return closedPage(ctx);
   if (p === '/app' || p === '/app/') return sec(asset(ctx, '/'), u.origin);
   const cm = p.match(/^\/c\/([A-Za-z0-9]{6})\/?$/), cq = p === '/' && (u.searchParams.get('collect') || '');
   if (cm || /^[A-Za-z0-9]{6}$/.test(cq)) return sec(collectPage(ctx, (cm ? cm[1] : cq).toUpperCase()));
