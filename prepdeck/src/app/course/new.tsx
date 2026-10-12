@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { DateTimeField } from '../../components/DateTimeField';
-import { Button, C, Chip, Field, Muted, s } from '../../components/ui';
+import { Button, Chip, Field, s, Txt } from '../../components/ui';
 import { uid, useStore } from '../../lib/store';
 import type { Topic } from '../../lib/types';
 
@@ -40,12 +40,14 @@ export default function CourseForm() {
 
   return (
     <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[s.content, { gap: 0 }]} keyboardShouldPersistTaps="handled">
+        <Txt v="title" style={{ marginBottom: 4 }}>{existing ? 'Edit exam' : 'New exam'}</Txt>
+        <Txt v="small" style={{ marginBottom: 22 }}>Your plan updates as soon as you save.</Txt>
         <Field label="Course code" value={code} onChangeText={setCode} placeholder="e.g. CPE 501" autoCapitalize="characters" />
         <Field label="Course title" value={title} onChangeText={setTitle} placeholder="e.g. Digital Systems Design" />
         <DateTimeField label="Exam date and time" value={examAt} onChange={setExamAt} />
         <Field label="Venue (optional)" value={venue} onChangeText={setVenue} placeholder="e.g. Main hall" />
-        <View style={{ marginBottom: 14 }}>
+        <View style={{ marginBottom: 16 }}>
           <Text style={s.label}>How hard is this course for you?</Text>
           <View style={[s.row, { gap: 8 }]}>
             {(['Easy', 'Medium', 'Hard'] as const).map((l, i) => (
@@ -53,8 +55,8 @@ export default function CourseForm() {
             ))}
           </View>
         </View>
-        <Field label="Topics to revise (one per line)" value={topicsText} onChangeText={setTopicsText} multiline placeholder={'Number systems\nBoolean algebra\nLogic gates'} />
-        <Muted style={{ fontSize: 13, color: C.ink3, marginTop: -6 }}>Copy them from the course outline. New topics start as “shaky”; you can rate each one on the course page.</Muted>
+        <Field label="Topics to revise (one per line)" value={topicsText} onChangeText={setTopicsText} multiline placeholder={'Number systems\nBoolean algebra\nLogic gates'}
+          hint="Copy them from the course outline. New topics start as “shaky”; rate each one on the course page." />
         <Button title={existing ? 'Save changes' : 'Add course'} onPress={save} disabled={!valid} style={{ marginTop: 8 }} />
       </ScrollView>
     </KeyboardAvoidingView>

@@ -3,7 +3,7 @@ import RNDateTimePicker, { DateTimePickerAndroid } from '@react-native-community
 import { useState } from 'react';
 import { Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { formatExam } from '../lib/dates';
-import { C, s } from './ui';
+import { C, F, s } from './ui';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -20,7 +20,7 @@ export function DateTimeField({ label, value, onChange }: { label: string; value
       if (!Number.isNaN(next.getTime())) onChange(next);
     };
     return (
-      <View style={{ marginBottom: 14 }}>
+      <View style={{ marginBottom: 16 }}>
         <Text style={s.label}>{label}</Text>
         <View style={s.row}>
           <TextInput style={[s.input, { flex: 2 }]} value={webDate} placeholder="YYYY-MM-DD" onChangeText={t => { setWebDate(t); apply(t, webTime); }} />
@@ -58,7 +58,7 @@ export function DateTimeField({ label, value, onChange }: { label: string; value
     <View style={{ marginBottom: 14 }}>
       <Text style={s.label}>{label}</Text>
       <Pressable onPress={open} style={[s.input, s.row, { justifyContent: 'space-between' }]}>
-        <Text style={{ fontSize: 15, color: C.ink }}>{formatExam(value.toISOString())}</Text>
+        <Text style={{ fontSize: 15.5, color: C.ink, fontFamily: F.medium }}>{formatExam(value.toISOString())}</Text>
         <Ionicons name="calendar-outline" size={18} color={C.ink2} />
       </Pressable>
     </View>

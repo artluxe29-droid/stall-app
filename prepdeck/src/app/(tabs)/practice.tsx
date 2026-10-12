@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, Chip, Empty, H1, H2, Muted, s, type IconName, Button } from '../../components/ui';
+import { Button, C, Chip, Empty, F, GRADIENT, s, shadow, Tap, Txt, type IconName } from '../../components/ui';
 import { dayKey } from '../../lib/dates';
 import { dueForReview } from '../../lib/srs';
 import { useStore } from '../../lib/store';
@@ -19,44 +20,44 @@ export default function Practice() {
 
   const go = (mode: string, count: number) => router.push({ pathname: '/quiz', params: { courseId, mode, count: String(count) } });
 
-
   return (
     <SafeAreaView style={s.screen} edges={['top']}>
-      <ScrollView contentContainerStyle={s.content}>
-        <H1>Practice</H1>
+      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        <View>
+          <Txt v="title">Practice</Txt>
+          <Txt v="small">{state.questions.length} past questions in your deck</Txt>
+        </View>
         {state.questions.length === 0 ? (
-          <Empty icon="document-text-outline" title="No past questions yet" body="Paste past questions into a course and they become quizzes and timed mock exams.">
+          <Empty icon="document-text" title="No past questions yet" body="Paste past questions into a course and they become quizzes and timed mock exams.">
             {firstCourse ? (
-              <Button title={`Add questions to ${firstCourse.code}`} icon="add" onPress={() => router.push(`/course/${firstCourse.id}/import`)} />
+              <Button title={`Add questions to ${firstCourse.code}`} icon="add" style={{ alignSelf: 'stretch' }} onPress={() => router.push(`/course/${firstCourse.id}/import`)} />
             ) : (
-              <Button title="Add a course first" icon="add" onPress={() => router.push('/course/new')} />
+              <Button title="Add a course first" icon="add" style={{ alignSelf: 'stretch' }} onPress={() => router.push('/course/new')} />
             )}
           </Empty>
         ) : (
           <>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-              <Chip label={`All (${state.questions.length})`} active={courseId === 'all'} onPress={() => setCourseId('all')} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 20 }} style={{ marginHorizontal: -20, paddingLeft: 20 }}>
+              <Chip label={`All · ${state.questions.length}`} active={courseId === 'all'} onPress={() => setCourseId('all')} />
               {state.courses.map(c => (
-                <Chip key={c.id} label={`${c.code} (${state.questions.filter(q => q.courseId === c.id).length})`} active={courseId === c.id} color={c.color} onPress={() => setCourseId(c.id)} />
+                <Chip key={c.id} label={`${c.code} · ${state.questions.filter(q => q.courseId === c.id).length}`} active={courseId === c.id} color={c.color} onPress={() => setCourseId(c.id)} />
               ))}
             </ScrollView>
 
-            <ModeCard icon="flash-outline" color={C.primary} bg={C.primarySoft} title="Quick practice"
-              body={`10 questions, weakest first. See the answer straight away. ${pool.length} available.`}
-              disabled={pool.length === 0} onPress={() => go('practice', 10)} />
+            <ModeCard icon="flash" grad={GRADIENT.primary} title="Quick practice" tag="10 questions"
+              body="Weakest questions first, with the answer straight after each one." disabled={pool.length === 0} onPress={() => go('practice', 10)} />
 
-            <ModeCard icon="timer-outline" color="#B45309" bg={C.amberSoft} title="Timed mock exam"
-              body={`Multiple choice under exam conditions: 1 minute per question, marked at the end. ${mcqs} available.`}
-              disabled={mcqs === 0} onPress={() => go('mock', Math.min(mockCount, mcqs))}>
-              <View style={[s.row, { gap: 6, marginTop: 10 }]}>
+            <ModeCard icon="timer" grad={GRADIENT.warm} title="Timed mock exam" tag={`${Math.min(mockCount, mcqs)} min`}
+              body="Exam conditions: 1 minute per question, marked at the end." disabled={mcqs === 0} onPress={() => go('mock', Math.min(mockCount, mcqs))}>
+              <View style={[s.row, { gap: 8, marginTop: 14, flexWrap: 'wrap' }]}>
                 {[...[10, 20, 40].filter(n => n < mcqs), mcqs].map(n => (
-                  <Chip key={n} label={n === mcqs ? `All ${n}` : `${n} Qs`} active={Math.min(mockCount, mcqs) === n} color={C.amber} onPress={() => setMockCount(n)} />
+                  <Chip key={n} label={n === mcqs ? `All ${n}` : `${n} Qs`} active={Math.min(mockCount, mcqs) === n} color={C.accent} onPress={() => setMockCount(n)} />
                 ))}
               </View>
             </ModeCard>
 
-            <ModeCard icon="refresh-outline" color={C.green} bg={C.greenSoft} title="Review mistakes"
-              body={due ? `${due} question${due === 1 ? '' : 's'} you missed ${due === 1 ? 'is' : 'are'} due again today.` : 'Nothing due. Questions you miss come back here on a schedule until you master them.'}
+            <ModeCard icon="refresh" grad={GRADIENT.green} title="Review mistakes" tag={due ? `${due} due` : 'All clear'}
+              body={due ? 'Questions you missed come back on a schedule until you master them.' : 'Nothing due right now. Missed questions return here 1, 2, 4, 7 and 14 days later.'}
               disabled={due === 0} onPress={() => go('review', due)} />
           </>
         )}
@@ -65,23 +66,30 @@ export default function Practice() {
   );
 }
 
-function ModeCard({ icon, color, bg, title, body, onPress, disabled, children }: {
-  icon: IconName; color: string; bg: string; title: string; body: string; onPress: () => void; disabled?: boolean; children?: ReactNode;
+function ModeCard({ icon, grad, title, tag, body, onPress, disabled, children }: {
+  icon: IconName; grad: readonly [string, string, ...string[]]; title: string; tag: string; body: string; onPress: () => void; disabled?: boolean; children?: ReactNode;
 }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} style={[st.mode, disabled && { opacity: 0.5 }]}>
-      <View style={[st.modeIcon, { backgroundColor: bg }]}><Ionicons name={icon} size={24} color={color} /></View>
-      <View style={{ flex: 1 }}>
-        <H2>{title}</H2>
-        <Muted style={{ fontSize: 13 }}>{body}</Muted>
-        {children}
+    <Tap onPress={onPress} disabled={disabled} scale={0.98} accessibilityRole="button" accessibilityLabel={title} style={[st.mode, shadow]}>
+      <View style={s.row}>
+        <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.icon}>
+          <Ionicons name={icon} size={26} color="#fff" />
+        </LinearGradient>
+        <View style={{ flex: 1 }}>
+          <Txt v="h2">{title}</Txt>
+          <Text style={[st.tag, { color: grad[grad.length - 1] }]}>{tag}</Text>
+        </View>
+        <View style={st.go}><Ionicons name="arrow-forward" size={18} color={C.ink} /></View>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={C.ink3} />
-    </Pressable>
+      <Txt v="small" style={{ marginTop: 12 }}>{body}</Txt>
+      {children}
+    </Tap>
   );
 }
 
 const st = StyleSheet.create({
-  mode: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.card, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: C.line },
-  modeIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  mode: { backgroundColor: C.card, borderRadius: 26, padding: 18 },
+  icon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  tag: { fontFamily: F.bold, fontSize: 13, marginTop: 2 },
+  go: { width: 38, height: 38, borderRadius: 13, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
 });

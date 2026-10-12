@@ -1,13 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, C, Empty, H1, Muted, s } from '../../components/ui';
+import { Bar, C, Empty, F, GRADIENT, Pill, s, shadow, Tap, Txt, Button } from '../../components/ui';
 import { formatExam, relativeDays } from '../../lib/dates';
 import { sessionsNeeded } from '../../lib/planner';
 import { useStore } from '../../lib/store';
-import { useNow } from '../../lib/useNow';
 import type { Course } from '../../lib/types';
+import { useNow } from '../../lib/useNow';
+
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 export default function Exams() {
   const { state } = useStore();
@@ -22,49 +25,59 @@ export default function Exams() {
     return need ? done / need : 0;
   };
 
-  const row = (c: Course, dim = false) => {
+  const card = (c: Course, dim = false) => {
     const qs = state.questions.filter(q => q.courseId === c.id).length;
-    const pct = Math.round(coverage(c) * 100);
+    const pct = coverage(c);
     const rel = relativeDays(c.examAt);
+    const urgent = rel === 'today' || rel === 'tomorrow';
+    const d = new Date(c.examAt);
     return (
-      <Pressable key={c.id} onPress={() => router.push(`/course/${c.id}`)} style={[st.card, dim && { opacity: 0.55 }]}>
-        <View style={[st.stripe, { backgroundColor: c.color }]} />
-        <View style={{ flex: 1, padding: 14, gap: 4 }}>
-          <View style={[s.row, { justifyContent: 'space-between' }]}>
-            <Text style={st.code}>{c.code}</Text>
-            <View style={[st.badge, rel === 'today' || rel === 'tomorrow' ? { backgroundColor: C.redSoft } : null]}>
-              <Text style={[st.badgeText, rel === 'today' || rel === 'tomorrow' ? { color: C.red } : null]}>{rel}</Text>
-            </View>
+      <Tap key={c.id} onPress={() => router.push(`/course/${c.id}`)} scale={0.98} style={[st.card, shadow, dim && { opacity: 0.55 }]}>
+        <View style={[st.date, { backgroundColor: `${c.color}18` }]}>
+          <Text style={[st.dateMonth, { color: c.color }]}>{MONTHS[d.getMonth()]}</Text>
+          <Text style={[st.dateDay, { color: c.color }]}>{d.getDate()}</Text>
+        </View>
+        <View style={{ flex: 1, gap: 3 }}>
+          <View style={s.between}>
+            <Txt v="h2">{c.code}</Txt>
+            <Pill label={rel} color={urgent ? C.red : C.primary} bg={urgent ? C.redSoft : C.primarySoft} />
           </View>
-          <Text style={st.title} numberOfLines={1}>{c.title}</Text>
-          <Muted style={{ fontSize: 13 }}>{formatExam(c.examAt)}{c.venue ? ` · ${c.venue}` : ''}</Muted>
+          <Txt v="bodyStrong" numberOfLines={1} style={{ color: C.ink2, fontFamily: F.semibold }}>{c.title}</Txt>
+          <Txt v="caption" style={{ fontFamily: F.medium }}>{formatExam(c.examAt).split(', ')[1]}{c.venue ? `  ·  ${c.venue}` : ''}</Txt>
           <View style={[s.row, { marginTop: 8 }]}>
-            <View style={st.track}><View style={[st.fill, { width: `${pct}%`, backgroundColor: c.color }]} /></View>
-            <Text style={st.meta}>{pct}% revised</Text>
+            <Bar value={pct} color={c.color} height={7} />
+            <Text style={st.pct}>{Math.round(pct * 100)}%</Text>
           </View>
-          <View style={[s.row, { gap: 14, marginTop: 2 }]}>
-            <Text style={st.meta}><Ionicons name="list-outline" size={12} /> {c.topics.length} topics</Text>
-            <Text style={st.meta}><Ionicons name="help-circle-outline" size={12} /> {qs} questions</Text>
+          <View style={[s.row, { gap: 14, marginTop: 4 }]}>
+            <Meta icon="list" text={`${c.topics.length} topics`} />
+            <Meta icon="help-circle" text={`${qs} questions`} />
           </View>
         </View>
-      </Pressable>
+      </Tap>
     );
   };
 
   return (
     <SafeAreaView style={s.screen} edges={['top']}>
-      <ScrollView contentContainerStyle={s.content}>
-        <View style={[s.row, { justifyContent: 'space-between' }]}>
-          <H1>Exams</H1>
-          <Button title="Add" icon="add" onPress={() => router.push('/course/new')} style={{ paddingVertical: 9 }} />
+      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        <View style={s.between}>
+          <View>
+            <Txt v="title">Exams</Txt>
+            <Txt v="small">{upcoming.length ? `${upcoming.length} coming up` : 'Your timetable'}</Txt>
+          </View>
+          <Tap onPress={() => router.push('/course/new')} accessibilityRole="button" accessibilityLabel="Add exam">
+            <LinearGradient colors={GRADIENT.primary} style={st.add}><Ionicons name="add" size={26} color="#fff" /></LinearGradient>
+          </Tap>
         </View>
         {state.courses.length === 0 ? (
-          <Empty icon="calendar-outline" title="No exams yet" body="Add each course with its exam date and topics." />
+          <Empty icon="calendar" title="No exams yet" body="Add each course with its exam date and topics, and your plan builds itself.">
+            <Button title="Add an exam" icon="add" onPress={() => router.push('/course/new')} style={{ alignSelf: 'stretch' }} />
+          </Empty>
         ) : (
           <>
-            {upcoming.map(c => row(c))}
-            {past.length > 0 && <Muted style={{ marginTop: 8, fontWeight: '700' }}>Finished</Muted>}
-            {past.map(c => row(c, true))}
+            {upcoming.map(c => card(c))}
+            {past.length > 0 && <Txt v="overline" style={{ marginTop: 8 }}>Finished</Txt>}
+            {past.map(c => card(c, true))}
           </>
         )}
       </ScrollView>
@@ -72,14 +85,20 @@ export default function Exams() {
   );
 }
 
+function Meta({ icon, text }: { icon: 'list' | 'help-circle'; text: string }) {
+  return (
+    <View style={[s.row, { gap: 4 }]}>
+      <Ionicons name={icon} size={13} color={C.ink3} />
+      <Txt v="caption" style={{ color: C.ink2 }}>{text}</Txt>
+    </View>
+  );
+}
+
 const st = StyleSheet.create({
-  card: { flexDirection: 'row', backgroundColor: C.card, borderRadius: 18, borderWidth: 1, borderColor: C.line, overflow: 'hidden' },
-  stripe: { width: 6 },
-  code: { fontSize: 18, fontWeight: '800', color: C.ink },
-  title: { fontSize: 15, color: C.ink, fontWeight: '500' },
-  badge: { backgroundColor: C.primarySoft, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  badgeText: { fontSize: 12, fontWeight: '700', color: C.primary },
-  track: { flex: 1, height: 6, borderRadius: 3, backgroundColor: C.line, overflow: 'hidden' },
-  fill: { height: 6, borderRadius: 3 },
-  meta: { fontSize: 12, color: C.ink2, fontWeight: '600' },
+  card: { flexDirection: 'row', gap: 14, backgroundColor: C.card, borderRadius: 24, padding: 16 },
+  date: { width: 58, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, alignSelf: 'flex-start' },
+  dateMonth: { fontFamily: F.bold, fontSize: 11, letterSpacing: 1 },
+  dateDay: { fontFamily: F.extrabold, fontSize: 24, lineHeight: 28 },
+  pct: { fontFamily: F.bold, fontSize: 12, color: C.ink2, minWidth: 34, textAlign: 'right' },
+  add: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 });

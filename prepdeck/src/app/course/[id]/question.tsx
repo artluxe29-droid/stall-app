@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
-import { Button, Chip, Field, s } from '../../../components/ui';
+import { Button, Chip, Field, s, Txt } from '../../../components/ui';
 import { useStore } from '../../../lib/store';
 
 const LETTERS = ['A', 'B', 'C', 'D'];
@@ -37,8 +37,9 @@ export default function NewQuestion() {
 
   return (
     <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-        <View style={[s.row, { gap: 8 }]}>
+      <ScrollView contentContainerStyle={[s.content, { gap: 0 }]} keyboardShouldPersistTaps="handled">
+        <Txt v="title" style={{ marginBottom: 16 }}>New question</Txt>
+        <View style={[s.row, { gap: 8, marginBottom: 18 }]}>
           <Chip label="Multiple choice" active={kind === 'mcq'} onPress={() => setKind('mcq')} />
           <Chip label="Theory" active={kind === 'theory'} onPress={() => setKind('theory')} />
         </View>
@@ -49,7 +50,7 @@ export default function NewQuestion() {
               <Field key={i} label={`Option ${LETTERS[i]}`} value={o} onChangeText={t => setOptions(prev => prev.map((p, j) => (j === i ? t : p)))} />
             ))}
             <Text style={s.label}>Correct answer</Text>
-            <View style={[s.row, { gap: 8, marginBottom: 14 }]}>
+            <View style={[s.row, { gap: 8, marginBottom: 16 }]}>
               {LETTERS.map((l, i) => <Chip key={l} label={l} active={answer === i} onPress={() => setAnswer(i)} />)}
             </View>
             <Field label="Explanation (optional)" value={explanation} onChangeText={setExplanation} multiline />
