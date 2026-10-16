@@ -75,7 +75,7 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   for(const s0 of stale)if((await env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,s0.id).run()).meta.changes)ids.push(s0.id);
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='37';
+const SCHEMA_V='38';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -115,6 +115,8 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'CREATE TABLE IF NOT EXISTS codes(k TEXT PRIMARY KEY,h TEXT NOT NULL,data TEXT,exp INTEGER NOT NULL,tries INTEGER NOT NULL DEFAULT 0)',
     'CREATE TABLE IF NOT EXISTS id_checks(uid INTEGER PRIMARY KEY,kind TEXT,photo TEXT,status TEXT NOT NULL,ai TEXT,reason TEXT,created INTEGER NOT NULL,updated INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS id_checks_status ON id_checks(status,updated)',
     'CREATE TABLE IF NOT EXISTS push_subs(endpoint TEXT PRIMARY KEY,uid INTEGER NOT NULL,created INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS push_subs_uid ON push_subs(uid)',
+    // Firebase Cloud Messaging tokens for the native app (one per installed device).
+    'CREATE TABLE IF NOT EXISTS fcm_tokens(token TEXT PRIMARY KEY,uid INTEGER NOT NULL,platform TEXT,created INTEGER NOT NULL)','CREATE INDEX IF NOT EXISTS fcm_tokens_uid ON fcm_tokens(uid)',
     'CREATE TABLE IF NOT EXISTS notes(id INTEGER PRIMARY KEY AUTOINCREMENT,uid INTEGER NOT NULL,title TEXT NOT NULL,body TEXT,url TEXT,tag TEXT,t INTEGER NOT NULL,sent INTEGER NOT NULL DEFAULT 0)','CREATE INDEX IF NOT EXISTS notes_uid ON notes(uid,sent,t)',
     'ALTER TABLE users ADD COLUMN ref_code TEXT','ALTER TABLE users ADD COLUMN referred_by INTEGER','ALTER TABLE users ADD COLUMN ref_paid INTEGER NOT NULL DEFAULT 0','ALTER TABLE users ADD COLUMN credit INTEGER NOT NULL DEFAULT 0',
     'CREATE UNIQUE INDEX IF NOT EXISTS users_ref_code ON users(ref_code)','CREATE INDEX IF NOT EXISTS users_referred_by ON users(referred_by)',
@@ -626,12 +628,30 @@ async function vapid(env){if(env.VAPID_PUBLIC&&env.VAPID_PRIVATE_JWK)return{pub:
 async function vapidJwt(env,aud){const v=await vapid(env),enc=o=>b64u(E.encode(JSON.stringify(o))),head=enc({typ:'JWT',alg:'ES256'}),body=enc({aud,exp:Math.floor(Date.now()/1000)+12*3600,sub:'mailto:'+((await getK(env,'support_email'))||'hello@stall.app')});
   const key=await crypto.subtle.importKey('jwk',v.jwk,{name:'ECDSA',namedCurve:'P-256'},false,['sign']);
   return{jwt:head+'.'+body+'.'+b64u(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},key,E.encode(head+'.'+body))),pub:v.pub}}
-async function ping(env,uid,title,body,url,tag){try{const subs=(await env.DB.prepare('SELECT endpoint FROM push_subs WHERE uid=?').bind(uid).all()).results;if(!subs.length)return;
+async function ping(env,uid,title,body,url,tag){try{const [subs,fcm]=await Promise.all([env.DB.prepare('SELECT endpoint FROM push_subs WHERE uid=?').bind(uid).all().then(r=>r.results),
+    env.DB.prepare('SELECT token FROM fcm_tokens WHERE uid=?').bind(uid).all().then(r=>r.results).catch(()=>[])]);if(!subs.length&&!fcm.length)return;
   await env.DB.prepare('INSERT INTO notes(uid,title,body,url,tag,t) VALUES(?,?,?,?,?,?)').bind(uid,String(title).slice(0,80),String(body||'').slice(0,180),url||'/',tag||null,Date.now()).run();
   for(const{endpoint}of subs){const{jwt,pub}=await vapidJwt(env,new URL(endpoint).origin);
     const r=await fetch(endpoint,{signal:T_OUT(),method:'POST',headers:{TTL:'86400',Urgency:'high','content-length':'0',Authorization:'vapid t='+jwt+', k='+pub}}).catch(()=>null);
     if(r&&(r.status===404||r.status===410))await env.DB.prepare('DELETE FROM push_subs WHERE endpoint=?').bind(endpoint).run();
-    await setK(env,'push_last',JSON.stringify({t:Date.now(),ok:!!r&&r.status<300,err:r&&r.status>=300?'Push service said '+r.status:r?null:'Could not reach the push service'}))}}catch(e){}}
+    await setK(env,'push_last',JSON.stringify({t:Date.now(),ok:!!r&&r.status<300,err:r&&r.status>=300?'Push service said '+r.status:r?null:'Could not reach the push service'}))}
+  if(fcm.length)await Promise.all(fcm.map(f=>fcmSend(env,f.token,title,body,url,tag)))}catch(e){}}
+// ---- Native app push (Firebase Cloud Messaging, HTTP v1). Needs the FCM_SERVICE_ACCOUNT secret (the service account JSON from Firebase).
+let FCM_AT={t:'',exp:0},FCM_P=null;
+// One Google sign-in serves every push for about an hour; pushes sent at the same moment share it.
+async function fcmAccess(env){if(FCM_AT.t&&FCM_AT.exp>Date.now()+6e4)return FCM_AT.t;return FCM_P||(FCM_P=fcmToken(env).finally(()=>{FCM_P=null}))}
+async function fcmToken(env){const sa=JSON.parse(env.FCM_SERVICE_ACCOUNT),now=Math.floor(Date.now()/1000);
+  const der=Uint8Array.from(atob(sa.private_key.replace(/-----[^-]+-----|\s/g,'')),c=>c.charCodeAt(0)),key=await crypto.subtle.importKey('pkcs8',der,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
+  const enc=o=>b64u(E.encode(JSON.stringify(o))),head=enc({alg:'RS256',typ:'JWT'}),claims=enc({iss:sa.client_email,scope:'https://www.googleapis.com/auth/firebase.messaging',aud:'https://oauth2.googleapis.com/token',iat:now,exp:now+3600});
+  const sig=b64u(new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,E.encode(head+'.'+claims))));
+  const r=await fetch('https://oauth2.googleapis.com/token',{signal:T_OUT(),method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion='+head+'.'+claims+'.'+sig});
+  const j=await r.json();if(!j.access_token)throw new Error('FCM sign-in failed: '+(j.error_description||j.error||r.status));FCM_AT={t:j.access_token,exp:Date.now()+(+j.expires_in||3600)*1e3};return FCM_AT.t}
+async function fcmSend(env,token,title,body,url,tag){if(!env.FCM_SERVICE_ACCOUNT)return;try{const sa=JSON.parse(env.FCM_SERVICE_ACCOUNT);
+  const r=await fetch('https://fcm.googleapis.com/v1/projects/'+encodeURIComponent(sa.project_id)+'/messages:send',{signal:T_OUT(),method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+await fcmAccess(env)},
+    body:JSON.stringify({message:{token,notification:{title:String(title).slice(0,80),body:String(body||'').slice(0,180)},data:{url:url||'/',tag:tag||''},android:{priority:'high',notification:{channel_id:'stall',...(tag?{tag}:{})}}}})});
+  // A token Firebase no longer knows (app uninstalled, data cleared) is forgotten.
+  if(r.status===404||r.status===400&&/UNREGISTERED|registration-token-not-registered|INVALID_ARGUMENT/.test(await r.clone().text()))await env.DB.prepare('DELETE FROM fcm_tokens WHERE token=?').bind(token).run();
+  await setK(env,'fcm_last',JSON.stringify({t:Date.now(),ok:r.ok,err:r.ok?null:'Firebase said '+r.status}))}catch(e){await setK(env,'fcm_last',JSON.stringify({t:Date.now(),ok:false,err:String(e&&e.message||e).slice(0,200)})).catch(()=>{})}}
 const SITE=env=>env.SITE_URL||'https://stall.com.ng';
 // One-time 6-digit codes (email check, password reset). Stored hashed, 15 minutes, 5 tries.
 const newCode=async(env,k,data)=>{const c=String(100000+crypto.getRandomValues(new Uint32Array(1))[0]%900000);await env.DB.prepare('INSERT OR REPLACE INTO codes(k,h,data,exp,tries) VALUES(?,?,?,?,0)').bind(k,await sha(k+':'+c),data||null,Date.now()+9e5).run();return c};
@@ -717,7 +737,9 @@ const phoneN=p=>{let d=String(p||'').replace(/\D/g,'');if(d.startsWith('234')&&d
 const pub=u=>({...pubBase(u),uid:u.id,school:u.school_id||null,deliv:dlv(u),rating:rat(u),email:u.email||'',emailVerified:!!u.email_verified,emailNotify:!!u.email_notify,vlevel:u.vlevel||0,credit:u.credit||0,sellerOk:!!u.seller_ok,pausedUntil:u.restricted_until>Date.now()?u.restricted_until:null});
 const pubBase=u=>u.role==='vendor'?{role:'vendor',id:'V-'+u.phone,name:u.name,biz:u.biz,phone:u.phone,where:u.place||'',cat:u.cat,status:u.status,admin:!!u.is_admin,reviewer:!!u.reviewer,verified:!!u.verified,acctSet:!!(u.acct_no&&u.acct_name)}:{role:'student',id:u.matric||('U'+u.id),name:u.name,matric:u.matric||'',matricClaim:u.matric_claim||'',email:u.email,phone:u.phone,where:u.place||'',status:u.status,admin:!!u.is_admin,reviewer:!!u.reviewer,verified:!!u.verified,acctSet:!!(u.acct_no&&u.acct_name)};
 const cookie=(r,n)=>((r.headers.get('cookie')||'').match(new RegExp('(?:^|; )'+n+'=([^;]*)'))||[])[1];
-const me=async(env,r)=>{const t=cookie(r,'stall_s');return t?env.DB.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id=s.uid WHERE s.h=? AND s.exp>? AND IFNULL(u.status,'active')!='suspended'").bind(await sha(t),Date.now()).first():null};
+// The web app sends its session in a cookie; the native app sends the same kind of token as "Authorization: Bearer …".
+const sessTok=r=>cookie(r,'stall_s')||((r.headers.get('authorization')||'').match(/^Bearer ([0-9a-f]{64})$/)||[])[1];
+const me=async(env,r)=>{const t=sessTok(r);return t?env.DB.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id=s.uid WHERE s.h=? AND s.exp>? AND IFNULL(u.status,'active')!='suspended'").bind(await sha(t),Date.now()).first():null};
 const LIVE="IFNULL(u.status,'active')!='suspended'";
 // {school_id} picks a listed school; {school_name,school_state} asks for a new one (hidden until an admin approves it).
 const pickSchool=async(env,b)=>{const id=+b.school_id||0;
@@ -727,6 +749,8 @@ const pickSchool=async(env,b)=>{const id=+b.school_id||0;
   const ex=await env.DB.prepare('SELECT id,name,short,state FROM schools WHERE name=? COLLATE NOCASE').bind(n).first();if(ex)return ex;
   const r=await env.DB.prepare('INSERT INTO schools(name,short,state,kind,active,created) VALUES(?,?,?,?,0,?)').bind(n,null,st,'other',Date.now()).run();
   return{id:r.meta.last_row_id,name:n,short:null,state:st}};
+// The native app asks for its token in the reply (X-Stall-App header); the web app only ever gets the HttpOnly cookie.
+const signedIn=async(env,r,uid,body)=>{const c=await start(env,uid);if(r.headers.get('x-stall-app'))body.token=c.split(';')[0].slice(8);return J(body,200,{'set-cookie':c})};
 const start=async(env,uid)=>{const t=rnd(32);await env.DB.prepare('INSERT INTO sessions(h,uid,exp) VALUES(?,?,?)').bind(await sha(t),uid,Date.now()+2592e6).run();return 'stall_s='+t+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000'};
 const tg=async(env,text)=>{if(!env.TELEGRAM_BOT_TOKEN||!env.TELEGRAM_CHAT_ID)return;try{await fetch('https://api.telegram.org/bot'+env.TELEGRAM_BOT_TOKEN+'/sendMessage',{signal:T_OUT(),method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:env.TELEGRAM_CHAT_ID,text})})}catch(e){}};
 const STORE_FEE=5000;
@@ -844,7 +868,7 @@ async function route({request,env,params,waitUntil}){
       if(claim){await env.DB.prepare('UPDATE users SET matric_claim=? WHERE id=?').bind(claim,r.meta.last_row_id).run();waitUntil(tg(env,'Matric number already in use\n'+name+' ('+phone+') signed up with '+claim+', which another unverified account has. They can claim it by verifying with a school document.'))}
       if(phoneOdd(phone))waitUntil(tg(env,'Check this phone number: '+name+' signed up with '+phone+'. It looks unusual. See Admin → People.'));
       const u=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(r.meta.last_row_id).first();
-      return J({user:{...pub(u),freeLeft:await freeLeft(env,u.id)},claim:!!claim},200,{'set-cookie':await start(env,u.id)});
+      return signedIn(env,request,u.id,{user:{...pub(u),freeLeft:await freeLeft(env,u.id)},claim:!!claim});
     }catch(e){return /UNIQUE/i.test(String(e.message))?J({error:'An account with this '+(vendor?'phone number':'matric number or phone number')+' already exists. Try signing in.',field:vendor?'phone':'matric'},409):J({error:'Could not create account. Try again.'},500)}
   }
   if(path==='login'&&request.method==='POST'){
@@ -857,7 +881,7 @@ async function route({request,env,params,waitUntil}){
     if(!u||await pbk(String(b.password||''),u.salt)!==u.pw){await env.DB.prepare('INSERT INTO attempts(k,t) VALUES(?,?)').bind(k,now).run();return J({error:'Wrong matric number, phone or password.'},401)}
     await env.DB.prepare('DELETE FROM attempts WHERE t<?').bind(now-9e5).run();
     if(u.status==='suspended')return J({error:'This account has been suspended. Contact the Stall team if you think this is a mistake.'},403);
-    return J({user:{...pub(u),freeLeft:await freeLeft(env,u.id)}},200,{'set-cookie':await start(env,u.id)});
+    return signedIn(env,request,u.id,{user:{...pub(u),freeLeft:await freeLeft(env,u.id)}});
   }
   // ---- Student verification. Level 1: confirmed school email. Level 2: student ID or admission letter checked. Campus vendors don't need it.
   if(path==='verify/email/start'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
@@ -934,7 +958,7 @@ async function route({request,env,params,waitUntil}){
     if(pw.length<8||pw.length>100)return J({error:'Use at least 8 characters.'},400);
     const salt=rnd(16),t=cookie(request,'stall_s');await env.DB.prepare('UPDATE users SET salt=?,pw=? WHERE id=?').bind(salt,await pbk(pw,salt),u.id).run();
     await env.DB.prepare('DELETE FROM sessions WHERE uid=? AND h!=?').bind(u.id,await sha(t)).run();return J({ok:true})}
-  if(path==='logout'&&request.method==='POST'){const t=cookie(request,'stall_s');if(t)await env.DB.prepare('DELETE FROM sessions WHERE h=?').bind(await sha(t)).run();return J({ok:true},200,{'set-cookie':'stall_s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'})}
+  if(path==='logout'&&request.method==='POST'){const t=sessTok(request);if(t)await env.DB.prepare('DELETE FROM sessions WHERE h=?').bind(await sha(t)).run();return J({ok:true},200,{'set-cookie':'stall_s=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'})}
   if(path.startsWith('collect/')){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);const b=request.method==='POST'?await request.json().catch(()=>({})):{};
     const own=async code=>{const c=await env.DB.prepare('SELECT * FROM collections WHERE code=?').bind(String(code||'')).first();return c&&(c.uid===u.id||u.is_admin)?c:null};
     if(path==='collect/create'&&request.method==='POST'){{const x=await vGate(env,u)||await soonGate(env,u);if(x)return x}
@@ -1279,6 +1303,10 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
     if(path==='push/subscribe'&&request.method==='POST'){let ep;try{ep=new URL(String(b.endpoint||''))}catch(e){}
       if(!ep||ep.protocol!=='https:'||!PUSH_HOSTS.test(ep.hostname))return J({error:'That notification service is not supported.'},400);if(!await allow(env,'psub:'+u.id,20,36e5))return slow();
       await env.DB.prepare('INSERT INTO push_subs(endpoint,uid,created) VALUES(?,?,?) ON CONFLICT(endpoint) DO UPDATE SET uid=excluded.uid').bind(ep.href,u.id,Date.now()).run();return J({ok:true})}
+    // Native app: register or forget this device's Firebase token.
+    if(path==='push/fcm'&&request.method==='POST'){const t=String(b.token||'');if(!/^[\w:.-]{20,4096}$/.test(t))return J({error:'Invalid token.'},400);
+      await env.DB.prepare('INSERT INTO fcm_tokens(token,uid,platform,created) VALUES(?,?,?,?) ON CONFLICT(token) DO UPDATE SET uid=excluded.uid,platform=excluded.platform').bind(t,u.id,['android','ios'].includes(b.platform)?b.platform:null,Date.now()).run();return J({ok:true})}
+    if(path==='push/fcm/remove'&&request.method==='POST'){await env.DB.prepare('DELETE FROM fcm_tokens WHERE token=? AND uid=?').bind(String(b.token||''),u.id).run();return J({ok:true})}
     if(path==='push/unsubscribe'&&request.method==='POST'){await env.DB.prepare('DELETE FROM push_subs WHERE endpoint=? AND uid=?').bind(String(b.endpoint||''),u.id).run();return J({ok:true})}
     // Called by the service worker when a push arrives: hands over what to show, once.
     if(path==='push/inbox'){const rs=(await env.DB.prepare('SELECT id,title,body,url,tag FROM notes WHERE uid=? AND sent=0 AND t>? ORDER BY id DESC LIMIT 5').bind(u.id,Date.now()-2*864e5).all()).results;

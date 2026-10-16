@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stall launch screen: cream background with the Stall icon in the middle. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/backgroundColor" />
+    <item>
+        <bitmap android:gravity="center" android:src="@mipmap/launch_image" />
+    </item>
+</layer-list>
