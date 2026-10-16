@@ -16,6 +16,7 @@ class StallUser {
   bool get isStaff => isAdmin || isReviewer;
   Map<String, dynamic>? get school => raw['schoolInfo'] is Map<String, dynamic> ? raw['schoolInfo'] as Map<String, dynamic> : null;
   String get schoolName => (school?['short'] ?? school?['name'] ?? '').toString();
+  String get state => (school?['state'] ?? '').toString();
 }
 
 enum SessionState { loading, signedOut, signedIn }

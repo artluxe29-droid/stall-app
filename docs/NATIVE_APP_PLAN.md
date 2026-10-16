@@ -1,6 +1,6 @@
 # Stall native app: rebuild plan
 
-Status: **Phase 0 in progress** (started 16 Oct 2026).
+Status: **Phase 1 in progress.** Phase 0 is done (16 Oct 2026). Phase 1a (browsing) is in the app; sign-up (1b) and buying (1c) are next.
 
 ## Why
 
@@ -32,25 +32,25 @@ Estimates assume Claude writes most of the code and you test on a phone for a fe
 Tick each one only when it works in the native app against the live API.
 
 - **Accounts:**
-  - [ ] Sign in and sign out
+  - [x] Sign in and sign out
   - [ ] Sign up: school pick, matric, email code
   - [ ] Student verification: ID upload or school email
   - [ ] Password reset flow (via support)
   - [ ] Delete account
 - **Browse:**
-  - [ ] Home feed (school, state, everywhere)
-  - [ ] Categories
-  - [ ] Search with filters and sort
-  - [ ] Recent searches
+  - [x] Home feed (school, state, everywhere)
+  - [x] Categories
+  - [x] Search with filters and sort
+  - [x] Recent searches
   - [ ] Voice search
-  - [ ] Store search hits
+  - [x] Store search hits
 - **Items and stores:**
-  - [ ] Item page and photos
-  - [ ] Seller rating
-  - [ ] Delivery info
-  - [ ] Store page, logo and items
-  - [ ] Founding Seller badge
-  - [ ] Share links
+  - [x] Item page and photos
+  - [x] Seller rating
+  - [x] Delivery info
+  - [x] Store page, logo and items
+  - [x] Founding Seller badge
+  - [x] Share links
 - **Buying:**
   - [ ] Bag
   - [ ] Checkout (pickup or delivery)
@@ -113,8 +113,8 @@ Tick each one only when it works in the native app against the live API.
   - [ ] Coming soon and waitlist
   - [ ] Sellers-only stage
   - [ ] Students-can't-sell
-  - [ ] Short break message
-  - [ ] Closed screen
+  - [x] Short break message
+  - [x] Closed screen
 - **Admin:** stays on the web (opened from the app for staff)
 
 ## Costs and trade-offs
