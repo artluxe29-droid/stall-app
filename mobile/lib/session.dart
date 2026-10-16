@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'api.dart';
 import 'bag.dart';
+import 'theme.dart';
 
 /// The signed-in person, from the API's user object.
 class StallUser {
@@ -31,6 +32,11 @@ class StallUser {
   bool get mustVerify => raw['mustVerify'] == true;
   /// Admin → "Students must be verified to use Stall" (on unless turned off).
   bool get verifyGate => raw['verifyGate'] == true;
+  /// Has a payout bank account saved (it's added with the first listing).
+  bool get acctSet => raw['acctSet'] == true;
+  /// Sales left with no Stall fee (launch offer).
+  int get freeLeft => (raw['freeLeft'] as num?)?.toInt() ?? 0;
+  Map<String, dynamic> get deliv => raw['deliv'] is Map<String, dynamic> ? raw['deliv'] as Map<String, dynamic> : const {};
 }
 
 enum SessionState { loading, signedOut, signedIn }
@@ -128,6 +134,20 @@ class Session extends ChangeNotifier {
   }
 
   bool get emailOn => config['emailOn'] == true;
+
+  /// Stall's sale fee on a price, set in Admin → Settings → Sale fee (the server works it out the same way).
+  int feeOf(int amount) {
+    final c = config['fee'] is Map ? config['fee'] as Map : const {'rate': 5, 'min': 150, 'cap': 2000};
+    final rate = (c['rate'] as num? ?? 5).toDouble(), min = (c['min'] as num? ?? 150).toInt(), cap = (c['cap'] as num? ?? 2000).toInt();
+    final f = (amount * rate / 100).round();
+    return [f < min ? min : f, cap, amount ~/ 2].reduce((a, b) => a < b ? a : b);
+  }
+
+  String get feeDesc {
+    final c = config['fee'] is Map ? config['fee'] as Map : const {'rate': 5, 'min': 150, 'cap': 2000};
+    final min = (c['min'] as num? ?? 150).toInt();
+    return '${c['rate'] ?? 5}% (${min > 0 ? 'at least ${naira(min)}, ' : ''}never more than ${naira((c['cap'] as num? ?? 2000).toInt())})';
+  }
 
   Future<void> signOut() async {
     try {
