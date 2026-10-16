@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'account_setup.dart';
 import 'browse.dart';
 import 'stores.dart';
 
@@ -70,6 +71,28 @@ class AccountTab extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 12),
+      if (u != null && !u.isVendor)
+        Card(
+          child: ListTile(
+            key: const Key('verify'),
+            leading: Icon(u.vlevel >= 1 ? Icons.verified_rounded : Icons.verified_outlined, color: u.vlevel >= 1 ? StallColors.green : StallColors.indigo),
+            title: const Text('Student verification'),
+            subtitle: Text(verifyLabel(u)),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VerifyStudentScreen())),
+          ),
+        ),
+      if (u != null && s.emailOn)
+        Card(
+          child: ListTile(
+            key: const Key('emailTile'),
+            leading: const Icon(Icons.mail_outline_rounded, color: StallColors.indigo),
+            title: const Text('Email'),
+            subtitle: Text(u.emailVerified ? '${u.email} ✓' : (u.email.isEmpty ? 'Add an email for order updates and password resets' : '${u.email} · not confirmed')),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EmailScreen())),
+          ),
+        ),
       if (u?.isStaff ?? false)
         const Card(
           child: ListTile(

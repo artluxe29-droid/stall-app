@@ -19,7 +19,7 @@ void main() {
     expect(find.text('Welcome back'), findsOneWidget);
     await t.tap(find.byKey(const Key('signIn')));
     await t.pump();
-    expect(find.text('Enter your phone number.'), findsOneWidget);
+    expect(find.text('Enter your phone or matric number.'), findsOneWidget);
     await t.enterText(find.byKey(const Key('phone')), '08031234567');
     await t.enterText(find.byKey(const Key('password')), 'nope');
     await t.runAsync(() async {
