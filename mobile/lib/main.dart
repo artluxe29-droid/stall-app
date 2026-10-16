@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'api.dart';
+import 'screens/account_setup.dart';
 import 'screens/closed.dart';
 import 'screens/shell.dart';
 import 'screens/sign_in.dart';
@@ -49,7 +50,11 @@ class _Gate extends StatelessWidget {
       child: switch (s.state) {
         SessionState.loading => const SplashScreen(),
         SessionState.signedOut => const SignInScreen(),
-        SessionState.signedIn => s.closedForMe ? const ClosedScreen() : const Shell(),
+        SessionState.signedIn => s.closedForMe
+            ? const ClosedScreen()
+            : s.verifyFirst
+                ? const VerifyGateScreen()
+                : const Shell(),
       },
     );
   }

@@ -213,6 +213,21 @@ void main() {
     expect(find.byKey(const Key('vf-pending')), findsOneWidget);
   });
 
+  testWidgets('when Admin requires it, unverified students verify before using Stall', (t) async {
+    var me = {...user(), 'verifyGate': true, 'vlevel': 0, 'idCheck': 'pending'};
+    await start(t, {'GET me': (_) => (200, {'user': me})}, signedIn: true);
+    expect(find.text('We\'re checking your student ID'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+    me = {...me, 'vlevel': 2, 'idCheck': 'approved'};
+    await tap(t, 'checkAgain');
+    expect(find.byType(NavigationBar), findsOneWidget);
+  });
+
+  testWidgets('admins and vendors skip the verify-first screen', (t) async {
+    await start(t, {'GET me': (_) => (200, {'user': {...user(admin: true), 'verifyGate': true, 'vlevel': 0}})}, signedIn: true);
+    expect(find.byType(NavigationBar), findsOneWidget);
+  });
+
   test('phone numbers are checked like the server does', () {
     expect(phoneError('0803 123 4567'), isNull);
     expect(phoneError('+234 803 123 4567'), isNull);

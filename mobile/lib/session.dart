@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'api.dart';
+import 'bag.dart';
 
 /// The signed-in person, from the API's user object.
 class StallUser {
@@ -28,6 +29,8 @@ class StallUser {
   String? get idCheck => raw['idCheck'] as String?;
   String get idReason => (raw['idReason'] ?? '').toString();
   bool get mustVerify => raw['mustVerify'] == true;
+  /// Admin → "Students must be verified to use Stall" (on unless turned off).
+  bool get verifyGate => raw['verifyGate'] == true;
 }
 
 enum SessionState { loading, signedOut, signedIn }
@@ -37,12 +40,19 @@ enum SessionState { loading, signedOut, signedIn }
 class Session extends ChangeNotifier {
   Session(this.api);
   final Api api;
+  final bag = Bag();
 
   SessionState state = SessionState.loading;
   StallUser? user;
   Map<String, dynamic> config = const {};
 
   /// Stall is closed to the public (Admin → Close the app): only staff may use it.
+  /// Students must show a school document before they can buy, sell or chat (when Admin has that on).
+  bool get verifyFirst {
+    final u = user;
+    return u != null && u.verifyGate && !u.isVendor && !u.isAdmin && u.vlevel < 1;
+  }
+
   bool get closedForMe => config['closed'] == true && !(user?.isStaff ?? false);
   String? get breakMessage {
     final b = config['brk'];
@@ -56,7 +66,7 @@ class Session extends ChangeNotifier {
 
   /// On launch: load server settings, and sign back in with the saved token if there is one.
   Future<void> restore() async {
-    await _loadConfig();
+    await Future.wait([_loadConfig(), bag.load()]);
     if (await api.token() == null) {
       _set(SessionState.signedOut);
       return;
@@ -125,6 +135,7 @@ class Session extends ChangeNotifier {
     } catch (_) {}
     await api.setToken(null);
     user = null;
+    bag.clear();
     _set(SessionState.signedOut);
   }
 

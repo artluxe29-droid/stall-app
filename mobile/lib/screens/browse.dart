@@ -7,6 +7,7 @@ import '../models.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'checkout.dart';
 import 'item.dart';
 import 'search.dart';
 
@@ -207,7 +208,7 @@ class _HomeTabState extends State<HomeTab> {
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           sliver: SliverList.list(children: [
-            const Align(alignment: Alignment.centerLeft, child: Wordmark(height: 28)),
+            const Row(children: [Wordmark(height: 28), Spacer(), BagButton()]),
             const SizedBox(height: 16),
             SearchBox(onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SearchScreen()))),
             const SizedBox(height: 16),

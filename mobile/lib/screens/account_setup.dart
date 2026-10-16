@@ -746,6 +746,8 @@ class _VerifyStudentScreenState extends State<VerifyStudentScreen> {
       if (!mounted) return;
       toast(context, r['status'] == 'approved' ? 'Checked ✓ You\'re a verified student' : 'Sent. We\'ll check it soon');
       setState(() => _photo = null);
+      // Opened from the "verify first" screen: go back so the app (or "we're checking") shows.
+      if (Navigator.of(context).canPop() && (s.user?.vlevel ?? 0) < 1 && s.user?.verifyGate == true) Navigator.of(context).pop();
     } on ApiError catch (e) {
       setState(() => _err = e.message);
     } finally {
@@ -913,6 +915,76 @@ class _EmailScreenState extends State<EmailScreen> {
             },
           ),
       ]),
+    );
+  }
+}
+
+/// Shown instead of the app while a student still needs to verify (when Admin requires it), like the web app's gate.
+class VerifyGateScreen extends StatefulWidget {
+  const VerifyGateScreen({super.key});
+  @override
+  State<VerifyGateScreen> createState() => _VerifyGateScreenState();
+}
+
+class _VerifyGateScreenState extends State<VerifyGateScreen> {
+  bool _busy = false;
+  @override
+  Widget build(BuildContext context) {
+    final s = SessionScope.of(context);
+    final u = s.user!;
+    final t = Theme.of(context).textTheme;
+    final pend = u.idCheck == 'pending', rej = u.idCheck == 'rejected';
+    return Scaffold(
+      body: SafeArea(
+        child: ListView(padding: const EdgeInsets.fromLTRB(24, 28, 24, 24), children: [
+          const Align(alignment: Alignment.centerLeft, child: Wordmark(height: 30)),
+          const SizedBox(height: 32),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(color: StallColors.lime, borderRadius: BorderRadius.circular(99)),
+              child: Text(pend ? 'CHECKING' : 'ONE LAST STEP',
+                  style: const TextStyle(color: StallColors.indigo, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: 1.3)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(pend ? 'We\'re checking your student ID' : 'Verify you\'re a student', style: t.displaySmall),
+          const SizedBox(height: 10),
+          Text(
+            pend
+                ? 'Thanks, ${u.firstName}. A person on the Stall team is looking at your document. This usually takes a few hours. We\'ll email you as soon as it\'s approved.'
+                : rej
+                    ? 'Your last document wasn\'t accepted: ${u.idReason.isEmpty ? 'it wasn\'t clear enough' : u.idReason}. Send a clearer photo, or a different school document.'
+                    : 'Stall is only for students, so everyone shows a school document before they can buy, sell or chat. Most are checked in under a minute.',
+            style: t.bodyLarge,
+          ),
+          const SizedBox(height: 24),
+          if (pend)
+            FilledButton(
+              key: const Key('checkAgain'),
+              onPressed: _busy
+                  ? null
+                  : () async {
+                      setState(() => _busy = true);
+                      await s.refresh();
+                      if (mounted) setState(() => _busy = false);
+                    },
+              child: Text(_busy ? 'Checking…' : 'Check again'),
+            )
+          else
+            FilledButton(
+              key: const Key('verifyNow'),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VerifyStudentScreen())),
+              child: const Text('Verify now'),
+            ),
+          const SizedBox(height: 16),
+          Text('Accepted: student ID card, course registration form, school fees receipt or admission letter, with your name on it. Only the Stall team sees it.',
+              style: t.bodySmall),
+          const SizedBox(height: 12),
+          TextButton(onPressed: s.signOut, child: const Text('Sign out')),
+        ]),
+      ),
     );
   }
 }
