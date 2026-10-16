@@ -945,7 +945,7 @@ $('#ambF').addEventListener('submit',async e=>{e.preventDefault();const f=e.targ
  const sp=String(SUPPORT||'').replace(/\D/g,'').replace(/^0/,'234');if(sp){const a=$('#ambWa');a.href='https://wa.me/'+sp+'?text='+encodeURIComponent(`Hi Stall, I'm ${f.name.value} from ${f.school.value}. I'd love to bring Stall to my campus.`);a.hidden=false}});
 
 // ---- settings from Admin: timers, fee, contact
-getJ('/api/config').then(c=>{SUPPORT=c.phone||'';window.__brk=c.brk||null;window.showBrk&&showBrk(c.brk);Object.assign(TM,c.timers||{});$$('[data-t]').forEach(e=>{const k=e.dataset.t;e.textContent=dur(TM[k],k==='hand')});
+getJ('/api/config').then(c=>{SUPPORT=c.phone||'';if(c.stores&&(c.stores.play||c.stores.apple)){STORES={play:c.stores.play||'',apple:c.stores.apple||''};G.v=variant();G.i=0;drawG()}window.__brk=c.brk||null;window.showBrk&&showBrk(c.brk);Object.assign(TM,c.timers||{});$$('[data-t]').forEach(e=>{const k=e.dataset.t;e.textContent=dur(TM[k],k==='hand')});
  const f=c.fee;if(f)$$('[data-fee]').forEach(e=>e.textContent=f.rate+'% of the item price, at most ₦'+Number(f.cap).toLocaleString('en-NG'));
  const w=String(c.phone||'').replace(/\D/g,'').replace(/^0/,'234'),L=[w?`<a href="https://wa.me/${w}">WhatsApp ${esc(c.phone)}</a>`:'',c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:''].filter(Boolean);
  if(L.length)$('#contact').innerHTML=L.join('')+'<a href="#league">Bring Stall to your campus</a>'}).catch(()=>{});
@@ -954,7 +954,7 @@ getJ('/api/config').then(c=>{SUPPORT=c.phone||'';window.__brk=c.brk||null;window
 const ua=navigator.userAgent,ios=/iphone|ipad|ipod/i.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1),android=/Android/i.test(ua);
 const inApp=/; wv\)|FBAN|FBAV|Instagram|WhatsApp|Snapchat|Twitter|Line\//i.test(ua),iosOther=ios&&/CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(ua);
 const andOther=android&&!inApp&&(/SamsungBrowser|OPR\/|Opera|OPT\/|EdgA|Firefox|PHX|Phoenix|MiuiBrowser|XiaoMi|HeyTap|UCBrowser|UCWEB|VivoBrowser|YaBrowser|Silk/i.test(ua)||!/Chrome\//.test(ua));
-let dip=null,G={v:null,i:0};
+let dip=null,G={v:null,i:0},STORES={play:'',apple:''};
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;if(G.v==='android')drawG()});
 addEventListener('appinstalled',()=>{ev('installed');G.v='done';drawG()});
 const ICON='<img src="/icons/icon-192-v3.png" alt="">';
@@ -968,9 +968,13 @@ const FAKE={
  sheet:`<div class="sheet"><div>Copy</div><div>Add to Reading List</div><div class="hl">Add to Home Screen ⊕</div><div>Find on Page</div></div><div class="share"><i></i><i></i><i class="hl"></i><i></i><i></i></div>`,
  add:`<div class="urlb" style="background:#F2F2F7"><span>Cancel</span><b style="color:#111">Add to Home Screen</b><span style="color:#007AFF;font-weight:700">Add</span></div><div style="display:flex;gap:12px;align-items:center;margin:20px 10px;color:#111">${ICON.replace('alt','style="width:56px;height:56px;border-radius:14px" alt')}<b>Stall</b></div>`,
  qr:`<div style="padding:60px 18px;text-align:center;color:#161A33"><p style="font-weight:800;font-size:18px">Scan the code</p><p style="color:#5B6077;margin-top:6px">with your phone camera</p></div>`,
+ play:`<div style="padding:22px 16px;color:#202124"><div style="display:flex;gap:12px;align-items:center">${ICON.replace('alt','style="width:64px;height:64px;border-radius:14px" alt')}<div><b style="font-size:17px">Stall</b><br><small style="color:#01875f;font-weight:600">Stall Technologies Limited</small></div></div><div style="margin-top:22px;background:#01875f;color:#fff;border-radius:20px;text-align:center;padding:10px;font-weight:700">Install</div><p style="margin-top:14px;color:#5f6368;font-size:13px">Buy and sell on campus, safely.</p></div>`,
+ apple:`<div style="padding:22px 16px;color:#111"><div style="display:flex;gap:12px;align-items:center">${ICON.replace('alt','style="width:64px;height:64px;border-radius:14px" alt')}<div><b style="font-size:17px">Stall</b><br><small style="color:#8e8e93">Shopping</small></div></div><div style="margin-top:22px;background:#007AFF;color:#fff;border-radius:20px;text-align:center;padding:10px;font-weight:700;width:90px">GET</div><p style="margin-top:14px;color:#8e8e93;font-size:13px">Buy and sell on campus, safely.</p></div>`,
  done:`<div style="text-align:center;margin-top:130px;color:#161A33">${ICON.replace('alt','style="width:72px;height:72px;border-radius:18px" alt')}<p style="font-weight:800;font-size:20px;margin-top:12px">You're in 🎉</p></div>`};
 const intent='intent://'+location.host+'/#get#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent('https://play.google.com/store/apps/details?id=com.android.chrome')+';end';
-function flows(){return{
+// Once Stall is in the app stores (links set in Admin), "Get the app" sends people there.
+const storeBtns=()=>(STORES.play?`<a class="btn acc" href="${esc(STORES.play)}" data-store="play" rel="noopener">Get it on Google Play</a>`:'')+(STORES.apple?`<a class="btn ${STORES.play?'ghost':'acc'}" href="${esc(STORES.apple)}" data-store="apple" rel="noopener">Download on the App Store</a>`:'');
+function flows(){if(STORES.play||STORES.apple)return storeFlows();return{
  android:[{t:'Tap "Install Stall"',p:'Your phone will ask if you want to add Stall. It\'s free and tiny.',f:'menu',a:()=>dip?`<button class="btn acc" data-gi>Install Stall</button>`:`<p class="note" style="margin-top:0">Tap <b>⋮</b> at the top right of Chrome, then <b>Install app</b> (or <b>Add to Home screen</b>).</p><button class="btn ghost sm" data-gn>Done, next</button>`},
   {t:'Tap "Install" to confirm',p:'Android shows a small box. Tap Install.',f:'prompt',a:()=>`<button class="btn ghost sm" data-gn>Done, next</button>`},
   {t:'Open Stall from your home screen',p:'Look for the indigo Stall icon with the little awning, open it and sign up with your matric number.',f:'home',a:()=>`<a class="btn acc" href="/app">Open Stall now</a>`}],
@@ -985,6 +989,17 @@ function flows(){return{
   {t:'Then tap Share → Add to Home Screen',p:'Come back to this section in Safari and follow along.',f:'sheet',a:()=>''}],
  desktop:[{t:'Scan with your phone',p:'Point your phone camera at the code. It opens this page on your phone, with the right steps for it.',f:'qr',qr:1,a:()=>`<button class="btn ghost sm" data-copy>Copy link</button>`}],
  done:[{t:'You\'re in 🎉',p:'Stall is on your home screen. Open it and sign up with your matric number.',f:'done',a:()=>`<a class="btn acc" href="/app">Open Stall</a>`}]}}
+function storeFlows(){const open=`<a class="btn acc" href="/app">Open Stall</a>`,F={
+ play:[{t:'Get Stall on Google Play',p:'Tap the button to open Stall in the Play Store. It\'s free.',f:'play',a:()=>storeBtns()},
+  {t:'Tap "Install", then open it',p:'Stall installs like any other app. Open it and sign up with your matric number.',f:'home',a:()=>open}],
+ apple:[{t:'Get Stall on the App Store',p:'Tap the button to open Stall in the App Store. It\'s free.',f:'apple',a:()=>storeBtns()},
+  {t:'Tap "Get", then open it',p:'Stall installs like any other app. Open it and sign up with your matric number.',f:'home',a:()=>open}],
+ desktop:[{t:'Scan with your phone',p:'Point your phone camera at the code to get Stall on your phone.',f:'qr',qr:1,a:()=>storeBtns()}],
+ done:[{t:'You\'re in 🎉',p:'Stall is on your phone. Open it and sign up with your matric number.',f:'done',a:()=>open}]};
+ // A phone whose store isn't ready yet still gets the home-screen steps.
+ return{...F,android:STORES.play?F.play:oldFlows().android,androidOther:STORES.play?F.play:oldFlows().androidOther,inapp:android&&STORES.play?F.play:ios&&STORES.apple?F.apple:oldFlows().inapp,
+  ios:STORES.apple?F.apple:oldFlows().ios,iosOther:STORES.apple?F.apple:oldFlows().iosOther}}
+function oldFlows(){const p=STORES;STORES={play:'',apple:''};const f=flows();STORES=p;return f}
 function variant(){if(matchMedia('(display-mode: standalone)').matches)return'done';if(inApp)return'inapp';if(ios)return iosOther?'iosOther':'ios';if(android)return andOther?'androidOther':'android';return'desktop'}
 function drawG(){const F=flows()[G.v],n=F.length;G.i=Math.min(G.i,n-1);const S=F[G.i];
  $('#gsteps').innerHTML=G.v==='done'?`<div class="yay"><h3>You're in 🎉</h3><p class="lead" style="margin:8px auto 16px">Stall is on your phone. Open it and sign up with your matric number.</p><a class="btn acc" href="/app">Open Stall</a></div>`

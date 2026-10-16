@@ -20,24 +20,13 @@ The app is already prepared:
 
 **Important for new personal accounts:** before you can publish to everyone, Google requires a **closed test with at least 12 testers who stay opted in for 14 days in a row**. Line up 12+ friends or classmates with Android phones and Gmail addresses now.
 
-## 2. Build the app with PWABuilder (free, in your browser)
+## 2. Build the app (GitHub builds it for you)
 
-1. Open <https://www.pwabuilder.com>, enter `https://stall.com.ng/app` and click **Start**. The app lives at `/app`; `/` is the website. In the Android options, check that **Start URL** is `/app`.
-2. Click **Package for stores**, then **Android → Generate package**.
-3. Fill in:
-   - **Package ID:** `app.stall.twa` (or `ng.stall.app`). This can never be changed later.
-   - **App name:** `Stall – student marketplace` · **Launcher name:** `Stall`
-   - **App version:** `1.0.0` · **Version code:** `1`
-   - **Signing key:** *Create new*. Enter your name and a strong password, and keep it safe.
-   - **Location delegation:** turn **on** (needed for live delivery tracking and meeting-spot pins).
-   - **Notification delegation:** turn **on** (needed for order and delivery notifications).
-   - **Play Billing:** leave **off**, unless you decide to sell featuring, store reach, the verified badge or the store fee through Google Play (see the launch review notes).
-4. Download the zip. It contains:
-   - `*.aab` — the file you upload to Google Play
-   - `signing.keystore` and `signing-key-info.txt` — **your upload key and its passwords**
-   - `assetlinks.json` — contains your package name and key fingerprint
+The Android app's code is in [`android/`](android). Follow [`android/README.md`](android/README.md):
+1. create the upload key once (Actions → **Android upload key**) and add it as GitHub secrets;
+2. build (Actions → **Android app** → Run workflow) and download `app-release.aab` (for Google Play) and `app-release.apk` (to try on a phone).
 
-> **Back up `signing.keystore` and `signing-key-info.txt` in two safe places** (e.g. Google Drive and a USB stick). You need them for every future update. **Never commit them to this GitHub repo**, and never send them to anyone.
+The package name is **`ng.com.stall.app`**. Location and notification delegation are built in.
 
 ## 3. Create the app in Play Console
 
@@ -59,8 +48,8 @@ The app is already prepared:
 1. Go to **Test and release → Testing → Closed testing → Create track**, upload the `.aab`, add your testers' Gmail addresses, and roll it out.
 2. Go to **Test and release → App integrity → App signing**. Copy the **SHA-256 certificate fingerprint** under *App signing key certificate*.
 3. In Stall, open **Admin → Settings → Android app**:
-   - **Package name:** the Package ID from step 2 (e.g. `app.stall.twa`)
-   - **SHA-256 fingerprint(s):** paste the App signing fingerprint, then a comma, then the fingerprint from PWABuilder's `assetlinks.json` (your upload key) so test installs work too.
+   - **Package name:** `ng.com.stall.app`
+   - **SHA-256 fingerprint(s):** paste the App signing fingerprint, then a comma, then your upload key fingerprint (shown in the **Android app** build log) so test installs work too.
    - Save, then open the link under the form, `/.well-known/assetlinks.json`, and check it shows your package name.
 4. Install the app from the closed-testing link. It should open full screen with **no address bar**. If you see an address bar, the fingerprint or package name doesn't match: check step 3.
 
@@ -68,7 +57,9 @@ The app is already prepared:
 
 After 14 days with 12+ testers opted in, Play Console unlocks **Apply for production**. Answer the short questions about your test, submit, and Google usually reviews within a few days.
 
-**Updating later:** website changes appear in the app instantly. You only rebuild in PWABuilder (with the **same** signing key and a higher version code) when Google asks you to target a newer Android version, or if you change the app name or icon.
+**Then point the website at the store:** paste the Play Store link into **Admin → Settings → Android app → Google Play link**. The website, install page and the app's "Get the app" card switch to **Get it on Google Play** automatically.
+
+**Updating later:** website changes appear in the app instantly. You only rebuild (Actions → **Android app**, with a higher version code) when Google asks you to target a newer Android version, or if you change the app name or icon.
 
 ---
 
@@ -78,12 +69,12 @@ This message means someone installed the app **from a file you sent them** (an `
 
 How to fix it:
 
-1. **Rebuild in PWABuilder** (section 2) with its current Android settings. They target the latest Android version automatically. Use the **same package ID and the same `signing.keystore`**, and a **higher version code** (e.g. `2`).
+1. **Rebuild** (section 2: Actions → **Android app**) with a **higher version code** (e.g. `2`). The project in `android/` targets Android 16, which Play Protect accepts. The same upload key is used automatically.
 2. **Stop sending APK files.** Upload the new `.aab` to your **Closed testing** track and share the Play opt-in link with testers. Apps installed from Google Play are never blocked like this, and testers get updates automatically.
 3. Testers who already have the old version should uninstall it first, then install from the Play link.
 4. Until the Play test link is ready, testers can use the website instead: open the site in Chrome, then tap **⋮ → Install app** (or **Add to Home screen**). This doesn't trigger Play Protect.
 
-Each year in August, Google raises the minimum Android version that apps must target. When Play Console warns you about it, rebuild in PWABuilder (same key, higher version code) and upload.
+Each year in August, Google raises the minimum Android version that apps must target. When Play Console warns you about it, raise `compileSdk`/`targetSdk` in `android/app/build.gradle` (and the SDK version in `.github/workflows/android.yml`), rebuild with a higher version code, and upload.
 
 ## Store listing text (ready to paste)
 

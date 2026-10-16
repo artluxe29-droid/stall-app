@@ -1,0 +1,77 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The Stall Android app is a Trusted Web Activity: it opens the Stall web app (stall.com.ng/app) full screen,
+// so every feature of the web app is in the Android app, and web updates reach it instantly.
+// Change these only with care: the package name can never change once the app is on Google Play.
+def twa = [
+    applicationId  : 'ng.com.stall.app',
+    hostName       : 'stall.com.ng',
+    launchUrl      : '/app',
+    name           : 'Stall – student marketplace',
+    launcherName   : 'Stall',
+    themeColor     : '#26306E',   // status bar
+    navigationColor: '#F6F2EA',   // navigation bar
+    backgroundColor: '#F6F2EA',   // splash screen
+]
+
+// Bump versionCode by 1 for every upload to Google Play (CI can pass -PversionCode=N).
+def vCode = (project.findProperty('versionCode') ?: '1') as int
+def vName = (project.findProperty('versionName') ?: '1.0.0') as String
+
+android {
+    namespace 'ng.com.stall.app'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId twa.applicationId
+        minSdk 23
+        targetSdk 36
+        versionCode vCode
+        versionName vName
+
+        resValue 'string', 'appName', twa.name
+        resValue 'string', 'launcherName', twa.launcherName
+        resValue 'string', 'hostName', twa.hostName
+        resValue 'string', 'launchUrl', "https://${twa.hostName}${twa.launchUrl}"
+        resValue 'color', 'colorPrimary', twa.themeColor
+        resValue 'color', 'navigationColor', twa.navigationColor
+        resValue 'color', 'backgroundColor', twa.backgroundColor
+        // Proves to Android that this app and stall.com.ng belong together (paired with /.well-known/assetlinks.json).
+        resValue 'string', 'assetStatements', """[{ "relation": ["delegate_permission/common.handle_all_urls"], "target": {"namespace": "web", "site": "https://${twa.hostName}"}}]"""
+        manifestPlaceholders = [hostName: twa.hostName]
+    }
+
+    // Release builds are signed with the upload key from GitHub secrets (see android/README.md).
+    // Without the secrets, CI still builds and checks everything, but the release files are unsigned.
+    def ks = System.getenv('STALL_KEYSTORE_FILE')
+    signingConfigs {
+        if (ks) {
+            upload {
+                storeFile file(ks)
+                storePassword System.getenv('STALL_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('STALL_KEY_ALIAS')
+                keyPassword System.getenv('STALL_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (ks) signingConfig signingConfigs.upload
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+    // Lets the web app use the phone's location (live delivery tracking, meeting-spot pins).
+    implementation 'com.google.androidbrowserhelper:locationdelegation:1.1.1'
+}

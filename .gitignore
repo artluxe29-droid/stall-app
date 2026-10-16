@@ -5,3 +5,10 @@ node_modules/
 .dev.vars
 .wrangler/
 __pycache__/
+# Android build output and signing keys (keys live in GitHub secrets, never in the repo)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.jks
+*.keystore
