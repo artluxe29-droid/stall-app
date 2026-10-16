@@ -85,3 +85,34 @@ class EmptyState extends StatelessWidget {
 
 void toast(BuildContext context, String message) =>
     ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(message)));
+
+const starColor = Color(0xFFF59E0B);
+
+/// Text where each ★ is drawn as a star icon (the brand fonts have no star glyph).
+class StarText extends StatelessWidget {
+  const StarText(this.text, {super.key, this.style, this.maxLines, this.overflow});
+  final String text;
+  final TextStyle? style;
+  final int? maxLines;
+  final TextOverflow? overflow;
+  @override
+  Widget build(BuildContext context) {
+    final st = DefaultTextStyle.of(context).style.merge(style);
+    final parts = text.split('★');
+    return Text.rich(
+      TextSpan(children: [
+        for (var i = 0; i < parts.length; i++) ...[
+          if (i > 0)
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Icon(Icons.star_rounded, size: (st.fontSize ?? 14) * 1.15, color: starColor),
+            ),
+          TextSpan(text: parts[i]),
+        ],
+      ]),
+      style: style,
+      maxLines: maxLines,
+      overflow: overflow,
+    );
+  }
+}

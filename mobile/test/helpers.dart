@@ -37,5 +37,5 @@ Map<String, dynamic> user({bool admin = false, String name = 'Ada Obi'}) => {
       'role': 'student',
       'admin': admin,
       'reviewer': false,
-      'schoolInfo': {'id': 1, 'name': 'Ajayi Crowther University', 'short': 'ACU'},
+      'schoolInfo': {'id': 1, 'name': 'Ajayi Crowther University', 'short': 'ACU', 'state': 'Oyo'},
     };
