@@ -29,17 +29,17 @@ jobs:
       run:
         working-directory: android
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
+      # Only the Android 16 SDK pieces the app needs (the old default "tools" package no longer exists).
       - uses: android-actions/setup-android@v3
-
-      - name: Install Android 16 SDK
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
       # The upload key lives in GitHub secrets, never in the repo (see android/README.md).
       - name: Use the upload key
