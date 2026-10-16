@@ -82,6 +82,7 @@ ThemeData stallTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
+      errorMaxLines: 3,
       fillColor: StallColors.card,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       labelStyle: const TextStyle(color: StallColors.muted),

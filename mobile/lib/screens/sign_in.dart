@@ -4,6 +4,7 @@ import '../api.dart';
 import '../main.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'account_setup.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -65,8 +66,8 @@ class _SignInScreenState extends State<SignInScreen> {
                 keyboardType: TextInputType.phone,
                 autofillHints: const [AutofillHints.telephoneNumber],
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(labelText: 'Phone number', hintText: '0803 123 4567'),
-                validator: (v) => (v ?? '').replaceAll(RegExp(r'\D'), '').length < 10 ? 'Enter your phone number.' : null,
+                decoration: const InputDecoration(labelText: 'Phone or matric number', hintText: '0803 123 4567'),
+                validator: (v) => (v ?? '').trim().length < 4 ? 'Enter your phone or matric number.' : null,
               ),
               const SizedBox(height: 14),
               TextFormField(
@@ -99,8 +100,17 @@ class _SignInScreenState extends State<SignInScreen> {
                     : const Text('Sign in'),
               ),
               const SizedBox(height: 18),
-              Text('New to Stall? Creating an account in the app is coming in the next update. For now, sign up at stall.com.ng.',
-                  textAlign: TextAlign.center, style: t.bodySmall),
+              TextButton(
+                key: const Key('forgot'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ForgotPasswordScreen(initialId: _phone.text.trim()))),
+                child: const Text('Forgot your password?'),
+              ),
+              const SizedBox(height: 4),
+              OutlinedButton(
+                key: const Key('toSignUp'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SignUpScreen())),
+                child: const Text('New here? Create an account'),
+              ),
             ]),
           ),
         ),
