@@ -51,7 +51,7 @@ jobs:
             echo "STALL_KEYSTORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
             echo "Signing with the upload key."
           else
-            echo "::warning::No upload key in secrets yet, so the release files are unsigned. Run the 'Android upload key' workflow first (see android/README.md)."
+            echo "::notice::No upload key in secrets yet, so this build uses a test key: the .apk installs on phones for testing, but it's not for Google Play. Run the 'Android upload key' workflow first (see android/README.md)."
           fi
 
       - name: Build

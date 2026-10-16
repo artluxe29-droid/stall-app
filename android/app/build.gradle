@@ -44,7 +44,7 @@ android {
     }
 
     // Release builds are signed with the upload key from GitHub secrets (see android/README.md).
-    // Without the secrets, CI still builds and checks everything, but the release files are unsigned.
+    // Without the secrets, CI signs with a throwaway debug key: the .apk installs for testing, but it's not for Google Play.
     def ks = System.getenv('STALL_KEYSTORE_FILE')
     signingConfigs {
         if (ks) {
@@ -60,7 +60,8 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            if (ks) signingConfig signingConfigs.upload
+            // Without the upload key (no secrets yet), sign with the debug key so the .apk still installs for testing.
+            signingConfig ks ? signingConfigs.upload : signingConfigs.debug
         }
     }
 
