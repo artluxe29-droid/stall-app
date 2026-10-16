@@ -1631,7 +1631,10 @@ document.addEventListener('click',e=>{
 });
 // Install as an app: one-tap prompt on Android/Chrome, guide page on iPhone.
 let DIP=null;const IOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
-const APPMODE=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,canInstall=()=>!APPMODE()&&(!!DIP||IOS);
+const APPMODE=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true||document.referrer.indexOf('android-app://')===0,
+  // Once Stall is in an app store, "Get the app" goes there instead of "add to home screen".
+  storeLink=()=>{const s=CFG.stores||{};return IOS?s.apple||'':/Android/i.test(navigator.userAgent)?s.play||'':''},
+  canInstall=()=>!APPMODE()&&(!!storeLink()||!!DIP||IOS);
 function drawScope(){const si=S.user&&S.user.schoolInfo,sc=effScope(),B=(k,l)=>`<button data-scope="${k}" aria-pressed="${sc===k}">${l}</button>`;
   const h=si?B('school',ico('school')+' '+esc(si.short||'My school'))+B('state',ico('pin')+' '+esc(si.state))+B('all',FLAG()+' All Nigeria'):B('all',FLAG()+' All Nigeria');['#scopeSeg','#scopeSeg2'].forEach(x=>{const el=$(x);if(el)el.innerHTML=h})}
 // ---- Headline word play: the key word changes and takes a new colour every few seconds.
@@ -1705,8 +1708,9 @@ function drawSoon(){const card=$('#soonCard');if(card)card.hidden=true;const p=$
 async function joinWait(want){const r=await apiPost('me/waitlist',{want});if(r.error)return toast(r.error);S.user.wait={want:r.want,n:r.n};save();drawSoon();toast("You're on the waitlist. We'll tell you when Stall opens.")}
 function shareSoon(){const si=S.user.schoolInfo,nm=si.short||si.name,url=location.origin+'/app',text=`Stall is coming to ${nm}: buy and sell safely with students, and your money is held until you have your item. Join the waitlist: ${url}`;
   if(navigator.share)navigator.share({title:'Stall is coming to '+nm,text}).catch(()=>{});else{navigator.clipboard&&navigator.clipboard.writeText(text).then(()=>toast('Invite copied. Paste it in your WhatsApp groups.'),()=>{})}}
-function drawInstall(){let hid=false;try{hid=localStorage.getItem('stall:hideInstall')==='1'}catch(e){}$('#appCard').hidden=!canInstall()||hid}
-async function doInstall(){if(!DIP){location.href='/install';return}DIP.prompt();const r=await DIP.userChoice.catch(()=>({}));DIP=null;drawInstall();if(r&&r.outcome==='accepted')toast('Installing Stall…')}
+function drawInstall(){let hid=false;try{hid=localStorage.getItem('stall:hideInstall')==='1'}catch(e){}$('#appCard').hidden=!canInstall()||hid;
+  const st=!!storeLink();$('#appCard small').textContent=st?(IOS?'Free on the App Store':'Free on Google Play'):'Free · on your home screen';$('#installGo').textContent=st?'Get it':'Install'}
+async function doInstall(){const st=storeLink();if(st){location.href=st;return}if(!DIP){location.href='/install';return}DIP.prompt();const r=await DIP.userChoice.catch(()=>({}));DIP=null;drawInstall();if(r&&r.outcome==='accepted')toast('Installing Stall…')}
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();DIP=e;drawInstall()});
 addEventListener('appinstalled',()=>{DIP=null;drawInstall();toast('Stall is installed. Open it from your home screen.')});
 function openAccount(){const u=S.user,d=$('#accDlg');if(!u)return;const ns=NEWS.filter(x=>x.side==='sell').length,stu=u.role==='student',sch=u.schoolInfo;
@@ -2036,7 +2040,7 @@ const phoneErr=v=>{let d=String(v||'').replace(/\D/g,'');if(d.startsWith('234')&
 let SCH=[],STATES=[],CFG={name:'Stall',phone:'',email:''};const schLabel=x=>x.name+(x.short?' ('+x.short+')':'')+' — '+x.state;
 fetch('/api/schools').then(r=>r.json()).then(r=>{SCH=r.schools||[];STATES=r.states||[];$('#schoolList').innerHTML=SCH.map(x=>`<option value="${esc(schLabel(x))}">`).join('');document.querySelectorAll('select[name=school_state]').forEach(fillStates)}).catch(()=>{});
 const drawFee=()=>document.querySelectorAll('[data-feedesc]').forEach(n=>n.textContent=feeDesc());
-fetch('/api/config').then(r=>r.json()).then(r=>{CFG=r;drawHelp();drawFee();drawBrk();drawClosed()}).catch(()=>{});
+fetch('/api/config').then(r=>r.json()).then(r=>{CFG=r;drawHelp();drawFee();drawBrk();drawClosed();drawInstall()}).catch(()=>{});
 // Admin can show a "taking a short break" note while Stall is paused (Admin → Website).
 const BRK_T='Stall is taking a short break',BRK_D='We\'re building something better, and we\'ll be back soon. Thank you for your patience. We can\'t wait to show you what\'s next.';
 // While the app is closed to the public, anyone signed in who isn't staff sees this instead of the app.
@@ -2362,7 +2366,7 @@ async function openAdmin(){const d=$('#adminDlg');AD.rev=!S.user.admin;if(AD.rev
     if(f.id==='foundForm'){const r=await apiPost('admin/settings',{founding_n:f.elements.founding_n.value});if(r.error)return toast(r.error);CFG.foundingN=+f.elements.founding_n.value;await loadPub();toast('Saved');return}
     if(f.id==='freeForm'){const r=await apiPost('admin/settings',{free_sales:f.elements.free_sales.value});if(r.error)return toast(r.error);CFG.freeSales=+f.elements.free_sales.value;toast('Saved');return}
     if(f.id==='stuForm'){const r=await apiPost('admin/settings',{require_verified:f.elements.require_verified.checked,verify_gate:f.elements.verify_gate.checked,school_domains:f.elements.school_domains.value});if(r.error)return toast(r.error);AD.sum.requireVerified=f.elements.require_verified.checked;AD.sum.schoolDomains=f.elements.school_domains.value;toast('Saved');return}
-    if(f.id==='andForm'){const r=await apiPost('admin/settings',{android_pkg:f.elements.android_pkg.value,android_sha:f.elements.android_sha.value});if(r.error)return toast(r.error);CFG={...CFG,androidPkg:f.elements.android_pkg.value.trim(),androidSha:f.elements.android_sha.value.toUpperCase().split(/[\s,]+/).filter(Boolean).join(',')};toast('Android app settings saved');return}
+    if(f.id==='andForm'){const r=await apiPost('admin/settings',{android_pkg:f.elements.android_pkg.value,android_sha:f.elements.android_sha.value,play_url:f.elements.play_url.value,apple_url:f.elements.apple_url.value});if(!r.error)CFG={...CFG,stores:{play:f.elements.play_url.value.trim(),apple:f.elements.apple_url.value.trim()}};if(r.error)return toast(r.error);CFG={...CFG,androidPkg:f.elements.android_pkg.value.trim(),androidSha:f.elements.android_sha.value.toUpperCase().split(/[\s,]+/).filter(Boolean).join(',')};toast('Android app settings saved');return}
     if(f.id==='setForm'){const r=await apiPost('admin/settings',{biz_name:f.elements.biz_name.value,support_phone:f.elements.support_phone.value,support_email:f.elements.support_email.value});if(r.error)return toast(r.error);CFG={...CFG,name:f.elements.biz_name.value,phone:f.elements.support_phone.value,email:f.elements.support_email.value};drawHelp();return toast('Saved')}
     if(f.id==='schAdd'||f.dataset.schf){const r=await apiPost('admin/schools/save',{id:f.dataset.schf?+f.dataset.schf:0,name:f.elements.name.value,short:f.elements.short.value,state:f.elements.state.value});if(r.error)return toast(r.error);toast('Saved');f.reset&&f.reset();adminSum();return adminLoad()}
     if(f.dataset.irf){const r=await apiPost('admin/items/decide',{id:f.dataset.irf,approve:false,reason:f.elements.why.value.trim()});if(r.error)return toast(r.error);toast('Listing rejected');adminSum();return adminLoad()}
@@ -2404,9 +2408,13 @@ function adminTab(k){AD.tab=k;const S0=ast(k),m=AMETA[k];document.querySelectorA
       <div class="aacts"><button class="pill sm" type="submit">Save timers</button></div></form>
      <div class="rjf acard" id="clearCard" ${AD.sum&&AD.sum.psMode==='live'?'hidden':''}><div class="acardh"><span class="aic">${ico('flag')}</span><b>Danger zone: clear test data</b></div><p class="meta">Before you go live, delete everything made while testing: users (except admins), listings, stores, orders, payments, chats, reviews, strikes and collections. Your settings, fees, schools and admin accounts stay. This only works while Paystack is in test mode, and can't be undone.</p>
       <div id="clearWhat" class="meta"></div><div class="aacts"><button class="pill sm red" type="button" id="clearGo">Clear test data…</button></div></div>
-     <form id="andForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('phone')}</span><b>Android app (Google Play)</b></div><p class="meta">Lets the Play Store app open Stall full screen, without a browser bar. Use the package name you chose in PWABuilder, and the SHA-256 fingerprint from Play Console → Test and release → App integrity → App signing. You can add more than one fingerprint, separated by commas.</p>
-     <label>Package name<input name="android_pkg" maxlength="100" value="${esc(CFG.androidPkg||'')}" placeholder="app.stall.twa"></label><label>SHA-256 fingerprint(s)<textarea name="android_sha" rows="3" placeholder="AB:CD:EF:…">${esc((CFG.androidSha||'').split(',').join(',\n'))}</textarea></label>
-     <p class="meta">Check it: <a class="link" href="/.well-known/assetlinks.json" target="_blank" rel="noopener">/.well-known/assetlinks.json</a></p><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>`;const ff=$('#feeForm');ff.oninput=()=>feePrev(ff);feePrev(ff);return}
+     <form id="andForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('phone')}</span><b>Android app (Google Play)</b></div><p class="meta">Lets the Stall Android app open Stall full screen, without a browser bar. The package name is <b>ng.com.stall.app</b>. Add the SHA-256 fingerprint from Play Console → Test and release → App integrity → App signing, and your upload key's fingerprint, separated by commas.</p>
+     <label>Package name<input name="android_pkg" maxlength="100" value="${esc(CFG.androidPkg||'')}" placeholder="ng.com.stall.app"></label><label>SHA-256 fingerprint(s)<textarea name="android_sha" rows="3" placeholder="AB:CD:EF:…">${esc((CFG.androidSha||'').split(',').join(',\n'))}</textarea></label>
+     <p class="meta">Check it: <a class="link" href="/.well-known/assetlinks.json" target="_blank" rel="noopener">/.well-known/assetlinks.json</a></p>
+     <p class="lb" style="margin-top:12px">Store links</p><p class="meta">Once the app is live, paste its store links here. The website, the install page and the app's “Get the app” card then send people to the store instead of “Add to home screen”. Leave a link empty until that store is ready.</p>
+     <label>Google Play link<input name="play_url" maxlength="200" value="${esc((CFG.stores||{}).play||'')}" placeholder="https://play.google.com/store/apps/details?id=ng.com.stall.app"></label>
+     <label>App Store link (iPhone)<input name="apple_url" maxlength="200" value="${esc((CFG.stores||{}).apple||'')}" placeholder="https://apps.apple.com/ng/app/stall/id…"></label>
+     <div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>`;const ff=$('#feeForm');ff.oninput=()=>feePrev(ff);feePrev(ff);return}
   if(k==='live'){$('#ab').innerHTML='<div id="liveBox"><p class="meta">Loading…</p></div>';$('#ab').scrollTop=0;liveLoad();clearInterval(AD.lt);AD.lt=setInterval(()=>{if(AD.tab!=='live'||!$('#liveBox')||!$('#adminDlg').open)return clearInterval(AD.lt);liveLoad()},30000);return}
   if(k==='wait'){$('#ahT').textContent='Waitlist';$('#ahD').textContent='Everyone waiting for Stall at '+(AD.wl&&AD.wl.nm||'this school');$('#ahIco').innerHTML=ico('school');$('#ab').innerHTML='<div id="waitBox"><p class="meta">Loading…</p></div>';$('#ab').scrollTop=0;waitLoad();return}
   if(k==='partner'){$('#ab').innerHTML='<div id="ptnrBox"><p class="meta">Loading…</p></div>';$('#ab').scrollTop=0;partnerLoad();return}

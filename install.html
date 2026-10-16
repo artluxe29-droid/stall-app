@@ -91,6 +91,7 @@ h1,h2,h3,p{margin:0}button,a{font:inherit}
       <h1>Get Stall on your phone.</h1>
       <p>Buy and sell on campus from your home screen. It opens full-screen like any other app and takes almost no space.</p>
       <div class="cta" id="cta">
+        <a class="btn acc" id="playBtn" rel="noopener" hidden>Get it on Google Play</a><a class="btn acc" id="appleBtn" rel="noopener" hidden>Download on the App Store</a>
         <button class="btn acc" id="installBtn" hidden>Install Stall</button>
         <a class="btn acc" id="howBtn" href="#steps">Show me how</a>
         <a class="btn ghost" href="/app">Open Stall</a>
@@ -155,9 +156,14 @@ else if(iosOther)note('On iPhone, Stall can only be installed from Safari. Tap "
 const andOther=!ios&&/Android/i.test(ua)&&(/SamsungBrowser|OPR\/|Opera|OPiOS|OPT\/|EdgA|Firefox|PHX|Phoenix|MiuiBrowser|XiaoMi|HeyTap|UCBrowser|UCWEB|VivoBrowser|YaBrowser|Silk|; wv\)|FBAN|FBAV|Instagram|Snapchat|Twitter/i.test(ua)||!/Chrome\//.test(ua));
 if(andOther&&!standalone){$('#chromeNote').hidden=false;$('#chromeBtn').href='intent://'+location.host+'/install#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent('https://play.google.com/store/apps/details?id=com.android.chrome')+';end';$('#sA li:first-child span').innerHTML='<b style="display:inline">Use Chrome.</b> Other browsers can make a copy of the app that Google Play Protect blocks.'}
 let dip=null;
-addEventListener('beforeinstallprompt',e=>{e.preventDefault();if(andOther)return;dip=e;$('#installBtn').hidden=false;$('#howBtn').hidden=true});
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();if(andOther||!$('#playBtn').hidden)return;dip=e;$('#installBtn').hidden=false;$('#howBtn').hidden=true});
 $('#installBtn').onclick=async()=>{if(!dip)return;dip.prompt();const r=await dip.userChoice.catch(()=>({}));dip=null;$('#installBtn').hidden=true;if(r&&r.outcome==='accepted')note('Installing… look for the Stall icon on your home screen.');else $('#howBtn').hidden=false};
 addEventListener('appinstalled',()=>{note('Stall is installed. Open it from your home screen.');$('#installBtn').hidden=true});
+// Once Stall is in the app stores (links set in Admin), send people there instead of "add to home screen".
+fetch('/api/config').then(r=>r.json()).then(c=>{const s=c.stores||{},and=/Android/i.test(ua);if(standalone)return;
+  const use=k=>{$('#'+k+'Btn').href=s[k==='play'?'play':'apple'];$('#'+k+'Btn').hidden=false;$('#howBtn').hidden=true;$('#installBtn').hidden=true;$('#chromeNote').hidden=true;$('#note').hidden=true};
+  if(s.play&&!ios)use('play');if(s.apple&&ios)use('apple');
+  if(!and&&!ios){if(s.play)use('play');if(s.apple)use('apple')}}).catch(()=>{});
 $('#waBtn').href='https://wa.me/?text='+encodeURIComponent('Buy and sell on campus with Stall. Get the app here: '+link);
 $('#copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(link);toast('Link copied')}catch(e){prompt('Copy this link',link)}};
 // Wait for the brand fonts so the poster never prints in a fallback font.

@@ -1,0 +1,53 @@
+# Run ONCE, by hand: Actions → "Android upload key" → Run workflow.
+# Creates the upload key that signs the Stall Android app for Google Play, and gives it to you as a download
+# (kept for 1 day only). Save the download somewhere safe, then add its values as repository secrets
+# (see android/README.md). Google Play App Signing holds the real app key, so a lost upload key can be reset.
+name: Android upload key
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type MAKE A NEW KEY. Only do this once: a new key replaces the one in your secrets.'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  key:
+    runs-on: ubuntu-latest
+    if: inputs.confirm == 'MAKE A NEW KEY'
+    steps:
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Create the upload key
+        run: |
+          set -e
+          umask 077
+          mkdir key && cd key
+          PW=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)
+          keytool -genkeypair -v -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$PW" -keypass "$PW" -dname "CN=Stall Technologies Limited, O=Stall Technologies Limited, C=NG"
+          base64 -w0 upload.jks > STALL_KEYSTORE_BASE64.txt
+          FP=$(keytool -list -v -keystore upload.jks -storepass "$PW" | grep "SHA256:" | head -1 | sed 's/.*SHA256: //')
+          {
+            echo "Stall Android upload key. KEEP THIS FILE PRIVATE. Back it up in two safe places."
+            echo
+            echo "Add these as GitHub repository secrets (Settings → Secrets and variables → Actions → New repository secret):"
+            echo "  STALL_KEYSTORE_BASE64 = the whole content of STALL_KEYSTORE_BASE64.txt"
+            echo "  STALL_KEYSTORE_PASSWORD = $PW"
+            echo "  STALL_KEY_ALIAS = upload"
+            echo "  STALL_KEY_PASSWORD = $PW"
+            echo
+            echo "Upload key SHA-256 fingerprint (add it in Stall Admin → Settings → Android app, so test installs open full screen):"
+            echo "  $FP"
+          } > README-KEEP-PRIVATE.txt
+          echo "Upload key created. Download it from the 'stall-upload-key' file below this run."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stall-upload-key
+          path: key/
+          retention-days: 1
