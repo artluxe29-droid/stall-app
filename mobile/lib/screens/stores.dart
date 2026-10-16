@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../bag.dart';
 import '../main.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'browse.dart';
+import 'checkout.dart';
 import 'item.dart';
 
 Future<List<Store>> loadStores(Api api, String scope) async {
@@ -260,6 +262,7 @@ class _StoreBody extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: c.bg,
         actions: [
+          const BagButton(),
           IconButton(
             key: const Key('share'),
             tooltip: 'Share store',
@@ -375,7 +378,15 @@ class _StoreItemRow extends StatelessWidget {
               Text(naira(item.price), style: const TextStyle(fontFamily: 'Bricolage', fontWeight: FontWeight.w800, fontSize: 17)),
             ]),
           ),
-          if (!ok) Text(store.open ? 'Sold out' : 'Closed', style: t.bodySmall),
+          if (!ok)
+            Text(store.open ? 'Sold out' : 'Closed', style: t.bodySmall)
+          else if (SessionScope.of(context).user?.uid != store.ownerId)
+            IconButton.filledTonal(
+              key: Key('add-${item.id}'),
+              tooltip: 'Add to bag',
+              onPressed: () => addToBag(context, storeLine(item, store)),
+              icon: const Icon(Icons.add_rounded),
+            ),
         ]),
       ),
     );
@@ -409,10 +420,17 @@ void _showStoreItem(BuildContext context, StoreItem it, Store s) => showModalBot
                   const SizedBox(height: 8),
                   Text('${s.name}${s.spot.isEmpty ? '' : ' · ${s.spot}'}', style: t.bodySmall),
                   const SizedBox(height: 16),
-                  Text(
-                    s.open && it.avail ? 'Ordering from stores in the app arrives in the next update.' : (s.open ? 'Sold out right now.' : 'This store is closed right now.'),
-                    style: const TextStyle(color: StallColors.muted),
-                  ),
+                  if (s.open && it.avail)
+                    FilledButton(
+                      key: const Key('addStoreItem'),
+                      onPressed: () {
+                        addToBag(context, storeLine(it, s));
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Add to bag'),
+                    )
+                  else
+                    Text(s.open ? 'Sold out right now.' : 'This store is closed right now.', style: const TextStyle(color: StallColors.muted)),
                 ]),
               ),
             ]),
@@ -420,3 +438,6 @@ void _showStoreItem(BuildContext context, StoreItem it, Store s) => showModalBot
         );
       },
     );
+
+BagLine storeLine(StoreItem it, Store s) =>
+    BagLine(id: it.id, title: it.title, price: it.price, cat: s.cat, img: it.imgs.firstOrNull, seller: s.name, max: it.qtyLeft, multi: true);

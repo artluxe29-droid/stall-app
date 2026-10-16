@@ -5,6 +5,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'account_setup.dart';
 import 'browse.dart';
+import 'orders.dart';
 import 'stores.dart';
 
 /// The signed-in app: Home, Stores, Sell, Orders and Account, like the web app's tab bar.
@@ -19,7 +20,6 @@ class _ShellState extends State<Shell> {
 
   static const _soon = {
     2: (Icons.sell_outlined, 'Selling is coming soon', 'You\'ll list items and run your store from here. For now, sell on stall.com.ng.'),
-    3: (Icons.receipt_long_outlined, 'Orders are coming soon', 'Your orders, handover codes and receipts will live here.'),
   };
 
   @override
@@ -27,6 +27,7 @@ class _ShellState extends State<Shell> {
     final body = switch (_tab) {
       0 => const HomeTab(),
       1 => const StoresTab(),
+      3 => const OrdersTab(),
       4 => const AccountTab(),
       _ => EmptyState(icon: _soon[_tab]!.$1, title: _soon[_tab]!.$2, text: _soon[_tab]!.$3),
     };

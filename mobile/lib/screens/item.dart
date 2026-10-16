@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../bag.dart';
 import '../main.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'browse.dart';
+import 'checkout.dart';
 
 /// Swipeable photos with dots.
 class Gallery extends StatefulWidget {
@@ -104,6 +106,7 @@ class ItemScreen extends StatelessWidget {
     final t = Theme.of(context).textTheme;
     final st = item.status;
     return Scaffold(
+      bottomNavigationBar: item.mine ? null : BuyBar(item: item),
       body: CustomScrollView(slivers: [
         SliverAppBar(
           pinned: true,
@@ -111,6 +114,11 @@ class ItemScreen extends StatelessWidget {
           backgroundColor: StallColors.cream,
           leading: const _RoundBack(),
           actions: [
+            Container(
+              margin: const EdgeInsets.only(right: 4),
+              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+              child: const BagButton(),
+            ),
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: IconButton.filledTonal(
@@ -154,7 +162,6 @@ class ItemScreen extends StatelessWidget {
               vlevel: item.vlevel,
             ),
             const SizedBox(height: 16),
-            if (!item.mine) const _BuySoon(),
           ]),
         ),
       ]),
@@ -176,19 +183,54 @@ class _RoundBack extends StatelessWidget {
       );
 }
 
-/// Until buying arrives in the app (Phase 1c), say so plainly.
-class _BuySoon extends StatelessWidget {
-  const _BuySoon();
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: StallColors.cream2, borderRadius: BorderRadius.circular(16)),
-        child: const Row(children: [
-          Icon(Icons.shopping_bag_outlined, color: StallColors.indigo),
-          SizedBox(width: 12),
-          Expanded(child: Text('Buying in the app arrives in the next update. For now, buy on stall.com.ng.')),
-        ]),
+/// Add to bag / Buy now, at the bottom of an item page.
+class BuyBar extends StatelessWidget {
+  const BuyBar({super.key, required this.item});
+  final Listing item;
+
+  BagLine get _line => BagLine(
+        id: item.id,
+        title: item.title,
+        price: item.price,
+        cat: item.cat,
+        img: item.imgs.firstOrNull,
+        seller: item.seller,
+        max: item.qtyLeft,
+        multi: item.qty > 1,
       );
+
+  @override
+  Widget build(BuildContext context) {
+    final st = item.status;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Row(children: [
+          Expanded(
+            child: OutlinedButton(
+              key: const Key('addToBag'),
+              onPressed: st != null ? null : () => addToBag(context, _line),
+              child: const Text('Add to bag'),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: FilledButton(
+              key: const Key('buyNow'),
+              onPressed: st != null
+                  ? null
+                  : () {
+                      final bag = SessionScope.of(context).bag;
+                      if (bag.qtyOf(item.id) == 0) bag.add(_line);
+                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CheckoutScreen()));
+                    },
+              child: Text(st ?? 'Buy now'),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
 /// Who's selling, their rating and a way to read their reviews.

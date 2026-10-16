@@ -1,6 +1,6 @@
 # Stall native app: rebuild plan
 
-Status: **Phase 1 in progress.** Phase 0 is done (16 Oct 2026). Phase 1a (browsing) and 1b (accounts) are in the app; buying (1c) is next.
+Status: **Phase 1 in progress.** Phase 0 is done (16 Oct 2026). Phase 1 (browse, accounts, buying) is in the app; selling (Phase 2) is next.
 
 ## Why
 
@@ -52,16 +52,16 @@ Tick each one only when it works in the native app against the live API.
   - [x] Founding Seller badge
   - [x] Share links
 - **Buying:**
-  - [ ] Bag
-  - [ ] Checkout (pickup or delivery)
-  - [ ] Consent
-  - [ ] Paystack payment and return
+  - [x] Bag
+  - [x] Checkout (pickup or delivery)
+  - [x] Consent
+  - [x] Paystack payment and return
   - [ ] Credit and fee display
 - **Orders:**
-  - [ ] Order list and detail
-  - [ ] Timers
-  - [ ] Release code / "I've got it"
-  - [ ] Cancel
+  - [x] Order list and detail
+  - [x] Timers
+  - [x] Release code / "I've got it"
+  - [x] Cancel
   - [ ] Report a problem with evidence
   - [ ] Ratings and buyer ratings
   - [ ] Receipts

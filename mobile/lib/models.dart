@@ -188,3 +188,80 @@ class Filters {
   Filters copyWith({String? sort}) =>
       Filters(min: min, max: max, cond: cond, delivers: delivers, verified: verified, topRated: topRated, sort: sort ?? this.sort);
 }
+
+/// An order, as the API returns it (one per seller). Status: pending (waiting for payment), under_review,
+/// verified (paid, Stall holds the money), disputed, released (complete), refunded, rejected or expired.
+class Order {
+  Order(this.raw);
+  final Map<String, dynamic> raw;
+  int get id => _int(raw['id']);
+  String get title => _str(raw['title']);
+  int get amount => _int(raw['amount']);
+  int get sub => _int(raw['sub'] ?? raw['amount']);
+  int get fee => _int(raw['fee']);
+  String get status => _str(raw['status']);
+  int get deadline => _int(raw['deadline']);
+  String? get code => raw['code'] as String?;
+  String get note => _str(raw['note']);
+  String get sellerName => _str(raw['sellerName']);
+  String get sellerPhone => _str(raw['sellerPhone']);
+  bool get card => raw['card'] == true;
+  String? get paidVia => raw['paidVia'] as String?;
+  Delivery get deliv => Delivery.from(raw['deliv']);
+  String get pickup => _str(raw['pickup']);
+  String? get method => raw['method'] as String?;
+  String get addr => _str(raw['addr']);
+  String? get stage => raw['stage'] as String?;
+  int? get rated => raw['rated'] == null ? null : _int(raw['rated']);
+  int? get holdUntil => raw['holdUntil'] == null ? null : _int(raw['holdUntil']);
+  int? get refundAt => raw['refundAt'] == null ? null : _int(raw['refundAt']);
+  int? get handedAt => raw['handedAt'] == null ? null : _int(raw['handedAt']);
+  int? get handUntil => raw['handUntil'] == null ? null : _int(raw['handUntil']);
+  bool get early => raw['early'] == true;
+  bool get noShow => raw['noShow'] == true;
+  String? get dispBy => raw['dispBy'] as String?;
+
+  bool get verified => status == 'verified';
+  bool get payable => card && status == 'pending' && deadline > DateTime.now().millisecondsSinceEpoch;
+
+  /// The status chip, worded like the web app.
+  String get badge => switch (status) {
+        'refunding' => 'Refunding…',
+        'pending' => 'Awaiting payment',
+        'under_review' => 'Under review',
+        'verified' => handedAt != null ? 'Handed over' : 'Paid',
+        'released' => 'Completed',
+        'rejected' => 'Rejected',
+        'disputed' => 'Problem reported',
+        'refunded' => 'Refunded',
+        _ => note.startsWith('You cancelled') ? 'Cancelled' : 'Expired',
+      };
+
+  /// Delivery/pickup progress: (label, done) steps, like the web app's tracker.
+  List<(String, bool)> get steps {
+    final l = method == 'delivery'
+        ? const [('paid', 'Paid'), ('packed', 'Packed'), ('on_way', 'On the way'), ('done', 'Delivered')]
+        : const [('paid', 'Paid'), ('ready', 'Ready'), ('done', 'Collected')];
+    final cur = status == 'released' ? 'done' : (stage ?? 'paid');
+    final k = l.indexWhere((x) => x.$1 == cur);
+    return [for (var i = 0; i < l.length; i++) (l[i].$2, i <= k)];
+  }
+}
+
+/// "Tue, 21 Oct, 3:05 pm" and "Tue, 21 Oct", for order deadlines.
+String when(int t) {
+  final d = DateTime.fromMillisecondsSinceEpoch(t);
+  const wd = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
+  return '${wd[d.weekday - 1]}, ${d.day} ${mo[d.month - 1]}, $h:${d.minute.toString().padLeft(2, '0')} ${d.hour < 12 ? 'am' : 'pm'}';
+}
+
+String dayOf(int t) => when(t).split(', ').take(2).join(', ');
+
+/// "14:59" left to pay.
+String clock(int ms) {
+  if (ms <= 0) return '0:00';
+  final s = ms ~/ 1000;
+  return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
+}
