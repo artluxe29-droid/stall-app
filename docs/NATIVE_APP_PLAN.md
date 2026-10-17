@@ -1,6 +1,6 @@
 # Stall native app: rebuild plan
 
-Status: **Phase 2 in progress.** Phases 0 and 1 are done. Phases 2a (sell an item) and 2b (selling orders and payouts) are in the app, along with "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
+Status: **Phase 3 next.** Phases 0, 1 and 2 are done: browsing, accounts, buying, selling items, selling orders and payouts, and opening and running a store. The app also has "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
 
 ## Why
 
@@ -73,14 +73,16 @@ Tick each one only when it works in the native app against the live API.
   - [x] Delete
   - [x] Seller rules consent and school-rules tick
 - **Stores:**
-  - [ ] Open a store (fee or free code)
-  - [ ] Logo and icon
-  - [ ] Items
-  - [ ] Open/closed toggle
-  - [ ] Delivery settings
-  - [ ] Reach
-  - [ ] Featured
-  - [ ] Store QR card
+  - [x] Open a store (fee or free code)
+  - [x] Logo and icon
+  - [x] Items (add, stock, sold out, delete)
+  - [x] Open/closed toggle
+  - [x] Delivery settings
+  - [x] Reach
+  - [x] Featured
+  - [x] Share link
+  - [ ] Store QR card (Phase 4)
+  - [ ] Pay part with Stall credit
 - **Seller orders:**
   - [x] Stages (packed, on the way, ready)
   - [x] "I handed it over"
