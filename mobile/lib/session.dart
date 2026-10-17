@@ -43,6 +43,10 @@ class StallUser {
   /// Sales left with no Stall fee (launch offer).
   int get freeLeft => (raw['freeLeft'] as num?)?.toInt() ?? 0;
   /// Paused for strikes (5 in 30 days) until this time, or null.
+  bool get emailNotify => raw['emailNotify'] == true;
+
+  /// Stall credit (from invites), usable on featuring and store reach.
+  int get credit => (raw['credit'] as num?)?.toInt() ?? 0;
   int? get pausedUntil => (raw['pausedUntil'] as num?)?.toInt();
   Map<String, dynamic> get deliv => raw['deliv'] is Map<String, dynamic> ? raw['deliv'] as Map<String, dynamic> : const {};
 }

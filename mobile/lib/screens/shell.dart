@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../api.dart';
 import '../main.dart';
 import '../place.dart';
 import '../push.dart';
@@ -10,6 +11,7 @@ import 'browse.dart';
 import 'chat.dart';
 import 'item.dart' show showReviews;
 import 'orders.dart';
+import 'settings.dart';
 import 'sell.dart';
 import 'stores.dart';
 
@@ -182,6 +184,52 @@ class AccountTab extends StatelessWidget {
             onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EmailScreen())),
           ),
         ),
+      if (u != null && s.emailOn && u.email.isNotEmpty)
+        Card(
+          child: SwitchListTile(
+            key: const Key('emailNotify'),
+            secondary: const Icon(Icons.notifications_outlined, color: StallColors.indigo),
+            title: const Text('Email updates'),
+            subtitle: const Text('Order updates and receipts by email'),
+            value: u.emailNotify,
+            onChanged: (v) async {
+              try {
+                await s.api.post('me/notify', {'on': v});
+                await s.refresh();
+              } on ApiError catch (e) {
+                if (context.mounted) toast(context, e.message);
+              }
+            },
+          ),
+        ),
+      Card(
+        child: Column(children: [
+          ListTile(
+            key: const Key('inviteTile'),
+            leading: const Icon(Icons.card_giftcard_rounded, color: StallColors.indigo),
+            title: const Text('Invite friends'),
+            subtitle: Text(u != null && u.credit > 0 ? 'You have ${naira(u.credit)} credit' : 'Earn credit when friends join'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const InviteScreen())),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            key: const Key('guideTile'),
+            leading: const Icon(Icons.menu_book_outlined, color: StallColors.indigo),
+            title: const Text('How Stall works'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => GuideScreen(selling: u?.isVendor ?? false))),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            key: const Key('helpTile'),
+            leading: const Icon(Icons.help_outline_rounded, color: StallColors.indigo),
+            title: const Text('Help'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpScreen())),
+          ),
+        ]),
+      ),
       if (u?.isStaff ?? false)
         const Card(
           child: ListTile(
@@ -197,6 +245,12 @@ class AccountTab extends StatelessWidget {
         icon: const Icon(Icons.logout_rounded),
         label: const Text('Sign out'),
       ),
+      if (u != null && !u.isAdmin)
+        TextButton(
+          key: const Key('deleteAccount'),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DeleteAccountScreen())),
+          child: const Text('Delete my account', style: TextStyle(color: StallColors.red)),
+        ),
       const SizedBox(height: 16),
       Text('This is an early version of the Stall app. More of Stall arrives with each update.',
           textAlign: TextAlign.center, style: t.bodySmall),

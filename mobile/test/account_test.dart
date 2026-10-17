@@ -181,9 +181,11 @@ void main() {
     await type(t, 'su-phone', '08051234567');
     await type(t, 'su-pw', 'password123');
     await place(t, 'Lagos', 'Lagos Mainland');
+    await type(t, 'su-ref', 'kemi12');
     await tap(t, 'su-ok');
     await tap(t, 'su-submit');
     expect(body(f, 'register'), {
+      'ref': 'KEMI12',
       'role': 'member',
       'state': 'Lagos',
       'area': 'Lagos Mainland',
