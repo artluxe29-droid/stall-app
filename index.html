@@ -1520,6 +1520,7 @@ document.addEventListener('click',e=>{
   if(id0==='tbMe')openAccount();
   if(b=c('[data-newschool]')){const f=b.closest('form'),nw=f.querySelector('.newschool');nw.hidden=!nw.hidden;fillStates(f.elements.school_state);f.elements.school.disabled=!nw.hidden;return}
   if(id0==='accSchool')openSchoolPick(false);
+  if(id0==='accPlace')openPlace(false);
   if(b=c('[data-scope]')){S.scope=b.dataset.scope;S.scopeTap=1;save();drawScope();loadPub();return}
   if(b=c('[data-stock]')){const k=b.dataset.stock,it=get(k),n=prompt('How many do you have left?',it&&it.qtyLeft!=null?it.qtyLeft:'');if(n===null)return;
     apiPost(k[0]==='L'?'listings/stock':'stores/item/stock',{id:k,qty:n.trim()}).then(r=>{if(r.error)return toast(r.error);toast('Stock updated');$('#detail').close();loadPub().then(()=>{if(k[0]==='I'&&myStore())storePage(myStore().id)})});return}
@@ -1635,8 +1636,9 @@ const APPMODE=()=>matchMedia('(display-mode: standalone)').matches||navigator.st
   // Once Stall is in an app store, "Get the app" goes there instead of "add to home screen".
   storeLink=()=>{const s=CFG.stores||{};return IOS?s.apple||'':/Android/i.test(navigator.userAgent)?s.play||'':''},
   canInstall=()=>!APPMODE()&&(!!storeLink()||!!DIP||IOS);
-function drawScope(){const si=S.user&&S.user.schoolInfo,sc=effScope(),B=(k,l)=>`<button data-scope="${k}" aria-pressed="${sc===k}">${l}</button>`;
-  const h=si?B('school',ico('school')+' '+esc(si.short||'My school'))+B('state',ico('pin')+' '+esc(si.state))+B('all',FLAG()+' All Nigeria'):B('all',FLAG()+' All Nigeria');['#scopeSeg','#scopeSeg2'].forEach(x=>{const el=$(x);if(el)el.innerHTML=h})}
+// Feeds: My campus (students), my area (Local Government Area), my state, or all of Nigeria.
+function drawScope(){const u=S.user,si=u&&u.schoolInfo,sc=effScope(),B=(k,l)=>`<button data-scope="${k}" aria-pressed="${sc===k}">${l}</button>`;
+  const h=(si?B('school',ico('school')+' '+esc(si.short||'My campus')):'')+(u&&u.area?B('area',ico('pin')+' '+esc(u.area)):'')+(u&&u.state?B('state',ico('pin')+' '+esc(u.state)):'')+B('all',FLAG()+' All Nigeria');['#scopeSeg','#scopeSeg2'].forEach(x=>{const el=$(x);if(el)el.innerHTML=h})}
 // ---- Headline word play: the key word changes and takes a new colour every few seconds.
 const RW=[['need','#C8F03C'],['love','#F472B6'],['want','#38BDF8'],['sell','#4ADE80'],['crave','#FACC15'],['study with','#A78BFA']],
   RWN=[['need','#FFFFFF'],['love','#7CF29A'],['celebrate','#FFFFFF'],['sell','#7CF29A'],['want','#FFFFFF'],['cherish','#7CF29A']],CALM=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1665,7 +1667,8 @@ if(!CALM)setInterval(rotateWord,2600);
 function drawGuide(){const g=$('#guideCard');if(g)g.hidden=!S.user||!!S.guideSeen}
 // Schools open one at a time. Until a student's school is live, the home screen invites them onto its waitlist.
 const schLive=()=>{const si=S.user&&S.user.schoolInfo;return !si||!si.launch||si.launch==='live'};
-const effScope=()=>{const si=S.user&&S.user.schoolInfo;if(!si)return 'all';const s=S.scope||'school';return s==='school'&&!schLive()&&!S.scopeTap?'all':s};
+// The same fallbacks as the server: a feed you can't use widens to the next one.
+const effScope=()=>{const u=S.user;if(!u)return 'all';let s=S.scope||(u.schoolInfo?'school':'area');if(s==='school'&&!u.schoolInfo)s='area';if(s==='area'&&!u.area)s='state';if(s==='state'&&!u.state)s='all';return s};
 // Partner and sponsor banners (Admin → Partners). Several can apply to one user: each visit starts at a random one so every sponsor
 // gets seen, they take turns every 7 seconds, and students can swipe through them. More than 5 show a counter instead of dots.
 let PTI=-1,PTT=null,PTK='',PTV=false;
@@ -1725,7 +1728,7 @@ function openAccount(){const u=S.user,d=$('#accDlg');if(!u)return;const ns=NEWS.
    ${u.admin||u.reviewer?`<button class="aadmin" type="button" id="accAdmin">${ico('sliders')}<span><b>${u.admin?'Admin dashboard':'Review payments'}</b><small>${u.admin?'Orders, payouts, earnings and settings':'Payments waiting for a decision'}</small></span><span class="go">›</span></button>`:''}
    <div class="aqk">${tile('accMsgs','chat','Messages',CHATN?CHATN+' unread':'Buyers and sellers',CHATN)}${tile('accSelling','box','Orders to fulfil',ns?ns+' new':'What people bought',ns)}${stu?tile('accClass','list','Collections','Collect money from a group'):''}${tile('accInvite','gift','Invite & credit',u.credit?naira(u.credit)+' credit':'Earn when friends order')}${tile('accPays','wallet','Payments','Receipts for featuring and more')}${tile('accBadges','badge','Badges','Share your milestones')}</div>
    ${sec('Selling',[row('accDeliv','truck','Delivery',u.deliv&&u.deliv.on?'You deliver · '+(u.deliv.fee?naira(u.deliv.fee):'free'):'Off · buyers collect from you'),u.verified?'':row('accVerify','badge','Verified seller badge','Show buyers a ✓ badge on your listings'),row('accShare','megaphone','Share Stall','QR code and poster for friends and customers')])}
-   ${sec('Your profile',[row('accSchool','school','My school',sch?esc(sch.name):'Choose your school'),stu&&(u.vlevel||0)<2?row('accStu','cap','Verify you\'re a student',u.idCheck==='pending'?'Your document is being checked':'Student ID, course form or fees receipt',u.idCheck==='pending'?chip('Pending'):chip('Get ✓','hot')):'',row('accMail','mail','Email',u.emailVerified?(u.emailNotify?'Updates on · ':'Updates off · ')+esc(u.email):'Add your email for order updates and password resets',u.emailVerified?'':chip('Add','hot')),row('accPw','lock','Change password','')])}
+   ${sec('Your profile',[row('accPlace','pin','My area',u.area?esc(u.area+', '+u.state):'Choose your state and area'),row('accSchool','school',u.role==='vendor'?'Campus (optional)':'Student',sch?esc(sch.name):(u.role==='vendor'?'Not on a campus':'Not a student · tap if you are')),stu&&(u.vlevel||0)<2?row('accStu','cap','Verify you\'re a student',u.idCheck==='pending'?'Your document is being checked':'Student ID, course form or fees receipt',u.idCheck==='pending'?chip('Pending'):chip('Get ✓','hot')):'',row('accMail','mail','Email',u.emailVerified?(u.emailNotify?'Updates on · ':'Updates off · ')+esc(u.email):'Add your email for order updates and password resets',u.emailVerified?'':chip('Add','hot')),row('accPw','lock','Change password','')])}
    ${sec('App &amp; preferences',[row('accPush','bell','Notifications','<span id="pushSt">…</span>'),`<div class="arow2 nohover"><span class="i">${ico('sparkle')}</span><span class="t"><b>Theme</b></span><div class="tseg" role="group" aria-label="Appearance">${[['auto','Auto'],['light','Light'],['dark','Dark']].map(([k,l])=>`<button type="button" data-theme="${k}" aria-pressed="${themePref()===k}">${l}</button>`).join('')}</div></div>`,canInstall()?row('accInstall','phone','Install the app','Add Stall to your home screen'):'',row('accGuide','book2','How Stall works','Buying, selling, collections and staying safe')])}
    <div class="asec"><p>Help</p><div class="acard2 ahelp" id="accHelp"></div></div>
    <div class="aend"><button class="pill alt" type="button" id="accOut">${ico('logout')} Sign out</button><button class="link amng" type="button" id="accMng">Manage account</button></div>
@@ -2051,10 +2054,19 @@ function schoolBody(f){const nw=f.querySelector('.newschool');if(nw&&!nw.hidden)
     if(n.length<4)return{error:'Type the full name of your school.'};if(!st)return{error:'Choose the state your school is in.'};return{school_name:n,school_state:st}}
   const v=f.elements.school.value.trim(),x=SCH.find(y=>schLabel(y)===v)||SCH.find(y=>y.short&&y.short.toLowerCase()===v.toLowerCase())||SCH.find(y=>y.name.toLowerCase()===v.toLowerCase());
   return x?{school_id:x.id}:{error:v?'Pick your school from the list, or tap "My school isn\'t on the list".':'Choose your school.'}}
-function openSchoolPick(force){const d=$('#schDlg');d.innerHTML=`<form class="pad" id="schForm"><h2>${force?'Choose your school':'Change school'}</h2><p class="meta">Stall now covers schools across Nigeria. We'll show you what's for sale at your school first.</p>${SCP()}<span class="err" id="schErr"></span>
-  <div class="acts"><button class="pill" type="submit">Save</button>${force?'':'<button class="pill alt" type="button" data-close>Cancel</button>'}</div></form>`;d.showModal();
+function openSchoolPick(force){const d=$('#schDlg'),u=S.user||{},has=!!u.schoolInfo,biz=u.role==='vendor';
+  d.innerHTML=`<form class="pad" id="schForm"><h2>${biz?'Your campus':has?'Change school':'Are you a student?'}</h2><p class="meta">${biz?'If your business is on or near a campus, buyers there see it in their campus feed.':'Students see what\'s for sale on their campus first, and get the Student badge and campus perks.'}</p>${SCP()}<span class="err" id="schErr"></span>
+  <div class="acts"><button class="pill" type="submit">Save</button>${force?'':'<button class="pill alt" type="button" data-close>Cancel</button>'}</div>
+  ${has?`<p style="margin-top:12px"><button class="link" type="button" id="schNone">${biz?'We\'re not on a campus':'I\'m not a student any more'}</button></p><p class="meta">${biz?'':'Your store, listings, ratings and badges stay. You\'ll see your area\'s feed instead.'}</p>`:''}</form>`;d.showModal();
+  const no=$('#schNone');if(no)no.onclick=async()=>{const r=await apiPost('me/school',{none:true});if(r.error)return $('#schErr').textContent=r.error;d.close();toast(biz?'Saved':'Saved. Congratulations, graduate!');S.scope='';await refreshMe();loadPub()};
   $('#schForm').onsubmit=async e=>{e.preventDefault();const b=schoolBody(e.target);if(b.error)return $('#schErr').textContent=b.error;const r=await apiPost('me/school',b);if(r.error)return $('#schErr').textContent=r.error;
     d.close();toast('School saved');S.scope='school';S.scopeTap=0;await refreshMe();loadPub()}}
+// Where you are: state and Local Government Area. Asked once of accounts made before Stall opened to everyone.
+function openPlace(force){const d=$('#schDlg'),u=S.user||{};
+  d.innerHTML=`<form class="pad" id="plcForm"><h2>${force?'Which area are you in?':'My area'}</h2><p class="meta">Stall is now open to everyone in Nigeria. Your area helps you see what's for sale near you${u.schoolInfo?', as well as on your campus':''}. Your listings and store show in this area too.</p>${PLC(u)}
+  <div class="acts"><button class="pill" type="submit">Save</button>${force?'':'<button class="pill alt" type="button" data-close>Cancel</button>'}</div></form>`;if(!d.open)d.showModal();plcInit(d);
+  $('#plcForm').onsubmit=async e=>{e.preventDefault();const f=e.target,er={},b=plcBody(f,er);f.querySelectorAll('[data-e]').forEach(x=>x.textContent=er[x.dataset.e]||'');if(Object.keys(er).length)return;
+    const r=await apiPost('me/place',b);if(r.error)return toast(r.error);d.close();toast('Area saved');await refreshMe();drawScope();loadPub()}}
 // Admin preview: what the fee typed in would take on a few order sizes, and roughly what Stall keeps after Paystack.
 function feePrev(f){const c={rate:+f.elements.fee_rate.value||0,min:+f.elements.fee_min.value||0,cap:+f.elements.fee_cap.value||0},
   fee=a=>Math.min(Math.max(Math.round(a*c.rate/100),c.min),c.cap,Math.floor(a/2)),ps=a=>Math.min(Math.round(a*.015)+(a>=2500?100:0),2000),tr=a=>a<=5000?10:a<=50000?25:50;
@@ -2111,31 +2123,42 @@ let si=S.user||S.obSeen?SL.length:0,rt='student';
 let authMode='up';const apiPost0=(p,b)=>fetch('/api/'+p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}).then(readJ,()=>({error:'Could not reach Stall. Check your connection.'}));
 // The first time someone sells, the server asks them to agree to the selling rules; agree once, then the same request is sent again.
 const apiPost=async(p,b)=>{const r=await apiPost0(p,b);if(r&&r.need==='seller_ok'){if(!await sellerConsent())return{error:'You need to agree to the selling rules first.'};const a=await apiPost0('me/seller-ok',{});if(a.error)return a;if(S.user)S.user.sellerOk=true;return apiPost0(p,b)}return r};
-const SEG=()=>`<div class="seg"><button type="button" id="rtStudent" aria-pressed="${rt==='student'}">I'm a student</button><button type="button" id="rtVendor" aria-pressed="${rt==='vendor'}">I run a business</button></div>`;
+const SEG=()=>`<div class="seg"><button type="button" id="rtStudent" aria-pressed="${rt==='student'}">Personal</button><button type="button" id="rtVendor" aria-pressed="${rt==='vendor'}">Business</button></div>`;
+// State and Local Government Area pickers (the list comes from /api/areas). The area list fills in when a state is chosen.
+let AREAS={};fetch('/api/areas').then(r=>r.json()).then(r=>{AREAS=r.areas||{};document.querySelectorAll('select[data-plc=state]').forEach(el=>{const v=el.value;fillPlcStates(el);el.value=v})}).catch(()=>{});
+const fillPlcStates=el=>{const cur=el.dataset.v||el.value;el.innerHTML='<option value="">Choose…</option>'+Object.keys(AREAS).map(x=>`<option ${x===cur?'selected':''}>${esc(x)}</option>`).join('');const a=el.form&&el.form.querySelector('select[data-plc=area]');if(a)fillPlcAreas(el.value,a)};
+const fillPlcAreas=(st,el)=>{const cur=el.dataset.v||el.value;el.innerHTML='<option value="">'+(st?'Choose…':'Choose your state first')+'</option>'+(AREAS[st]||[]).map(x=>`<option ${x===cur?'selected':''}>${esc(x)}</option>`).join('')};
+const PLC=(u,lbl)=>`<div class="two"><label>${lbl||'State'}<select name="state" data-plc="state" data-v="${esc((u&&u.state)||'')}"></select><span class="err" data-e="state"></span></label><label>Area (LGA)<select name="area" data-plc="area" data-v="${esc((u&&u.area)||'')}"></select><span class="err" data-e="area"></span></label></div>`;
+const plcInit=root=>root.querySelectorAll('select[data-plc=state]').forEach(fillPlcStates);
+document.addEventListener('change',e=>{const t=e.target;if(t.matches&&t.matches('select[data-plc=state]')){const a=t.form.querySelector('select[data-plc=area]');if(a){a.dataset.v='';fillPlcAreas(t.value,a)}}});
+const plcBody=(f,er)=>{const st=f.elements.state.value,ar=f.elements.area.value;if(!st)er.state='Choose your state.';else if(!ar)er.area='Choose your area.';return{state:st,area:ar}};
 function vendorGate(g){
   g.innerHTML=`<div class="gin" style="text-align:left"><h1 style="font-size:36px">Create your account</h1>
-   <p style="margin-bottom:6px">For students and campus shops at schools across Nigeria.</p>${SEG()}
+   <p style="margin-bottom:6px">Shops, food spots and service businesses, anywhere in Nigeria.</p>${SEG()}
    <form id="reg" novalidate>
-    ${SCP()}
     <label>Business name<input name="biz" maxlength="40"><span class="err" data-e="biz"></span></label>
     <label>Owner's full name<input name="name" autocomplete="name" maxlength="50"><span class="err" data-e="name"></span></label>
     <label>WhatsApp number<input name="phone" inputmode="tel" placeholder="080..."><span class="err" data-e="phone"></span></label>
-    <div class="two"><label>Shop location on campus<input name="where" maxlength="40" placeholder="e.g. Cafeteria, Stall 4"><span class="err" data-e="where"></span></label><label>What you sell<select name="cat">${CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></label></div>
+    ${PLC(null,'Where your business is: state')}
+    <div class="two"><label>Shop location<input name="where" maxlength="40" placeholder="e.g. Bodija market, Shop 12"><span class="err" data-e="where"></span></label><label>What you sell<select name="cat">${CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></label></div>
     <label>Invite code (optional)<input name="code" autocapitalize="characters" maxlength="20" placeholder="Only if someone gave you one"><span class="err" data-e="code"></span></label>
     <label>Create a password<input name="pw" type="password" autocomplete="new-password" placeholder="At least 8 characters"><span class="err" data-e="pw"></span></label>
-    <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span>I'm 16 or older, I run this shop on or near my school's campus, these details are correct, and I agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label><span class="err" data-e="ok"></span>
+    <label class="chk" style="margin-top:10px"><input type="checkbox" name="near"><span><b>We're on or near a campus</b><br><small class="meta">Show up in that school's campus feed too.</small></span></label>
+    <div id="nearBox" hidden>${SCP()}</div>
+    <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span>I'm 16 or older, I run this business, these details are correct, and I agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label><span class="err" data-e="ok"></span>
     <div class="acts"><button class="pill" type="submit">Create account</button></div></form><p style="margin-top:14px"><button class="link" type="button" id="toIn">Already have an account? Sign in</button></p></div>`;
-  $('#reg').onsubmit=e=>{e.preventDefault();const f=e.target,v=n=>f.elements[n].value.trim(),er={},ph=v('phone').replace(/\D/g,'');
-    const sb0=schoolBody(f);if(sb0.error)er.school=sb0.error;
+  plcInit(g);$('#reg').elements.near.onchange=e=>{$('#nearBox').hidden=!e.target.checked};
+  $('#reg').onsubmit=e=>{e.preventDefault();const f=e.target,v=n=>f.elements[n].value.trim(),er={},ph=v('phone').replace(/\D/g,''),pl=plcBody(f,er);
+    const sb0=f.elements.near.checked?schoolBody(f):{};if(sb0.error)er.school=sb0.error;
     if(v('biz').length<2)er.biz='Enter your business name.';
     if(v('name').length<3)er.name='Enter your full name.';
     if(phoneErr(ph))er.phone=phoneErr(ph);
-    if(v('where').length<3)er.where='Where on campus is your shop?';
+    if(v('where').length<3)er.where='Where is your business? e.g. the market, street or building.';
     if(f.elements.pw.value.length<8)er.pw='Use at least 8 characters.';
     if(!f.elements.ok.checked)er.ok='Please confirm to continue.';
     f.querySelectorAll('[data-e]').forEach(x=>x.textContent=er[x.dataset.e]||'');
     if(Object.keys(er).length)return;
-    regSend(f,{...sb0,role:'vendor',name:v('name'),biz:v('biz'),phone:v('phone'),where:v('where'),cat:f.elements.cat.value,code:v('code'),password:f.elements.pw.value})};
+    regSend(f,{...sb0,...pl,role:'vendor',name:v('name'),biz:v('biz'),phone:v('phone'),where:v('where'),cat:f.elements.cat.value,code:v('code'),password:f.elements.pw.value})};
 }
 let PV=-1;
 let NEWS=[],PN=0,CHATN=0,CHT=null,REF=null;
@@ -2289,7 +2312,7 @@ async function loadPub(more){if(!S.user)return;const n=++PQ,mo=more===true,need=
   const own=i=>{i.mine=!!S.user&&i.sid===S.user.uid;i.multi=i.qtyLeft>1;LC.set(i.id,i)};if(mL&&mL.listings){MY=mL.listings;MY.forEach(own)}
   $('#more').disabled=false;if(n!==PQ)return;if(c&&c.listings)c.listings.forEach(own);
   if(a&&a.listings){if(!mo)SHITS=a.storeHits||[];a.listings.forEach(own);PUB=mo?[...PUB,...a.listings]:a.listings;PTOT=a.total;PLD=1}if(b&&b.stores){STORES=b.stores;if(mS&&mS.stores)mS.stores.forEach(m=>{const k=STORES.findIndex(x=>x.id===m.id);k>=0?STORES[k]=m:STORES.unshift(m)})}if((a&&a.listings)||(b&&b.stores)){refresh();renderStores()}}
-function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub();pollNews();setTimeout(checkMilestones,2500);if(!r.user.schoolInfo&&!$('#schDlg').open)openSchoolPick(true)}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
+function refreshMe(){return fetch('/api/me').then(r=>r.status===401?null:r.json()).then(r=>{if(r&&r.user){S.user=r.user;save();gate();loadPub();pollNews();setTimeout(checkMilestones,2500);if(!r.user.area&&!$('#schDlg').open)openPlace(true)}else if(r===null&&S.user){S.user=null;S.me={};save();gate()}}).catch(()=>{})}
 const AD={tab:'overview',st:{},sum:{},n:0},OST={pending:['Waiting for payment',''],under_review:['Needs review','warn'],disputed:['Problem reported','bad'],refunded:['Refunded',''],verified:['Paid, awaiting delivery','warn'],released:['Delivered','ok'],expired:['Expired',''],rejected:['Rejected','bad']};
 // Admin sections, grouped for the sidebar: [key, label, icon, short description, summary count to badge].
 const AG=[['Home',[['overview','Overview','home','Today at a glance'],['live','Live users','users','Who is using Stall right now, by school and state'],['health','System health','pulse','Payments, email, AI and storage']]],
@@ -2298,7 +2321,7 @@ const AG=[['Home',[['overview','Overview','home','Today at a glance'],['live','L
  ['Marketplace',[['items','Photo check','image','New listings the AI wasn\'t sure about','itemsReview'],['schools','Schools','school','Launch schools, see waitlists and requests to add one','schoolsPending'],['partner','Partners','megaphone','Partners and sponsors: banners and order shares']]],
  ['System',[['log','Activity','list','Who did what, and when'],['settings','Settings','gear','Business details, verification and the Android app']]]];
 const ATABS=AG.flatMap(g=>g[1].map(([k,l,,,n])=>[k,l,n])),AMETA=Object.fromEntries(AG.flatMap(g=>g[1].map(x=>[x[0],x])));
-const AF={ids:[['pending','Waiting'],['approved','Approved'],['rejected','Rejected'],['all','All']],sellerpay:[['failed','Failed'],['processing','Sending'],['paid','Paid'],['all','All']],orders:[['all','All'],['verified','Awaiting delivery'],['disputed','Problem reported'],['refunded','Refunded'],['under_review','Needs review'],['pending','Waiting for payment'],['released','Delivered'],['rejected','Rejected'],['expired','Expired']],vendors:[['all','All'],['pending','Waiting'],['active','Approved'],['suspended','Suspended']],users:[['all','Everyone'],['student','Students'],['vendor','Vendors'],['verified','Verified'],['reviewer','Reviewers'],['nofee','No collection fee']],items:[['review','Needs a look'],['rejected','Rejected'],['live','Approved']],schools:[['launch','Launch'],['active','All schools'],['pending','Requested']],verify:[['pending','Waiting'],['approved','Approved, not paid'],['paid','Verified'],['rejected','Not approved'],['all','All']],money:[['all','All'],['boost','Featured'],['reach','Store reach'],['verify','Verified badges'],['store','Store fees'],['commission','Sale fees']],codes:[['all','All'],['unused','Not used'],['used','Used'],['off','Turned off'],['store','Free store']],log:[['all','Everything'],['payment','Payments'],['account','Accounts'],['money','Earnings'],['other','Other']]};
+const AF={ids:[['pending','Waiting'],['approved','Approved'],['rejected','Rejected'],['all','All']],sellerpay:[['failed','Failed'],['processing','Sending'],['paid','Paid'],['all','All']],orders:[['all','All'],['verified','Awaiting delivery'],['disputed','Problem reported'],['refunded','Refunded'],['under_review','Needs review'],['pending','Waiting for payment'],['released','Delivered'],['rejected','Rejected'],['expired','Expired']],vendors:[['all','All'],['pending','Waiting'],['active','Approved'],['suspended','Suspended']],users:[['all','Everyone'],['student','Students'],['member','Members'],['vendor','Businesses'],['verified','Verified'],['reviewer','Reviewers'],['nofee','No collection fee']],items:[['review','Needs a look'],['rejected','Rejected'],['live','Approved']],schools:[['launch','Launch'],['active','All schools'],['pending','Requested']],verify:[['pending','Waiting'],['approved','Approved, not paid'],['paid','Verified'],['rejected','Not approved'],['all','All']],money:[['all','All'],['boost','Featured'],['reach','Store reach'],['verify','Verified badges'],['store','Store fees'],['commission','Sale fees']],codes:[['all','All'],['unused','Not used'],['used','Used'],['off','Turned off'],['store','Free store']],log:[['all','Everything'],['payment','Payments'],['account','Accounts'],['money','Earnings'],['other','Other']]};
 const AQ={payments:'Search order #, name, phone or reference',orders:'Search order #, name, phone or reference',vendors:'Search shop, name or phone',users:'Search name, phone or email',codes:'Search code or shop name',log:'Search person, order # or action',items:'Search title or seller',schools:'Search school, short name or state',verify:'Search name, phone or shop',money:'Search name, item or reference'};
 const aAgo=t=>{if(!t)return'';const s=(Date.now()-t)/1e3;return s<60?'just now':s<3600?Math.floor(s/60)+' min ago':s<86400?Math.floor(s/3600)+' h ago':new Date(t).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'})};
 const wa=p=>{p=String(p||'');const d=p.replace(/\D/g,'');return d?`<a class="link" target="_blank" rel="noopener" href="https://wa.me/${d[0]==='0'?'234'+d.slice(1):d}">${esc(p)}</a>`:esc(p)};
@@ -2633,10 +2656,10 @@ function aItem(x){const[l,kk]={review:['Needs a look','warn'],checking:['Checkin
    ${p?`<form id="ir${x.id}" data-irf="${x.id}" class="rjf" hidden><input name="why" maxlength="160" placeholder="Reason, e.g. photo doesn't show the item"><div class="aacts"><button class="pill sm red" type="submit">Reject</button><button class="pill sm alt" type="button" data-irj="${x.id}">Cancel</button></div></form>`:''}</div>
    ${p?`<div class="aacts"><button class="pill sm" data-iok="${x.id}">Approve</button>${x.review!=='rejected'?`<button class="pill sm alt" data-irj="${x.id}">Reject</button>`:''}</div>`:''}</div>`}
 const LNCH={soon:['Coming soon',''],sellers:['Sellers only','warn'],live:['Live','ok']};
-function aSchool(x){const L=x.launch||'soon';return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.name)}</b>${x.short?bdg(x.short):''}${x.active?bdg(LNCH[L][0],LNCH[L][1]):bdg('Requested','warn')}${x.active&&!x.stu_sell?bdg('Students can\'t sell','bad'):''}</div><small>${esc(x.state)} · ${esc(x.kind||'')} · ${x.users} ${x.users===1?'person':'people'}${x.stores?' · '+x.stores+' '+(x.stores===1?'store':'stores'):''}</small>
-   ${x.waiting?`<small><b>${x.waiting} on the waitlist</b> · ${x.wbuy} to buy · ${x.wsell} to sell · <button class="link" type="button" data-wl="${x.id}" data-nm="${esc(x.short||x.name)}">See who's waiting</button></small>`:''}
+function aSchool(x){const L=x.launch||'soon';return `<div class="arow"><div class="t"><div class="ttl"><b>${esc(x.name)}</b>${x.short?bdg(x.short):''}${x.active?'':bdg('Requested','warn')}${x.active&&!x.stu_sell?bdg('Students can\'t sell','bad'):''}</div><small>${esc(x.state)} · ${esc(x.kind||'')} · ${x.users} ${x.users===1?'person':'people'}${x.stores?' · '+x.stores+' '+(x.stores===1?'store':'stores'):''}</small>
+
    ${x.active?`<small>Students can sell here: <b>${x.stu_sell?'On':'Off'}</b> · <button class="link" type="button" data-stusell="${x.id}" data-on="${x.stu_sell?0:1}" data-nm="${esc(x.short||x.name)}">${x.stu_sell?'Turn off':'Turn on'}</button></small>`:''}
-   ${x.active?`<div class="aacts lseg">${Object.entries(LNCH).map(([k,[l]])=>`<button class="pill sm ${k===L?'':'alt'}" data-launch="${x.id}" data-l="${k}" data-nm="${esc(x.short||x.name)}" ${k===L?'disabled':''}>${l}</button>`).join('')}</div>`:''}
+   
    <form id="se${x.id}" data-schf="${x.id}" class="rjf" ${x.active?'hidden':''}><input name="name" maxlength="90" value="${esc(x.name)}"><input name="short" maxlength="16" value="${esc(x.short||'')}" placeholder="Short name, e.g. UNILAG"><select name="state">${STATES.map(y=>`<option ${y===x.state?'selected':''}>${y}</option>`).join('')}</select><div class="aacts"><button class="pill sm" type="submit">${x.active?'Save':'Approve school'}</button></div></form></div>
    ${x.active?`<div class="aacts"><button class="pill sm alt" data-sched="${x.id}">Edit</button></div>`:''}</div>`}
 function aMoney(x){const k={boost:'Featured',verify:'Verified badge',store:'Store fee',reach:'Store reach',commission:'Sale fee'}[x.kind]||x.kind;
@@ -2659,7 +2682,7 @@ function aBank(x){return `<div class="arow"><div class="t"><div class="ttl"><b>$
    <div class="aacts"><button class="pill sm" data-abank="${x.kind}:${x.id}">Confirm</button></div></div>`}
 async function regSend(f,body){const b=f.querySelector('[type=submit]');b.disabled=true;let ref='';try{ref=localStorage.getItem('stall:ref')||''}catch(e){}const r=await apiPost('register',{...body,ref});b.disabled=false;
   if(r.error){f.querySelectorAll('[data-e]').forEach(x=>x.textContent='');(f.querySelector('[data-e="'+r.field+'"]')||f.querySelector('[data-e="ok"]')).textContent=r.error;return}
-  S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();loadPub();view('shop');toast('Welcome to Stall, '+(S.user.biz||S.user.name.split(' ')[0]));
+  S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();loadPub();view('shop');toast('Welcome to Stall, '+(S.user.biz||S.user.name.split(' ')[0]));refreshMe();
   if(CFG.emailOn&&S.user.email&&!S.user.emailVerified)setTimeout(afterSignup,900)}
 function loginGate(g){g.innerHTML=`<div class="gin" style="text-align:left"><h1 style="font-size:36px">Sign in</h1><p style="margin-bottom:6px">Use the phone number you signed up with.</p>
    <form id="lg" novalidate><label>Phone number<input name="id" inputmode="tel" autocomplete="username" placeholder="080..."></label>
@@ -2669,7 +2692,7 @@ function loginGate(g){g.innerHTML=`<div class="gin" style="text-align:left"><h1 
    <p style="margin-top:8px"><button class="link" type="button" id="toUp">New here? Create an account</button></p></div>`;
   $('#lg').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('[type=submit]');b.disabled=true;const r=await apiPost('login',{id:f.elements.id.value,password:f.elements.pw.value});b.disabled=false;
     if(r.error){f.querySelector('[data-e=id]').textContent=r.error;return}
-    S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();loadPub();view('shop');toast('Welcome back, '+(S.user.biz||S.user.name.split(' ')[0]))}}
+    S.user=r.user;S.me={name:S.user.name,phone:S.user.phone};save();gate();loadPub();view('shop');toast('Welcome back, '+(S.user.biz||S.user.name.split(' ')[0]));refreshMe()}}
 function gate(){drawClosed();drawGuide();drawSoon();drawPartner();
   const g=$('#gate');$('#who').textContent=S.user?`Signed in as ${S.user.name} (${S.user.role==='vendor'?'business':S.user.phone||''}).`:'';$('#signOut').hidden=!S.user;$('#pwBtn').hidden=!S.user;$('#verifyBtn').hidden=!S.user||!!S.user.verified;$('#adminBtn').hidden=!(S.user&&(S.user.admin||S.user.reviewer));$('#adminBtn').textContent=S.user&&S.user.admin?'Admin':'Review orders';
   const isV=!!S.user&&S.user.role==='vendor';$('#sellBtn').hidden=isV;$('#sellHero').hidden=isV;
@@ -2684,28 +2707,31 @@ function gate(){drawClosed();drawGuide();drawSoon();drawPartner();
   g.classList.remove('obg');
   if(rt==='vendor'){vendorGate(g);return}
   g.innerHTML=`<div class="gin" style="text-align:left"><h1 style="font-size:36px">Create your account</h1>
-   <p style="margin-bottom:6px">For students and campus shops at schools across Nigeria.</p>${SEG()}
+   <p style="margin-bottom:6px">Buy and sell safely with people near you, anywhere in Nigeria.</p>${SEG()}
    <form id="reg" novalidate>
-    ${SCP()}
     <label>Full name<input name="name" autocomplete="name" maxlength="50"><span class="err" data-e="name"></span></label>
     <label>Email address<input name="email" type="email" autocomplete="email" placeholder="you@gmail.com"><span class="err" data-e="email"></span></label>
     <label>WhatsApp number<input name="phone" inputmode="tel" placeholder="080..."><span class="err" data-e="phone"></span></label>
     <label>Create a password<input name="pw" type="password" autocomplete="new-password" placeholder="At least 8 characters"><span class="err" data-e="pw"></span></label>
-    <label>Hostel or where you stay<input name="where" maxlength="40" placeholder="e.g. Hall B, Room 214"><span class="err" data-e="where"></span></label>
-    <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span>I'm 16 or older, I'm a current student at the school above, and I agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label><span class="err" data-e="ok"></span>
+    ${PLC(null,'Where you are: state')}
+    <label class="chk" style="margin-top:10px"><input type="checkbox" name="stu"><span><b>I'm a student</b><br><small class="meta">See what's for sale on your campus first, and get the Student badge and campus perks.</small></span></label>
+    <div id="stuBox" hidden>${SCP()}<label>Hostel or where you stay<input name="where" maxlength="40" placeholder="e.g. Hall B, Room 214"><span class="err" data-e="where"></span></label></div>
+    <label class="chk" style="margin-top:16px"><input type="checkbox" name="ok"><span id="okTxt">I'm 16 or older and I agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span></label><span class="err" data-e="ok"></span>
     <div class="acts"><button class="pill" type="submit">Create account</button></div></form><p style="margin-top:14px"><button class="link" type="button" id="toIn">Already have an account? Sign in</button></p></div>`;
-  $('#reg').onsubmit=e=>{e.preventDefault();const f=e.target,v=n=>f.elements[n].value.trim(),er={};
-    const dom=(v('email').split('@')[1]||'').toLowerCase(),ph=v('phone').replace(/\D/g,'');
-    const sb0=schoolBody(f);if(sb0.error)er.school=sb0.error;
+  plcInit(g);const F=$('#reg');F.elements.stu.onchange=()=>{const on=F.elements.stu.checked;$('#stuBox').hidden=!on;
+    $('#okTxt').innerHTML=on?'I\'m 16 or older, I\'m a current student at the school above, and I agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.':'I\'m 16 or older and I agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.'};
+  F.onsubmit=e=>{e.preventDefault();const f=e.target,v=n=>f.elements[n].value.trim(),er={},stu=f.elements.stu.checked;
+    const ph=v('phone').replace(/\D/g,''),pl=plcBody(f,er);
+    const sb0=stu?schoolBody(f):{};if(sb0.error)er.school=sb0.error;
     if(v('name').length<3)er.name='Enter your full name.';
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(v('email')))er.email='Enter a valid email address.';
     if(phoneErr(ph))er.phone=phoneErr(ph);
     if(f.elements.pw.value.length<8)er.pw='Use at least 8 characters.';
-    if(v('where').length<2)er.where='Enter your hostel or where you stay, so buyers and sellers can meet you.';
+    if(stu&&v('where').length<2)er.where='Enter your hostel or where you stay, so buyers and sellers can meet you.';
     if(!f.elements.ok.checked)er.ok='Please confirm to continue.';
     f.querySelectorAll('[data-e]').forEach(x=>x.textContent=er[x.dataset.e]||'');
     if(Object.keys(er).length)return;
-    regSend(f,{...sb0,role:'student',name:v('name'),email:v('email'),phone:v('phone'),where:v('where'),password:f.elements.pw.value})};
+    regSend(f,{...sb0,...pl,role:stu?'student':'member',name:v('name'),email:v('email'),phone:v('phone'),where:stu?v('where'):'',password:f.elements.pw.value})};
 }
 S.cart=S.cart.filter(id=>get(id));render();badge();$('#badge').classList.remove('bump');gate();
 refreshMe().then(()=>setTimeout(ping,1500));setInterval(pollPub,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollPub()});
