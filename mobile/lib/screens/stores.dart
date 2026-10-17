@@ -9,6 +9,7 @@ import '../widgets.dart';
 import 'browse.dart';
 import 'chat.dart';
 import 'checkout.dart';
+import 'extras.dart' show StoreQrScreen;
 import 'item.dart';
 
 Future<List<Store>> loadStores(Api api, String scope) async {
@@ -259,47 +260,99 @@ class _StoreBody extends StatelessWidget {
     final t = Theme.of(context).textTheme;
     final c = Category.of(s.cat);
     final mine = SessionScope.of(context).user?.uid == s.ownerId;
+    const onDark = Color(0xFFCBD5E1);
+    Widget round(Widget icon, {Key? key, String? tip, VoidCallback? onTap}) => Material(
+          color: Colors.white.withValues(alpha: .1),
+          shape: const CircleBorder(),
+          child: IconButton(key: key, tooltip: tip, onPressed: onTap, color: Colors.white, icon: icon),
+        );
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: c.bg,
-        actions: [
-          const BagButton(),
-          IconButton(
-            key: const Key('share'),
-            tooltip: 'Share store',
-            onPressed: () => shareThing(context, id: s.id, text: 'Check out ${s.name} on Stall'),
-            icon: const Icon(Icons.ios_share_rounded),
-          ),
-        ],
-      ),
       body: ListView(padding: EdgeInsets.zero, children: [
+        // The website's store banner: dark, rounded at the bottom, logo in a white ring, stats split by thin lines.
         Container(
-          color: c.bg,
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF161A33), Color(0xFF1E2552)]),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+          ),
+          padding: EdgeInsets.fromLTRB(14, MediaQuery.paddingOf(context).top + 10, 14, 26),
           child: Column(children: [
-            StoreAvatar(store: s, size: 88),
+            Row(children: [
+              round(const Icon(Icons.arrow_back_rounded), tip: 'Back', onTap: () => Navigator.of(context).maybePop()),
+              const Spacer(),
+              const IconTheme(data: IconThemeData(color: Colors.white), child: BagButton()),
+              round(const Icon(Icons.ios_share_rounded),
+                  key: const Key('share'), tip: 'Share store', onTap: () => shareThing(context, id: s.id, text: 'Check out ${s.name} on Stall')),
+            ]),
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: .9), shape: BoxShape.circle),
+              child: ClipOval(child: StoreAvatar(store: s, size: 84)),
+            ),
             const SizedBox(height: 12),
-            Text(s.name, style: t.headlineMedium, textAlign: TextAlign.center),
+            Text(s.name, textAlign: TextAlign.center, style: t.headlineMedium?.copyWith(color: Colors.white)),
             if (s.founding > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Tag('Founding Seller #${s.founding}${s.school.isEmpty ? '' : ' · ${s.school}'}', bg: StallColors.indigo),
+                child: Tag('Founding Seller #${s.founding}${s.school.isEmpty ? '' : ' · ${s.school}'}', bg: StallColors.lime, fg: StallColors.limeInk),
               ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             VerifyBadge(verified: s.verified, vlevel: s.vlevel),
-            const SizedBox(height: 6),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              _OpenDot(open: s.open),
-              if (s.vendor) Text(' · Business', style: t.bodySmall),
-            ]),
             if (s.rating.n > 0)
-              TextButton(onPressed: () => showReviews(context, uid: s.ownerId, name: s.name), child: StarText('${s.rating.label} · reviews')),
-            const SizedBox(height: 8),
-            Row(children: [
-              _Stat('${s.availableCount}', 'Available'),
-              _Stat('${s.items.length}', 'Items'),
-              _Stat(s.school.isEmpty ? c.name : s.school, s.school.isEmpty ? 'Category' : s.state),
+              TextButton(
+                onPressed: () => showReviews(context, uid: s.ownerId, name: s.name),
+                style: TextButton.styleFrom(foregroundColor: const Color(0xFFF5B83D)),
+                child: StarText('${s.rating.label} · reviews', style: const TextStyle(color: Color(0xFFF5B83D), fontWeight: FontWeight.w700)),
+              ),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(color: s.open ? const Color(0xFF22C55E) : const Color(0xFFEF4444), shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+              Text('${s.open ? 'Open now' : 'Closed'}${s.vendor ? ' · Business' : ''}', style: const TextStyle(color: onDark, fontSize: 13.5)),
             ]),
+            const SizedBox(height: 18),
+            IntrinsicHeight(
+              child: Row(children: [
+                _Stat('${s.availableCount}', 'Available'),
+                const VerticalDivider(width: 1, color: Color(0x26FFFFFF)),
+                _Stat('${s.items.length}', 'Items'),
+                const VerticalDivider(width: 1, color: Color(0x26FFFFFF)),
+                _Stat(s.school.isEmpty ? c.name : s.school, s.school.isEmpty ? 'Category' : s.state),
+              ]),
+            ),
+            const SizedBox(height: 20),
+            if (mine)
+              FilledButton.icon(
+                key: const Key('storeKit'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => StoreQrScreen(store: s))),
+                style: FilledButton.styleFrom(
+                    backgroundColor: StallColors.cream2, foregroundColor: StallColors.ink, minimumSize: const Size(0, 50), padding: const EdgeInsets.symmetric(horizontal: 24)),
+                icon: const Icon(Icons.campaign_outlined),
+                label: const Text('Now on Stall kit'),
+              )
+            else
+              Wrap(alignment: WrapAlignment.center, spacing: 10, runSpacing: 10, children: [
+                FilledButton.icon(
+                  key: Key('msg-${s.id}'),
+                  onPressed: () => openChat(context, s.id),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: StallColors.lime, foregroundColor: StallColors.limeInk, minimumSize: const Size(0, 48), padding: const EdgeInsets.symmetric(horizontal: 20)),
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                  label: const Text('Message the store'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => shareThing(context, id: s.id, text: 'Check out ${s.name} on Stall'),
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.white.withValues(alpha: .1),
+                      side: BorderSide(color: Colors.white.withValues(alpha: .25)),
+                      minimumSize: const Size(0, 48),
+                      padding: const EdgeInsets.symmetric(horizontal: 20)),
+                  icon: const Icon(Icons.ios_share_rounded, size: 18),
+                  label: const Text('Share store'),
+                ),
+              ]),
           ]),
         ),
         Padding(
@@ -320,9 +373,7 @@ class _StoreBody extends StatelessWidget {
               const Padding(
                 padding: EdgeInsets.only(top: 12),
                 child: Text('This is your store. Manage it from Sell → Your store.', style: TextStyle(color: StallColors.muted)),
-              )
-            else
-              Padding(padding: const EdgeInsets.only(top: 12), child: MessageButton(ref: s.id, label: 'Message ${s.name}')),
+              ),
           ]),
         ),
         if (s.items.isEmpty)
@@ -345,8 +396,9 @@ class _Stat extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Expanded(
         child: Column(children: [
-          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Bricolage', fontWeight: FontWeight.w800, fontSize: 18)),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          Text(value,
+              maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Bricolage', fontWeight: FontWeight.w800, fontSize: 18, color: Colors.white)),
+          Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF9AA1C9))),
         ]),
       );
 }
