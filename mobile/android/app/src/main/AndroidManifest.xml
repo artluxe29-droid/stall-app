@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Stall talks to stall.com.ng (release builds need this; Flutter only adds it to debug builds). -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Only while sharing your location on an order that's on its way (never in the background). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <application
         android:label="Stall"
         android:name="${applicationName}"

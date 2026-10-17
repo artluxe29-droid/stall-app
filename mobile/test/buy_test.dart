@@ -179,6 +179,7 @@ void main() {
     expect(find.text('Paid'), findsOneWidget);
     await tap(t, find.byKey(const Key('order-40')));
     expect(find.text('STALL-AB12CD'), findsOneWidget);
+    await t.scrollUntilVisible(find.textContaining('the seller is paid on Tue, 20 Oct'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('the seller is paid on Tue, 20 Oct'), findsOneWidget);
 
     await tap(t, find.byKey(const Key('gotIt')));
