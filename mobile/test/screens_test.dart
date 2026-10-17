@@ -50,6 +50,7 @@ void main() {
     expect(find.byType(NavigationBar), findsOneWidget);
     await t.tap(find.text('Account'));
     await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.byKey(const Key('signOut')), 200, scrollable: find.byType(Scrollable).first);
     await t.runAsync(() async {
       await t.tap(find.byKey(const Key('signOut')));
       await Future<void>.delayed(const Duration(milliseconds: 50));

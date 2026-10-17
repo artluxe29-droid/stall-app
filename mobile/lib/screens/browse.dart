@@ -7,6 +7,7 @@ import '../models.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'chat.dart';
 import 'checkout.dart';
 import 'item.dart';
 import 'search.dart';
@@ -209,7 +210,18 @@ class _HomeTabState extends State<HomeTab> {
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           sliver: SliverList.list(children: [
-            const Row(children: [Wordmark(height: 28), Spacer(), BagButton()]),
+            Row(children: [
+              const Wordmark(height: 28),
+              const Spacer(),
+              IconButton(
+                key: const Key('messages'),
+                tooltip: 'Messages',
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MessagesScreen())),
+                icon: const Icon(Icons.chat_bubble_outline_rounded),
+              ),
+              const BagButton(),
+            ]),
+            if (s.user?.pausedUntil != null) ...[const SizedBox(height: 12), PausedCard(until: s.user!.pausedUntil!)],
             const SizedBox(height: 16),
             SearchBox(onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SearchScreen()))),
             const SizedBox(height: 16),
