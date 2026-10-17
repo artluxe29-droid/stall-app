@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../theme.dart';
-import '../widgets.dart';
 import 'account_setup.dart';
 import 'browse.dart';
 import 'orders.dart';
+import 'sell.dart';
 import 'stores.dart';
 
 /// The signed-in app: Home, Stores, Sell, Orders and Account, like the web app's tab bar.
@@ -18,10 +18,6 @@ class Shell extends StatefulWidget {
 class _ShellState extends State<Shell> {
   int _tab = 0;
 
-  static const _soon = {
-    2: (Icons.sell_outlined, 'Selling is coming soon', 'You\'ll list items and run your store from here. For now, sell on stall.com.ng.'),
-  };
-
   @override
   Widget build(BuildContext context) {
     final body = switch (_tab) {
@@ -29,7 +25,7 @@ class _ShellState extends State<Shell> {
       1 => const StoresTab(),
       3 => const OrdersTab(),
       4 => const AccountTab(),
-      _ => EmptyState(icon: _soon[_tab]!.$1, title: _soon[_tab]!.$2, text: _soon[_tab]!.$3),
+      _ => const SellTab(),
     };
     return Scaffold(
       body: SafeArea(bottom: false, child: body),

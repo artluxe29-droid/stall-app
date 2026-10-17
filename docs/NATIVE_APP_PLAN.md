@@ -1,6 +1,6 @@
 # Stall native app: rebuild plan
 
-Status: **Phase 1 in progress.** Phase 0 is done (16 Oct 2026). Phase 1 (browse, accounts, buying) is in the app; selling (Phase 2) is next.
+Status: **Phase 1 in progress.** Phase 0 is done (16 Oct 2026). Phase 1 (browse, accounts, buying) is in the app; Phase 2 (selling) is in progress.
 
 ## Why
 
@@ -66,12 +66,12 @@ Tick each one only when it works in the native app against the live API.
   - [ ] Ratings and buyer ratings
   - [ ] Receipts
 - **Selling:**
-  - [ ] List an item (photos, compression, price hint)
+  - [x] List an item (photos, compression, price hint)
   - [ ] Bulk add
-  - [ ] Stock
-  - [ ] Mark sold
-  - [ ] Delete
-  - [ ] Seller rules consent and school-rules tick
+  - [x] Stock
+  - [x] Mark sold
+  - [x] Delete
+  - [x] Seller rules consent and school-rules tick
 - **Stores:**
   - [ ] Open a store (fee or free code)
   - [ ] Logo and icon
