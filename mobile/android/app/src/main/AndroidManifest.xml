@@ -8,6 +8,8 @@
         android:label="Stall"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- Pushes without a channel of their own go to Stall's "Orders and messages" channel (made in MainActivity). -->
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="stall" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

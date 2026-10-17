@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stall/main.dart';
+import 'package:stall/push.dart';
 
 import 'buy_test.dart' show order;
 import 'helpers.dart';
@@ -203,5 +204,21 @@ void main() {
     expect(body(f, 'reviews/reply'), {'id': 12, 'text': 'Thanks Kemi!'});
     expect(find.textContaining('Thanks Kemi!'), findsOneWidget);
     expect(find.byKey(const Key('reply-12')), findsNothing);
+  });
+
+  testWidgets('a tapped notification opens Selling, or the chat it\'s about', (t) async {
+    await start(t, {
+      'GET orders/selling': (_) => (200, {'orders': []}),
+      'GET orders/weekly': (_) => (200, {'n': 0}),
+      'GET chat/msgs': (_) => (200, {'thread': {'id': 9, 'with': 'Kemi', 'title': 'Desk lamp'}, 'msgs': []}),
+    });
+    pushTarget.value = Uri.parse('https://stall.com.ng/app?go=selling');
+    await settle(t);
+    expect(find.text('No sales yet'), findsOneWidget);
+
+    pushTarget.value = Uri.parse('/?go=messages&t=9');
+    await settle(t);
+    expect(find.text('Kemi'), findsOneWidget);
+    expect(find.text('Say hello'), findsOneWidget);
   });
 }

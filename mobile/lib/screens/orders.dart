@@ -119,6 +119,9 @@ class _Chip extends StatelessWidget {
 }
 
 /// Orders: what you've bought, newest first. (Selling orders arrive with Phase 2.)
+/// Which side Orders shows; a tapped notification about a sale switches it to Selling.
+final ordersSelling = ValueNotifier<bool>(false);
+
 class OrdersTab extends StatefulWidget {
   const OrdersTab({super.key});
   @override
@@ -128,12 +131,31 @@ class OrdersTab extends StatefulWidget {
 class _OrdersTabState extends State<OrdersTab> {
   Future<List<Order>>? _f;
   Future<Map<String, dynamic>>? _week;
-  bool _selling = false;
+  bool _selling = ordersSelling.value;
+
+  @override
+  void initState() {
+    super.initState();
+    ordersSelling.addListener(_side);
+  }
+
+  @override
+  void dispose() {
+    ordersSelling.removeListener(_side);
+    super.dispose();
+  }
+
+  void _side() {
+    if (ordersSelling.value == _selling) return;
+    _selling = ordersSelling.value;
+    _refresh();
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _f ??= _load();
+    if (_selling && _week == null) _week = SessionScope.of(context).api.get('orders/weekly').catchError((_) => <String, dynamic>{});
   }
 
   Future<List<Order>> _load() async {
@@ -170,6 +192,7 @@ class _OrdersTabState extends State<OrdersTab> {
               selected: {_selling},
               onSelectionChanged: (v) {
                 _selling = v.first;
+                ordersSelling.value = v.first;
                 _refresh();
               },
             ),
