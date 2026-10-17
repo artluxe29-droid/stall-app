@@ -16,6 +16,7 @@ import 'item.dart' show showReviews;
 import 'orders.dart';
 import 'settings.dart';
 import 'sell.dart';
+import 'selling.dart' show WeeklyScreen;
 import 'stores.dart';
 
 /// The signed-in app: Home, Stores, Sell, Orders and Account, like the web app's tab bar.
@@ -26,7 +27,15 @@ class Shell extends StatefulWidget {
 }
 
 class _ShellState extends State<Shell> {
-  int _tab = 0;
+  int get _tab => shellTab.value;
+
+  /// Tabs are built the first time they're opened, then kept, so going back to one is instant.
+  final _built = <int>{0};
+
+  void _show(int i) => setState(() {
+        _built.add(i);
+        shellTab.value = i;
+      });
 
   /// Asked once per app launch, until they answer: accounts from before areas existed have none yet.
   static bool _asked = false;
@@ -44,6 +53,7 @@ class _ShellState extends State<Shell> {
   void initState() {
     super.initState();
     pushTarget.addListener(_go);
+    shellTab.addListener(_tabChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _news?.start();
       _go(); // a notification tapped before Stall opened
@@ -57,9 +67,16 @@ class _ShellState extends State<Shell> {
   @override
   void dispose() {
     pushTarget.removeListener(_go);
+    shellTab.removeListener(_tabChanged);
+    shellTab.value = 0;
     _news?.stop();
     ordersSelling.value = false; // the next person to sign in starts on Buying
     super.dispose();
+  }
+
+  /// Another screen (Home's "Sell something") can switch tabs too.
+  void _tabChanged() {
+    if (mounted) setState(() => _built.add(_tab));
   }
 
   /// Opens what a tapped notification points to: an order list, a chat, or Messages.
@@ -78,24 +95,26 @@ class _ShellState extends State<Shell> {
     switch (go) {
       case 'orders' || 'selling':
         ordersSelling.value = go == 'selling';
-        setState(() => _tab = 3);
+        _show(3);
       case 'messages':
         final t = int.tryParse(u.queryParameters['t'] ?? '');
         nav.push(MaterialPageRoute(builder: (_) => t == null ? const MessagesScreen() : ChatScreen(tid: t)));
       case 'payments' || 'badges' || 'invite':
-        setState(() => _tab = 4);
+        _show(4);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final body = switch (_tab) {
-      0 => const HomeTab(),
-      1 => const StoresTab(),
-      3 => const OrdersTab(),
-      4 => const AccountTab(),
-      _ => const SellTab(),
-    };
+    const tabs = [HomeTab(), StoresTab(), SellTab(), OrdersTab(), AccountTab()];
+    final body = IndexedStack(
+      index: _tab,
+      children: [
+        for (var i = 0; i < tabs.length; i++)
+          // A hidden tab doesn't animate or take taps, and isn't built until first opened.
+          TickerMode(enabled: i == _tab, child: _built.contains(i) ? tabs[i] : const SizedBox.shrink()),
+      ],
+    );
     final news = SessionScope.of(context).news;
     return Scaffold(
       body: SafeArea(bottom: false, child: body),
@@ -103,7 +122,7 @@ class _ShellState extends State<Shell> {
         listenable: news,
         builder: (context, _) => NavigationBar(
           selectedIndex: _tab,
-          onDestinationSelected: (i) => setState(() => _tab = i),
+          onDestinationSelected: _show,
           destinations: [
             const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'),
             const NavigationDestination(icon: Icon(Icons.storefront_outlined), selectedIcon: Icon(Icons.storefront), label: 'Stores'),
@@ -121,194 +140,380 @@ class _ShellState extends State<Shell> {
   }
 }
 
-/// Account: who's signed in, where they are, their school, and sign out.
+/// Account, laid out like the website's: who you are, shortcuts as tiles, then Selling, Your profile and Help.
 class AccountTab extends StatelessWidget {
   const AccountTab({super.key});
+
+  void _open(BuildContext context, Widget w) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => w));
+
   @override
   Widget build(BuildContext context) {
     final s = SessionScope.of(context);
     final u = s.user;
     final t = Theme.of(context).textTheme;
+    final school = u?.school;
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
-        Text('Account', style: t.headlineMedium),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: CircleAvatar(
-              backgroundColor: StallColors.indigo,
-              foregroundColor: StallColors.cream,
-              child: Text((u?.name.isNotEmpty ?? false) ? u!.name[0].toUpperCase() : '?', style: const TextStyle(fontWeight: FontWeight.w700)),
+        Row(children: [
+          Container(
+            width: 64,
+            height: 64,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [StallColors.lime, Color(0xFF9ED11F)]),
             ),
-            title: Text(u?.name ?? '', style: t.titleMedium),
-            subtitle: Text([u?.phone, u?.schoolName].where((x) => x != null && x.isNotEmpty).join(' · ')),
+            child: Text((u?.name.isNotEmpty ?? false) ? u!.name[0].toUpperCase() : '?',
+                style: const TextStyle(fontSize: 28, color: StallColors.limeInk, fontWeight: FontWeight.w500)),
           ),
-        ),
-        const SizedBox(height: 12),
-        if (u?.pausedUntil != null) ...[PausedCard(until: u!.pausedUntil!), const SizedBox(height: 12)],
-        Card(
-          child: ListTile(
-            key: const Key('messagesTile'),
-            leading: const Icon(Icons.chat_bubble_outline_rounded, color: StallColors.indigo),
-            title: const Text('Messages'),
-            subtitle: const Text('Your chats with buyers and sellers'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MessagesScreen())),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(u?.name ?? '', style: t.headlineSmall),
+              const SizedBox(height: 2),
+              Text(
+                [if (u?.isVendor ?? false) 'Business' else u?.phone ?? '', if (school != null) u!.schoolName].where((x) => x.isNotEmpty).join(' · '),
+                style: t.bodyMedium?.copyWith(color: StallColors.muted),
+              ),
+              if (u != null && u.isStudent && u.vlevel >= 1) ...[
+                const SizedBox(height: 6),
+                _Chip(u.vlevel >= 2 ? 'Student ✓' : 'School email ✓', hot: true),
+              ],
+            ]),
           ),
+        ]),
+        if (u?.pausedUntil != null) ...[const SizedBox(height: 16), PausedCard(until: u!.pausedUntil!)],
+        if (u?.isStaff ?? false) ...[
+          const SizedBox(height: 16),
+          const _Section(rows: [
+            _Row(icon: Icons.tune_rounded, title: 'Admin', sub: 'Admin stays on the web: open stall.com.ng/staff on a phone or computer.', arrow: false),
+          ]),
+        ],
+        const SizedBox(height: 16),
+        ListenableBuilder(
+          listenable: s.news,
+          builder: (context, _) {
+            final tiles = [
+              _Tile(
+                key: const Key('messagesTile'),
+                icon: Icons.chat_bubble_outline_rounded,
+                title: 'Messages',
+                sub: s.news.chats > 0 ? '${s.news.chats} unread' : 'Buyers and sellers',
+                n: s.news.chats,
+                onTap: () => _open(context, const MessagesScreen()),
+              ),
+              _Tile(
+                key: const Key('fulfilTile'),
+                icon: Icons.inventory_2_outlined,
+                title: 'Orders to fulfil',
+                sub: s.news.sell > 0 ? '${s.news.sell} new' : 'What people bought',
+                n: s.news.sell,
+                onTap: () {
+                  ordersSelling.value = true;
+                  shellTab.value = 3;
+                },
+              ),
+              _Tile(
+                key: const Key('collectTile'),
+                icon: Icons.groups_outlined,
+                title: 'Collections',
+                sub: 'Collect money from a group',
+                onTap: () => _open(context, const CollectionsScreen()),
+              ),
+              _Tile(
+                key: const Key('inviteTile'),
+                icon: Icons.card_giftcard_rounded,
+                title: 'Invite & credit',
+                sub: u != null && u.credit > 0 ? '${naira(u.credit)} credit' : 'Earn when friends order',
+                onTap: () => _open(context, const InviteScreen()),
+              ),
+              _Tile(
+                key: const Key('paymentsTile'),
+                icon: Icons.account_balance_wallet_outlined,
+                title: 'Payments',
+                sub: 'Receipts for featuring and more',
+                onTap: () => _open(context, const PaymentsScreen()),
+              ),
+              _Tile(
+                key: const Key('badgesTile'),
+                icon: Icons.verified_outlined,
+                title: 'Badges',
+                sub: 'Share your milestones',
+                onTap: () => _open(context, const BadgesScreen()),
+              ),
+            ];
+            return Column(children: [
+              for (var i = 0; i < tiles.length; i += 2) ...[
+                if (i > 0) const SizedBox(height: 10),
+                IntrinsicHeight(
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    Expanded(child: tiles[i]),
+                    const SizedBox(width: 10),
+                    Expanded(child: i + 1 < tiles.length ? tiles[i + 1] : const SizedBox.shrink()),
+                  ]),
+                ),
+              ],
+            ]);
+          },
         ),
-        if (u != null)
-          Card(
-            child: ListTile(
+        if (u != null) ...[
+          _Section(title: 'Selling', rows: [
+            _Row(
+              key: const Key('accDelivery'),
+              icon: Icons.local_shipping_outlined,
+              title: 'Delivery',
+              sub: u.deliv['on'] == true
+                  ? 'You deliver · ${((u.deliv['fee'] as num?) ?? 0) > 0 ? naira(u.deliv['fee'] as num) : 'free'}'
+                  : 'Off · buyers collect from you',
+              onTap: () => _open(context, const DeliveryScreen()),
+            ),
+            _Row(
               key: const Key('myReviews'),
-              leading: const Icon(Icons.star_outline_rounded, color: StallColors.indigo),
-              title: const Text('Your reviews'),
-              subtitle: const Text('What buyers said about you, and your replies'),
-              trailing: const Icon(Icons.chevron_right_rounded),
+              icon: Icons.star_outline_rounded,
+              title: 'Your reviews',
+              sub: 'What buyers said about you, and your replies',
               onTap: () => showReviews(context, uid: u.uid, name: u.name),
             ),
-          ),
-        if (u != null)
-          Card(
-            child: ListTile(
-              key: const Key('myArea'),
-              leading: const Icon(Icons.place_outlined, color: StallColors.indigo),
-              title: const Text('My area'),
-              subtitle: Text(u.area.isEmpty ? 'Choose your area to see things for sale near you' : '${u.area}, ${u.state}'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PlaceScreen())),
+            _Row(
+              key: const Key('accWeekly'),
+              icon: Icons.bar_chart_rounded,
+              title: 'Weekly statement',
+              sub: 'What you sold and were paid this week',
+              onTap: () => _open(context, const WeeklyScreen()),
             ),
-          ),
-        if (u != null)
-          Card(
-            child: ListTile(
+          ]),
+          _Section(title: 'Your profile', rows: [
+            _Row(
+              key: const Key('myArea'),
+              icon: Icons.place_outlined,
+              title: 'My area',
+              sub: u.area.isEmpty ? 'Choose your state and area' : '${u.area}, ${u.state}',
+              onTap: () => _open(context, const PlaceScreen()),
+            ),
+            _Row(
               key: const Key('student'),
-              leading: const Icon(Icons.school_outlined, color: StallColors.indigo),
-              title: Text(u.isVendor ? 'Campus' : 'Student'),
-              subtitle: Text(u.school != null ? u.schoolName : (u.isVendor ? 'Not linked to a campus' : 'Not a student')),
-              trailing: const Icon(Icons.chevron_right_rounded),
+              icon: Icons.school_outlined,
+              title: u.isVendor ? 'Campus (optional)' : 'Student',
+              sub: school != null ? (school['name'] ?? u.schoolName).toString() : (u.isVendor ? 'Not on a campus' : 'Not a student · tap if you are'),
               onTap: () => openStudentSettings(context),
             ),
+            if (u.isStudent)
+              _Row(
+                key: const Key('verify'),
+                icon: u.vlevel >= 1 ? Icons.verified_rounded : Icons.verified_outlined,
+                title: u.vlevel >= 2 ? 'Student verification' : 'Verify you\'re a student',
+                sub: verifyLabel(u),
+                trailing: u.vlevel >= 2 ? null : _Chip(u.idCheck == 'pending' ? 'Pending' : 'Get ✓', hot: u.idCheck != 'pending'),
+                onTap: () => _open(context, const VerifyStudentScreen()),
+              ),
+            if (s.emailOn)
+              _Row(
+                key: const Key('emailTile'),
+                icon: Icons.mail_outline_rounded,
+                title: 'Email',
+                sub: u.emailVerified
+                    ? '${u.emailNotify ? 'Updates on' : 'Updates off'} · ${u.email}'
+                    : (u.email.isEmpty ? 'Add your email for order updates and password resets' : '${u.email} · not confirmed'),
+                trailing: u.emailVerified ? null : const _Chip('Add', hot: true),
+                onTap: () => _open(context, const EmailScreen()),
+              ),
+            if (s.emailOn && u.email.isNotEmpty)
+              _SwitchRow(
+                tileKey: const Key('emailNotify'),
+                icon: Icons.notifications_outlined,
+                title: 'Email updates',
+                sub: 'Order updates and receipts by email',
+                value: u.emailNotify,
+                onChanged: (v) async {
+                  try {
+                    await s.api.post('me/notify', {'on': v});
+                    await s.refresh();
+                  } on ApiError catch (e) {
+                    if (context.mounted) toast(context, e.message);
+                  }
+                },
+              ),
+          ]),
+        ],
+        _Section(title: 'Help', rows: [
+          _Row(
+            key: const Key('guideTile'),
+            icon: Icons.menu_book_outlined,
+            title: 'How Stall works',
+            sub: 'Buying, selling, collections and staying safe',
+            onTap: () => _open(context, GuideScreen(selling: u?.isVendor ?? false)),
           ),
-        if (u != null && u.isStudent)
-          Card(
-            child: ListTile(
-              key: const Key('verify'),
-              leading: Icon(u.vlevel >= 1 ? Icons.verified_rounded : Icons.verified_outlined, color: u.vlevel >= 1 ? StallColors.green : StallColors.indigo),
-              title: const Text('Student verification'),
-              subtitle: Text(verifyLabel(u)),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VerifyStudentScreen())),
-            ),
+          _Row(
+            key: const Key('helpTile'),
+            icon: Icons.help_outline_rounded,
+            title: 'Help',
+            sub: 'Contact us, rules, terms and privacy',
+            onTap: () => _open(context, const HelpScreen()),
           ),
-        if (u != null && s.emailOn)
-          Card(
-            child: ListTile(
-              key: const Key('emailTile'),
-              leading: const Icon(Icons.mail_outline_rounded, color: StallColors.indigo),
-              title: const Text('Email'),
-              subtitle: Text(
-                u.emailVerified ? '${u.email} ✓' : (u.email.isEmpty ? 'Add an email for order updates and password resets' : '${u.email} · not confirmed'),
-              ),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EmailScreen())),
-            ),
-          ),
-        if (u != null && s.emailOn && u.email.isNotEmpty)
-          Card(
-            child: SwitchListTile(
-              key: const Key('emailNotify'),
-              secondary: const Icon(Icons.notifications_outlined, color: StallColors.indigo),
-              title: const Text('Email updates'),
-              subtitle: const Text('Order updates and receipts by email'),
-              value: u.emailNotify,
-              onChanged: (v) async {
-                try {
-                  await s.api.post('me/notify', {'on': v});
-                  await s.refresh();
-                } on ApiError catch (e) {
-                  if (context.mounted) toast(context, e.message);
-                }
-              },
-            ),
-          ),
-        Card(
-          child: Column(
-            children: [
-              ListTile(
-                key: const Key('collectTile'),
-                leading: const Icon(Icons.groups_outlined, color: StallColors.indigo),
-                title: const Text('Class collections'),
-                subtitle: const Text('Collect money from your class, or pay into one'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CollectionsScreen())),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                key: const Key('badgesTile'),
-                leading: const Icon(Icons.military_tech_outlined, color: StallColors.indigo),
-                title: const Text('Badges'),
-                subtitle: const Text('Milestones for selling and buying safely'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BadgesScreen())),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                key: const Key('paymentsTile'),
-                leading: const Icon(Icons.receipt_long_outlined, color: StallColors.indigo),
-                title: const Text('Payments to Stall'),
-                subtitle: const Text('Store fee, featuring, reach and collections, with receipts'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PaymentsScreen())),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                key: const Key('inviteTile'),
-                leading: const Icon(Icons.card_giftcard_rounded, color: StallColors.indigo),
-                title: const Text('Invite friends'),
-                subtitle: Text(u != null && u.credit > 0 ? 'You have ${naira(u.credit)} credit' : 'Earn credit when friends join'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const InviteScreen())),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                key: const Key('guideTile'),
-                leading: const Icon(Icons.menu_book_outlined, color: StallColors.indigo),
-                title: const Text('How Stall works'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => GuideScreen(selling: u?.isVendor ?? false))),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                key: const Key('helpTile'),
-                leading: const Icon(Icons.help_outline_rounded, color: StallColors.indigo),
-                title: const Text('Help'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpScreen())),
-              ),
-            ],
-          ),
-        ),
-        if (u?.isStaff ?? false)
-          const Card(
-            child: ListTile(
-              leading: Icon(Icons.admin_panel_settings_outlined, color: StallColors.indigo),
-              title: Text('Admin'),
-              subtitle: Text('Admin stays on the web: open stall.com.ng/staff on a phone or computer.'),
-            ),
-          ),
+        ]),
         const SizedBox(height: 24),
         OutlinedButton.icon(key: const Key('signOut'), onPressed: s.signOut, icon: const Icon(Icons.logout_rounded), label: const Text('Sign out')),
         if (u != null && !u.isAdmin)
           TextButton(
             key: const Key('deleteAccount'),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DeleteAccountScreen())),
-            child: const Text('Delete my account', style: TextStyle(color: StallColors.red)),
+            onPressed: () => _open(context, const DeleteAccountScreen()),
+            child: const Text('Delete my account', style: TextStyle(color: StallColors.muted, fontSize: 13.5)),
           ),
-        const SizedBox(height: 16),
-        Text('This is an early version of the Stall app. More of Stall arrives with each update.', textAlign: TextAlign.center, style: t.bodySmall),
       ],
     );
   }
+}
+
+/// A shortcut tile in Account's 2-column grid, with a red count when there's something new.
+class _Tile extends StatelessWidget {
+  const _Tile({super.key, required this.icon, required this.title, required this.sub, required this.onTap, this.n = 0});
+  final IconData icon;
+  final String title;
+  final String sub;
+  final VoidCallback onTap;
+  final int n;
+  @override
+  Widget build(BuildContext context) => Material(
+        color: StallColors.cream2,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Stack(children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(color: StallColors.card, borderRadius: BorderRadius.circular(12)),
+                  child: Icon(icon, size: 20, color: const Color(0xFF9BC62A)),
+                ),
+                const SizedBox(height: 10),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                const SizedBox(height: 2),
+                Text(sub, style: const TextStyle(color: StallColors.muted, fontSize: 12.5, height: 1.3)),
+              ]),
+              if (n > 0)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 22),
+                    height: 22,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: StallColors.red, borderRadius: BorderRadius.circular(99)),
+                    child: Text(n > 99 ? '99+' : '$n', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+            ]),
+          ),
+        ),
+      );
+}
+
+/// A titled group of rows ("SELLING", "YOUR PROFILE"), on the beige card the website uses.
+class _Section extends StatelessWidget {
+  const _Section({this.title, required this.rows});
+  final String? title;
+  final List<Widget> rows;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 22),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (title != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
+              child: Text(title!.toUpperCase(),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: .9, color: StallColors.muted)),
+            ),
+          Material(
+            color: StallColors.cream2,
+            borderRadius: BorderRadius.circular(18),
+            clipBehavior: Clip.antiAlias,
+            child: Column(children: [
+              for (var i = 0; i < rows.length; i++) ...[if (i > 0) const Divider(height: 1, color: StallColors.line), rows[i]],
+            ]),
+          ),
+        ]),
+      );
+}
+
+class _RowIcon extends StatelessWidget {
+  const _RowIcon(this.icon);
+  final IconData icon;
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(color: StallColors.card, borderRadius: BorderRadius.circular(11)),
+        child: Icon(icon, size: 19, color: StallColors.ink),
+      );
+}
+
+class _Row extends StatelessWidget {
+  const _Row({super.key, required this.icon, required this.title, this.sub, this.onTap, this.trailing, this.arrow = true});
+  final IconData icon;
+  final String title;
+  final String? sub;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+  final bool arrow;
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 62),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(children: [
+              _RowIcon(icon),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  if (sub != null && sub!.isNotEmpty)
+                    Text(sub!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: StallColors.muted, fontSize: 13)),
+                ]),
+              ),
+              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+              if (arrow && onTap != null) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.chevron_right_rounded, color: StallColors.muted)),
+            ]),
+          ),
+        ),
+      );
+}
+
+class _SwitchRow extends StatelessWidget {
+  final Key tileKey;
+  const _SwitchRow({required this.tileKey, required this.icon, required this.title, required this.sub, required this.value, required this.onChanged});
+  final IconData icon;
+  final String title;
+  final String sub;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  @override
+  Widget build(BuildContext context) => SwitchListTile(
+        key: tileKey,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        secondary: _RowIcon(icon),
+        title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        subtitle: Text(sub, style: const TextStyle(color: StallColors.muted, fontSize: 13)),
+        value: value,
+        onChanged: onChanged,
+      );
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip(this.text, {this.hot = false});
+  final String text;
+  final bool hot;
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(color: hot ? StallColors.lime : StallColors.card, borderRadius: BorderRadius.circular(99)),
+        child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: hot ? StallColors.limeInk : StallColors.muted)),
+      );
 }

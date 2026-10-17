@@ -68,6 +68,7 @@ flutter:
 
   assets:
     - assets/brand/
+    - assets/receipt/
 
   # Stall brand fonts (SIL Open Font License, see assets/fonts/OFL.txt).
   fonts:

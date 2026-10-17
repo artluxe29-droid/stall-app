@@ -45,7 +45,8 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 50));
     });
     await t.pumpAndSettle();
-    expect(find.text('Hi Ada'), findsOneWidget);
+    expect(find.byKey(const Key('homeHero')), findsOneWidget);
+    await reveal(t, find.text('No items yet'));
     expect(find.text('No items yet'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
     await t.tap(find.text('Account'));

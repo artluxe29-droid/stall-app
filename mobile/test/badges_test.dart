@@ -70,6 +70,7 @@ void main() {
     expect(find.text('5th sale on Stall'), findsOneWidget);
     expect(find.text('RISING SELLER'), findsOneWidget);
     expect(body(f, 'me/milestones'), {'kind': 'sell', 'n': 5});
+    await t.scrollUntilVisible(find.text('2 safe buys · 3 more to 5 safe buys'), 300);
     expect(find.text('6 completed sales · 4 more to 10 sales'), findsOneWidget);
     expect(find.text('2 safe buys · 3 more to 5 safe buys'), findsOneWidget);
   });

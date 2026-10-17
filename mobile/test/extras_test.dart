@@ -63,8 +63,8 @@ void main() {
     await account(t, {
       'GET me/referral': (_) => (200, {'code': 'ADA42', 'link': 'https://stall.com.ng/?r=ADA42', 'invited': 3, 'rewarded': 2, 'credit': 1000, 'reward': 500, 'minOrder': 2000, 'pct': 50}),
     }, me: {'credit': 1000});
-    await t.scrollUntilVisible(find.text('You have ₦1,000 credit'), 200, scrollable: find.byType(Scrollable).first);
-    expect(find.text('You have ₦1,000 credit'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('₦1,000 credit'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('₦1,000 credit'), findsOneWidget);
     await tap(t, 'inviteTile');
     expect(find.text('ADA42'), findsOneWidget);
     expect(find.text('Get ₦500 credit for each friend'), findsOneWidget);

@@ -78,11 +78,13 @@ void main() {
             'total': 2,
           }),
     });
+    await reveal(t, find.text('What\'s new at ACU'));
     expect(find.text('What\'s new at ACU'), findsOneWidget);
     expect(find.text('Calculus textbook'), findsOneWidget);
     expect(find.text('₦4,500'), findsOneWidget);
     expect(lastQuery(f, 'listings')['scope'], 'school');
 
+    await reveal(t, find.byKey(const Key('chip-area')));
     await t.tap(find.byKey(const Key('chip-area')));
     await settle(t);
     expect(lastQuery(f, 'listings')['scope'], 'area');
@@ -95,12 +97,13 @@ void main() {
     expect(lastQuery(f, 'listings')['scope'], 'state');
     expect(find.text('What\'s new in Oyo'), findsOneWidget);
 
-    await t.ensureVisible(find.byKey(const Key('chip-all')).first);
+    await t.ensureVisible(find.byKey(const Key('chip-all')).last);
     await t.pumpAndSettle();
-    await t.tap(find.byKey(const Key('chip-all')).first);
+    await t.tap(find.byKey(const Key('chip-all')).last);
     await settle(t);
     expect(lastQuery(f, 'listings')['scope'], 'all');
 
+    await reveal(t, find.byKey(const Key('chip-books')));
     await t.tap(find.byKey(const Key('chip-books')));
     await settle(t);
     expect(lastQuery(f, 'listings'), containsPair('cat', 'books'));
@@ -117,6 +120,7 @@ void main() {
             ],
           }),
     });
+    await reveal(t, find.byKey(const Key('item-L1')));
     await t.tap(find.byKey(const Key('item-L1')));
     await settle(t);
     expect(find.text('Barely used, no marks.'), findsOneWidget);
@@ -142,6 +146,7 @@ void main() {
           }),
       'GET stores': (_) => (200, {'stores': [store()]}),
     });
+    await reveal(t, find.byKey(const Key('searchBox')));
     await t.tap(find.byKey(const Key('searchBox')));
     await t.pumpAndSettle();
     await t.enterText(find.byKey(const Key('searchField')), 'jollof');

@@ -133,7 +133,7 @@ void main() {
     await t.enterText(find.byKey(const Key('em-code')), '123456');
     await tap(t, 'em-confirm');
     expect(body(f, 'verify/email/confirm'), {'code': '123456'});
-    expect(find.text('Hi Ada'), findsOneWidget);
+    expect(find.byKey(const Key('homeHero')), findsOneWidget);
   });
 
   testWidgets('a server error lands on the right field; an unlisted school sends its name and state', (t) async {
@@ -195,6 +195,7 @@ void main() {
       'email': 'funmi@gmail.com',
     });
     expect(find.byType(NavigationBar), findsOneWidget);
+    await reveal(t, find.text('Lagos Mainland'));
     expect(find.text('Lagos Mainland'), findsWidgets); // the "My area" feed chip
   });
 
@@ -250,6 +251,7 @@ void main() {
     await start(t, {'GET me': (_) => (200, {'user': me})}, signedIn: true);
     await t.tap(find.text('Account'));
     await t.pumpAndSettle();
+    await reveal(t, find.text('Not verified yet'));
     expect(find.text('Not verified yet'), findsOneWidget);
     await tap(t, 'verify');
     await tap(t, 'vf-send');
@@ -308,15 +310,17 @@ void main() {
     await place(t, 'Oyo', 'Ibadan South-West');
     await tap(t, 'pl-save');
     expect(body(f, 'me/place'), {'state': 'Oyo', 'area': 'Ibadan South-West'});
+    await reveal(t, find.text('Ibadan South-West'));
     expect(find.text('Ibadan South-West'), findsWidgets); // feed chip
 
     await t.tap(find.text('Account'));
     await t.pumpAndSettle();
+    await reveal(t, find.text('Ibadan South-West, Oyo'));
     expect(find.text('Ibadan South-West, Oyo'), findsOneWidget);
     await tap(t, 'student');
     await tap(t, 'st-none');
     expect(body(f, 'me/school'), {'none': true});
-    expect(find.text('Not a student'), findsOneWidget);
+    expect(find.text('Not a student · tap if you are'), findsOneWidget);
     expect(find.byKey(const Key('verify')), findsNothing);
   });
 }

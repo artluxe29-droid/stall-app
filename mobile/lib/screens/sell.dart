@@ -145,6 +145,23 @@ class _SellTabState extends State<SellTab> {
   Future<List<Listing>>? _f;
 
   @override
+  void initState() {
+    super.initState();
+    shellTab.addListener(_back);
+  }
+
+  @override
+  void dispose() {
+    shellTab.removeListener(_back);
+    super.dispose();
+  }
+
+  /// Back on the Sell tab: check for changes while still showing what was there.
+  void _back() {
+    if (shellTab.value == 2 && mounted && !(SessionScope.of(context).user?.isVendor ?? false)) _refresh();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _f ??= _load();
@@ -240,7 +257,7 @@ class _SellTabState extends State<SellTab> {
         FutureBuilder<List<Listing>>(
           future: _f,
           builder: (context, snap) {
-            if (snap.connectionState != ConnectionState.done) return const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()));
+            if (snap.connectionState != ConnectionState.done && !snap.hasData) return const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()));
             if (snap.hasError) {
               return Text(snap.error is ApiError ? (snap.error as ApiError).message : 'Couldn\'t load your listings. Pull down to try again.');
             }

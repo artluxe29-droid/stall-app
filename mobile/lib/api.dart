@@ -62,6 +62,7 @@ class Api {
 
   Future<void> setToken(String? t) async {
     _token = t;
+    _seen.clear(); // a different person (or nobody) from here on
     _loaded = true;
     await _store.write(t);
   }
@@ -69,7 +70,19 @@ class Api {
   /// Photos and other paths from the API ("/api/photo/12/0") as full addresses.
   String url(String path) => path.startsWith('http') ? path : '$base$path';
 
-  Future<Map<String, dynamic>> get(String path, [Map<String, String>? query]) => _send('GET', path, query: query);
+  /// The last answer to each GET, so a screen can show it at once while it asks again.
+  final _seen = <String, Map<String, dynamic>>{};
+  static String _key(String path, Map<String, String>? query) => query == null || query.isEmpty ? path : '$path?${Uri(queryParameters: query).query}';
+
+  /// What this GET returned last time, if it was asked before since sign-in.
+  Map<String, dynamic>? seen(String path, [Map<String, String>? query]) => _seen[_key(path, query)];
+
+  Future<Map<String, dynamic>> get(String path, [Map<String, String>? query]) async {
+    final r = await _send('GET', path, query: query);
+    if (_seen.length > 200) _seen.clear();
+    return _seen[_key(path, query)] = r;
+  }
+
   Future<Map<String, dynamic>> post(String path, [Map<String, dynamic>? body]) => _send('POST', path, body: body ?? const {});
 
   Future<Map<String, dynamic>> _send(String method, String path, {Map<String, String>? query, Map<String, dynamic>? body}) async {

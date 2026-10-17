@@ -108,6 +108,10 @@ ThemeData stallTheme() {
             color: s.contains(WidgetState.selected) ? StallColors.ink : StallColors.muted,
           )),
     ),
+    pageTransitionsTheme: const PageTransitionsTheme(builders: {
+      TargetPlatform.android: QuickPageTransition(),
+      TargetPlatform.linux: QuickPageTransition(),
+    }),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: StallColors.night,
       contentTextStyle: const TextStyle(fontFamily: _body, color: Colors.white, fontSize: 14.5),
@@ -115,6 +119,24 @@ ThemeData stallTheme() {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
   );
+}
+
+/// Opening a page: a short slide and fade (200 ms) instead of Android's default zoom (300 ms),
+/// which also redraws the page underneath and drags on cheaper phones.
+class QuickPageTransition extends PageTransitionsBuilder {
+  const QuickPageTransition();
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 200);
+
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 160);
+
+  static final _slide = Tween(begin: const Offset(0.06, 0), end: Offset.zero).chain(CurveTween(curve: Curves.easeOutCubic));
+
+  @override
+  Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) =>
+      FadeTransition(opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut), child: SlideTransition(position: animation.drive(_slide), child: child));
 }
 
 /// Formats naira like the web app: ₦12,500.

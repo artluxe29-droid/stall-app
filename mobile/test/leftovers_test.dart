@@ -72,6 +72,7 @@ void main() {
   testWidgets('voice search fills the search and runs it', (t) async {
     final f = await start(t, {});
     listenOnce = (_) async => 'rice cooker';
+    await reveal(t, find.byType(SearchBox));
     await t.tap(find.byType(SearchBox));
     await settle(t);
     await tap(t, 'voice');

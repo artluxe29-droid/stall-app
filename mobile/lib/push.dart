@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'session.dart';
@@ -31,7 +32,7 @@ class Push {
   static bool _started = false;
   static final _subs = <StreamSubscription<Object?>>[];
 
-  static bool get configured => _fcm.apiKey.isNotEmpty && _fcm.appId.isNotEmpty && !Platform.environment.containsKey('FLUTTER_TEST');
+  static bool get configured => !kIsWeb && _fcm.apiKey.isNotEmpty && _fcm.appId.isNotEmpty && !Platform.environment.containsKey('FLUTTER_TEST');
 
   /// After sign-in: ask permission (Android 13+), send this phone's token to Stall, and listen.
   static Future<void> start(Session s) async {

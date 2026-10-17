@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../api.dart';
+import '../badge_card.dart';
 import '../main.dart';
 import '../models.dart';
 import '../theme.dart';
@@ -20,26 +21,6 @@ String badgeName(String k, int n) => k == 'sell' ? (n == 1 ? 'First sale' : '$n 
 String badgeKicker(String k, int n) => k == 'sell'
     ? (n == 1 ? 'Milestone unlocked' : n < 20 ? 'Rising seller' : n < 50 ? 'Trusted seller' : 'Stall legend')
     : (n == 1 ? 'Milestone unlocked' : n < 20 ? 'Smart buyer' : n < 50 ? 'Trusted buyer' : 'Stall loyal');
-
-/// A rosette medal with the milestone number.
-class Medal extends StatelessWidget {
-  const Medal({super.key, required this.n, this.size = 64, this.dim = false});
-  final int n;
-  final double size;
-  final bool dim;
-  @override
-  Widget build(BuildContext context) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: dim ? StallColors.cream2 : StallColors.lime,
-          border: Border.all(color: dim ? StallColors.line : StallColors.indigo, width: size / 16),
-        ),
-        alignment: Alignment.center,
-        child: Text('$n', style: TextStyle(fontSize: size * .34, fontWeight: FontWeight.w900, color: dim ? StallColors.muted : StallColors.indigo)),
-      );
-}
 
 /// Account → Badges: what you've earned for selling and buying safely, and how far to the next one.
 class BadgesScreen extends StatefulWidget {
@@ -71,7 +52,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
   Future<void> _share(String k, int n) {
     final d = _data ?? const {};
     final who = (k == 'sell' && d['store'] != null ? d['store'] : d['name']) ?? '';
-    return Navigator.of(context).push(MaterialPageRoute(builder: (_) => BadgeCardScreen(kind: k, n: n, who: who.toString())));
+    return Navigator.of(context).push(MaterialPageRoute(builder: (_) => BadgeCardScreen(kind: k, n: n, who: who.toString(), school: (d['school'] ?? '').toString())));
   }
 
   Map<String, dynamic>? _data;
@@ -85,31 +66,25 @@ class _BadgesScreenState extends State<BadgesScreen> {
             if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
             if (snap.hasError) return EmptyState(icon: Icons.wifi_off_rounded, title: 'Couldn\'t load your badges', text: snap.error.toString());
             final d = _data = snap.data!;
-            final t = Theme.of(context).textTheme;
             final fresh = [for (final k in const ['sell', 'buy']) if ((d[k] as Map?)?['fresh'] != null) (k, ((d[k] as Map)['fresh'] as num).toInt())];
             return ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 32), children: [
-              for (final (k, n) in fresh)
-                Container(
+              for (final (k, n) in fresh) ...[
+                Center(
                   key: Key('fresh-$k'),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(color: StallColors.indigo, borderRadius: BorderRadius.circular(20)),
-                  child: Column(children: [
-                    Text(badgeKicker(k, n).toUpperCase(), style: t.bodySmall?.copyWith(color: StallColors.lime, letterSpacing: 1.2, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 10),
-                    Medal(n: n, size: 88),
-                    const SizedBox(height: 10),
-                    Text(k == 'sell' ? (n == 1 ? 'First sale on Stall!' : '${ordinal(n)} sale on Stall') : (n == 1 ? 'First safe buy on Stall' : '${ordinal(n)} safe buy on Stall'),
-                        style: t.titleLarge?.copyWith(color: StallColors.cream)),
-                    const SizedBox(height: 10),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(backgroundColor: StallColors.lime, foregroundColor: StallColors.indigo),
-                      onPressed: () => _share(k, n),
-                      icon: const Icon(Icons.ios_share_rounded),
-                      label: const Text('Share it'),
-                    ),
-                  ]),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: BadgeCard(
+                        kind: k,
+                        n: n,
+                        who: ((k == 'sell' && d['store'] != null ? d['store'] : d['name']) ?? '').toString(),
+                        school: (d['school'] ?? '').toString(),
+                        host: Uri.parse(apiBase).host),
+                  ),
                 ),
+                const SizedBox(height: 10),
+                FilledButton.icon(onPressed: () => _share(k, n), icon: const Icon(Icons.ios_share_rounded), label: const Text('Share it')),
+                const SizedBox(height: 24),
+              ],
               for (final k in const ['sell', 'buy']) ..._side(context, k, d[k] as Map<String, dynamic>? ?? const {}),
             ]);
           },
@@ -132,9 +107,9 @@ class _BadgesScreenState extends State<BadgesScreen> {
         for (final n in earned)
           InkWell(
             onTap: () => _share(k, n),
-            child: Column(children: [Medal(n: n), const SizedBox(height: 4), Text(badgeName(k, n), style: t.bodySmall)]),
+            child: Column(children: [Rosette(n: n), const SizedBox(height: 4), Text(badgeName(k, n), style: t.bodySmall)]),
           ),
-        if (next != null) Column(children: [Medal(n: next, dim: true), const SizedBox(height: 4), Text('Next', style: t.bodySmall)]),
+        if (next != null) Column(children: [Rosette(n: next, dim: true), const SizedBox(height: 4), Text('Next', style: t.bodySmall)]),
       ]),
       const SizedBox(height: 28),
     ];
@@ -143,8 +118,8 @@ class _BadgesScreenState extends State<BadgesScreen> {
 
 /// The badge as a picture to share (WhatsApp status), in the website's four looks: first, rising, trusted, legend.
 class BadgeCardScreen extends StatefulWidget {
-  const BadgeCardScreen({super.key, required this.kind, required this.n, required this.who});
-  final String kind, who;
+  const BadgeCardScreen({super.key, required this.kind, required this.n, required this.who, this.school = ''});
+  final String kind, who, school;
   final int n;
   @override
   State<BadgeCardScreen> createState() => _BadgeCardScreenState();
@@ -178,57 +153,27 @@ class _BadgeCardScreenState extends State<BadgeCardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final n = widget.n;
-    // first, rising (dots), trusted (night), legend
-    final (bg, ink, mut, fill, ring) = n == 1
-        ? (StallColors.cream, StallColors.indigo, StallColors.muted, StallColors.lime, StallColors.indigo)
-        : n < 20
-            ? (Colors.white, StallColors.indigo, StallColors.muted, StallColors.indigo, StallColors.lime)
-            : n < 50
-                ? (StallColors.night, StallColors.cream, const Color(0xFF9AA1C9), StallColors.lime, StallColors.night)
-                : (StallColors.indigo, StallColors.cream, const Color(0xFFCDD2F0), StallColors.lime, StallColors.cream);
     final t = Theme.of(context).textTheme;
     return Scaffold(
-      appBar: AppBar(title: Text(badgeName(widget.kind, n))),
-      body: ListView(padding: const EdgeInsets.all(20), children: [
+      appBar: AppBar(title: Text(badgeName(widget.kind, widget.n))),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
         Center(
-          child: RepaintBoundary(
-            key: _card,
-            child: Container(
-              width: 320,
-              padding: const EdgeInsets.fromLTRB(24, 26, 24, 22),
-              decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(24), border: Border.all(color: StallColors.line)),
-              child: Column(children: [
-                Text(badgeKicker(widget.kind, n).toUpperCase(),
-                    style: t.labelMedium?.copyWith(color: n >= 20 ? StallColors.lime : StallColors.indigo, letterSpacing: 1.4, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 16),
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: fill, border: Border.all(color: ring, width: 7)),
-                  alignment: Alignment.center,
-                  child: Text('$n',
-                      key: const Key('badgeN'),
-                      style: TextStyle(fontSize: 44, fontWeight: FontWeight.w900, color: fill == StallColors.lime ? StallColors.indigo : StallColors.lime)),
-                ),
-                const SizedBox(height: 16),
-                Text(_title, textAlign: TextAlign.center, style: t.headlineSmall?.copyWith(color: ink)),
-                const SizedBox(height: 6),
-                Text(_line, textAlign: TextAlign.center, style: t.bodyMedium?.copyWith(color: mut)),
-                if (widget.who.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(widget.who, textAlign: TextAlign.center, style: t.titleMedium?.copyWith(color: ink)),
-                ],
-                const SizedBox(height: 18),
-                Wordmark(height: 22, light: n >= 20),
-              ]),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: RepaintBoundary(
+              key: _card,
+              child: Container(
+                // the soft shadow the website puts under the badge
+                decoration: const BoxDecoration(boxShadow: [BoxShadow(color: Color(0x38161A33), blurRadius: 26, offset: Offset(0, 18))]),
+                child: BadgeCard(kind: widget.kind, n: widget.n, who: widget.who, school: widget.school, host: Uri.parse(apiBase).host),
+              ),
             ),
           ),
         ),
         const SizedBox(height: 20),
-        FilledButton.icon(key: const Key('shareBadge'), onPressed: _shareImage, icon: const Icon(Icons.ios_share_rounded), label: const Text('Share the picture')),
-        const SizedBox(height: 8),
-        Text('Your invite link goes with it, so friends who join give you credit.', textAlign: TextAlign.center, style: t.bodySmall),
+        Text('Share it on your status. Your invite link goes with it.', textAlign: TextAlign.center, style: t.bodyMedium?.copyWith(color: StallColors.muted)),
+        const SizedBox(height: 12),
+        FilledButton.icon(key: const Key('shareBadge'), onPressed: _shareImage, icon: const Icon(Icons.ios_share_rounded), label: const Text('Share')),
       ]),
     );
   }
@@ -260,7 +205,11 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         _web = WebViewController()
           ..setBackgroundColor(StallColors.cream)
           ..loadHtmlString('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">'
-              '<body style="margin:0;padding:16px;background:#F6F1E7;display:flex;justify-content:center">${r['html'] ?? ''}</body>', baseUrl: apiBase);
+              // The website's fonts and frame, so it looks the same as there.
+              '<link rel="stylesheet" href="$apiBase/brand/fonts.css">'
+              '<style>body{margin:0;background:#F6F1E7;font-family:Figtree,sans-serif}.rcpt{padding:22px 14px 16px;display:flex;justify-content:center}'
+              '.rcpt .rc{filter:drop-shadow(0 18px 26px rgba(22,26,51,.22))}</style>'
+              '<body><div class="rcpt">${r['html'] ?? ''}</div></body>', baseUrl: apiBase);
       }
       return r;
     });

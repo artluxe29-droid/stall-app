@@ -1,11 +1,15 @@
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'models.dart';
 import 'theme.dart';
+
+/// Which tab is showing. Tabs stay loaded when you leave them; they listen to this to refresh quietly when you come back.
+final shellTab = ValueNotifier<int>(0);
 
 /// The Stall wordmark (indigo on light backgrounds, cream on dark).
 class Wordmark extends StatelessWidget {
@@ -88,7 +92,7 @@ class EmptyState extends StatelessWidget {
 }
 
 /// Keep photos on the phone (off in tests, which have no file system for it).
-final bool _diskCache = !Platform.environment.containsKey('FLUTTER_TEST');
+final bool _diskCache = !kIsWeb && !Platform.environment.containsKey('FLUTTER_TEST');
 
 /// A network image that's saved on the phone after the first download (Stall's photo links never change, so
 /// opening Stall again costs no data for photos already seen), and decoded only as big as it's shown,
