@@ -226,7 +226,7 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   final _form = GlobalKey<FormState>();
-  final _c = {for (final k in ['name', 'email', 'phone', 'pw', 'where', 'biz', 'code']) k: TextEditingController()};
+  final _c = {for (final k in ['name', 'email', 'phone', 'pw', 'where', 'biz', 'code', 'ref']) k: TextEditingController()};
   bool _vendor = false, _student = false, _campus = false, _ok = false, _hide = true, _busy = false, _okErr = false, _tried = false;
   String _cat = Category.all.first.id;
   SchoolChoice? _school;
@@ -267,6 +267,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         'phone': v('phone'),
         if (_vendor || _student) 'where': v('where'),
         'password': _c['pw']!.text,
+        if (v('ref').isNotEmpty) 'ref': v('ref').toUpperCase(),
         if (_vendor) ...{'biz': v('biz'), 'cat': _cat, 'code': v('code')} else ...{'email': v('email')},
       });
       if (!mounted) return;
@@ -408,6 +409,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     hint: 'e.g. Hall B, Room 214',
                     max: 40,
                     check: (x) => x.length < 2 ? 'Enter your hostel or where you stay, so buyers and sellers can meet you.' : null),
+              _field('ref', 'Friend\'s invite code (optional)', hint: 'If a friend invited you', caps: true, max: 12),
               CheckboxListTile(
                 key: const Key('su-ok'),
                 value: _ok,

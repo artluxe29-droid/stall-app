@@ -36,7 +36,8 @@ Tick each one only when it works in the native app against the live API.
   - [x] Sign up: school pick, matric, email code
   - [x] Student verification: ID upload or school email
   - [x] Password reset flow (via support)
-  - [ ] Delete account
+  - [x] Delete account
+  - [x] Email updates on/off
 - **Browse:**
   - [x] Home feed (school, state, everywhere)
   - [x] Categories
@@ -112,11 +113,11 @@ Tick each one only when it works in the native app against the live API.
   - [ ] No-fee accounts
 - **Extras:**
   - [ ] Milestone badges and share images
-  - [ ] Invite and referrals
+  - [x] Invite and referrals (code at sign-up, credit)
   - [ ] How-to videos
   - [ ] Partner banners and reach stats
-  - [ ] Guide
-  - [ ] Help and support links
+  - [x] Guide
+  - [x] Help and support links
 - **School states:**
   - [ ] Coming soon and waitlist
   - [ ] Sellers-only stage
