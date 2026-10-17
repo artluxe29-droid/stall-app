@@ -1,5 +1,6 @@
 // Cloudflare Pages Function. Secret: PAYSTACK_SECRET. D1 binding: DB.
 import {SCHOOLS,SCHOOLS_V,STATES} from '../../lib/schools.js';
+import {AREAS} from '../../lib/areas.js';
 const J=(d,s=200,h={})=>new Response(JSON.stringify(d),{status:s,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'strict-origin-when-cross-origin',...h}});
 // Every call to an outside service gives up after a few seconds, so a slow Paystack/Resend/Telegram can't hang a request.
 const T_OUT=()=>AbortSignal.timeout(10000);
@@ -75,7 +76,7 @@ async function sweep(env){await ensure(env);await tmr(env);const now=Date.now();
   for(const s0 of stale)if((await env.DB.prepare("UPDATE orders SET status='expired',updated=? WHERE id=? AND status='pending'").bind(now,s0.id).run()).meta.changes)ids.push(s0.id);
   await restock(env,ids)}
 let ready=false;
-const SCHEMA_V='39';
+const SCHEMA_V='40';
 const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELECT v FROM settings WHERE k='schema_v'").first();if(r&&r.v===SCHEMA_V){ready=true;return}}catch(e){}await env.DB.batch(['CREATE TABLE IF NOT EXISTS admin_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t INTEGER NOT NULL,uid INTEGER,who TEXT,kind TEXT,action TEXT,oid INTEGER,target TEXT,detail TEXT)','CREATE INDEX IF NOT EXISTS admin_log_oid ON admin_log(oid)','CREATE INDEX IF NOT EXISTS admin_log_t ON admin_log(t)','CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY,v TEXT)',
   'CREATE TABLE IF NOT EXISTS payments(ref TEXT PRIMARY KEY,uid INTEGER,kind TEXT,target TEXT,label TEXT,days INTEGER,amount INTEGER,created INTEGER)','CREATE INDEX IF NOT EXISTS payments_created ON payments(created)',
   'CREATE TABLE IF NOT EXISTS verify_requests(uid INTEGER PRIMARY KEY,note TEXT,photo TEXT,status TEXT,reason TEXT,created INTEGER,updated INTEGER)'].map(q=>env.DB.prepare(q)));
@@ -91,6 +92,8 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
     'CREATE TABLE IF NOT EXISTS ps_subs(k TEXT PRIMARY KEY,code TEXT NOT NULL,created INTEGER)','ALTER TABLE collections ADD COLUMN public_list INTEGER NOT NULL DEFAULT 0','ALTER TABLE payouts ADD COLUMN auto INTEGER NOT NULL DEFAULT 0','ALTER TABLE stores ADD COLUMN bank_code TEXT','ALTER TABLE stores ADD COLUMN acct_name TEXT','ALTER TABLE stores ADD COLUMN bank_verified INTEGER','ALTER TABLE listings ADD COLUMN featured_until INTEGER','ALTER TABLE stores ADD COLUMN featured_until INTEGER','ALTER TABLE users ADD COLUMN verified INTEGER NOT NULL DEFAULT 0',
     'CREATE TABLE IF NOT EXISTS schools(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE,short TEXT,state TEXT NOT NULL,kind TEXT,active INTEGER NOT NULL DEFAULT 1,created INTEGER)','CREATE INDEX IF NOT EXISTS schools_state ON schools(state)',
     'ALTER TABLE users ADD COLUMN school_id INTEGER','ALTER TABLE users ADD COLUMN state TEXT',
+    // Where people are (state + Local Government Area), for "my area" feeds; listings and stores carry their owner's.
+    'ALTER TABLE users ADD COLUMN area TEXT','ALTER TABLE listings ADD COLUMN area TEXT','ALTER TABLE stores ADD COLUMN area TEXT','CREATE INDEX IF NOT EXISTS listings_area ON listings(state,area)',
     'ALTER TABLE listings ADD COLUMN school_id INTEGER','ALTER TABLE listings ADD COLUMN state TEXT','ALTER TABLE listings ADD COLUMN qty INTEGER NOT NULL DEFAULT 1','ALTER TABLE listings ADD COLUMN qty_left INTEGER',
     "ALTER TABLE listings ADD COLUMN review TEXT NOT NULL DEFAULT 'live'",'ALTER TABLE listings ADD COLUMN review_note TEXT',
     'ALTER TABLE stores ADD COLUMN school_id INTEGER','ALTER TABLE stores ADD COLUMN state TEXT',"ALTER TABLE stores ADD COLUMN reach TEXT NOT NULL DEFAULT 'school'",'ALTER TABLE stores ADD COLUMN reach_until INTEGER',
@@ -156,10 +159,12 @@ const ensure=async env=>{if(ready)return;try{const r=await env.DB.prepare("SELEC
       env.DB.prepare("UPDATE users SET status='active' WHERE role='vendor' AND status='pending'"),env.DB.prepare("INSERT OR REPLACE INTO settings(k,v) VALUES('verify_gate','0')"),env.DB.prepare("INSERT OR REPLACE INTO settings(k,v) VALUES('require_verified','0')"),
       env.DB.prepare("INSERT OR REPLACE INTO settings(k,v) VALUES('mig_open1',?)").bind(String(Date.now()))]).catch(()=>{})}
   await env.DB.prepare("INSERT OR REPLACE INTO settings(k,v) VALUES('schema_v',?)").bind(SCHEMA_V).run();ready=true};
-const schoolOf=async(env,id)=>id?env.DB.prepare("SELECT id,name,short,state,IFNULL(launch,'soon') launch,IFNULL(stu_sell,1) stu_sell FROM schools WHERE id=?").bind(id).first():null;
+// Every school counts as open now (launch states retired), so apps never show a "coming soon" screen.
+const schoolOf=async(env,id)=>id?env.DB.prepare("SELECT id,name,short,state,'live' launch,IFNULL(stu_sell,1) stu_sell FROM schools WHERE id=?").bind(id).first():null;
 // Each school opens when an admin launches it: 'soon' (students join the waitlist), 'sellers' (sellers set up early; buyers wait) or 'live'.
 // a is the alias of a joined schools row; things with no school count as live.
-const LCH=a=>`(CASE WHEN ${a}.id IS NULL THEN 'live' ELSE IFNULL(${a}.launch,'soon') END)`;
+// Schools used to open one by one (soon / sellers only / live). Since Stall opened to everyone (Oct 2026) every school counts as live.
+const LCH=a=>"'live'";
 const LAUNCH=['soon','sellers','live'];
 // Some schools don't allow students to run businesses, so Admin can turn student selling off per school (campus vendors still sell; buying and collections carry on).
 // u is the seller's users row and a the joined schools row: true when the seller may be shown to buyers.
@@ -179,9 +184,8 @@ async function tellLaunch(env){const rows=(await env.DB.prepare("SELECT w.uid,w.
 // With the verification gate on (the default), a student can't buy, sell, chat or pay until a school document or school email is approved.
 const vGate=async(env,u)=>u&&u.role==='student'&&!(u.vlevel>=1)&&!u.is_admin&&(await getK(env,'verify_gate'))==='1'?J({error:'Your student verification isn\'t approved yet. You can use Stall as soon as it is.',needVerify:true},403):null;
 // Accounts at a school Stall hasn't launched see no marketplace at all: no items, no stores (their own still show to them).
-const preLaunch=async(env,u)=>{if(!u||u.is_admin||!u.school_id)return false;const sc=await schoolOf(env,u.school_id);return !sc||sc.launch!=='live'};
-const soonGate=async(env,u)=>{if(u.is_admin||!u.school_id)return null;const sc=await schoolOf(env,u.school_id);if(!sc||sc.launch!=='soon')return null;
-  return J({error:'Stall isn\'t open at '+(sc.short||sc.name)+' yet. Join the waitlist on the home screen and we\'ll tell you the moment it opens.',soon:true},403)};
+const preLaunch=async()=>false;
+const soonGate=async()=>null;
 // Checks a new listing's first photo against its title and description. Returns {ok:true}, {ok:false,why} or {ok:null,why}.
 const aiCheckListing=async(env,dataUrl,title,cat,desc)=>{
   if(!env.AI)return{ok:null,why:'Automatic photo check is not connected.'};
@@ -733,14 +737,18 @@ const phoneBad=p=>{if(!/^0[789][01]\d{8}$/.test(p))return 'Enter a Nigerian What
   if(/(\d)\1{6,}/.test(t)||SEQ.includes(t)||QES.includes(t))return 'That doesn\'t look like a real number. Enter the WhatsApp number buyers and sellers can reach you on.';return null};
 const phoneOdd=p=>{p=String(p||'');if(!/^0[789][01]\d{8}$/.test(p))return true;const t=p.slice(3);if(/(\d)\1{4,}/.test(t))return true;for(let i=0;i<=t.length-6;i++){const w=t.slice(i,i+6);if(SEQ.includes(w)||QES.includes(w))return true}return false};
 const phoneN=p=>{let d=String(p||'').replace(/\D/g,'');if(d.startsWith('234')&&d.length===13)d='0'+d.slice(3);return d};
-const pub=u=>({...pubBase(u),uid:u.id,school:u.school_id||null,deliv:dlv(u),rating:rat(u),email:u.email||'',emailVerified:!!u.email_verified,emailNotify:!!u.email_notify,vlevel:u.vlevel||0,credit:u.credit||0,sellerOk:!!u.seller_ok,pausedUntil:u.restricted_until>Date.now()?u.restricted_until:null});
-const pubBase=u=>u.role==='vendor'?{role:'vendor',id:'V-'+u.phone,name:u.name,biz:u.biz,phone:u.phone,where:u.place||'',cat:u.cat,status:u.status,admin:!!u.is_admin,reviewer:!!u.reviewer,verified:!!u.verified,acctSet:!!(u.acct_no&&u.acct_name)}:{role:'student',id:'U'+u.id,name:u.name,email:u.email,phone:u.phone,where:u.place||'',status:u.status,admin:!!u.is_admin,reviewer:!!u.reviewer,verified:!!u.verified,acctSet:!!(u.acct_no&&u.acct_name)};
+const pub=u=>({...pubBase(u),uid:u.id,school:u.school_id||null,state:u.state||'',area:u.area||'',deliv:dlv(u),rating:rat(u),email:u.email||'',emailVerified:!!u.email_verified,emailNotify:!!u.email_notify,vlevel:u.vlevel||0,credit:u.credit||0,sellerOk:!!u.seller_ok,pausedUntil:u.restricted_until>Date.now()?u.restricted_until:null});
+const pubBase=u=>u.role==='vendor'?{role:'vendor',id:'V-'+u.phone,name:u.name,biz:u.biz,phone:u.phone,where:u.place||'',cat:u.cat,status:u.status,admin:!!u.is_admin,reviewer:!!u.reviewer,verified:!!u.verified,acctSet:!!(u.acct_no&&u.acct_name)}:{role:u.role==='member'?'member':'student',id:'U'+u.id,name:u.name,email:u.email,phone:u.phone,where:u.place||'',status:u.status,admin:!!u.is_admin,reviewer:!!u.reviewer,verified:!!u.verified,acctSet:!!(u.acct_no&&u.acct_name)};
 const cookie=(r,n)=>((r.headers.get('cookie')||'').match(new RegExp('(?:^|; )'+n+'=([^;]*)'))||[])[1];
 // The web app sends its session in a cookie; the native app sends the same kind of token as "Authorization: Bearer …".
 const sessTok=r=>cookie(r,'stall_s')||((r.headers.get('authorization')||'').match(/^Bearer ([0-9a-f]{64})$/)||[])[1];
 const me=async(env,r)=>{const t=sessTok(r);return t?env.DB.prepare("SELECT u.* FROM sessions s JOIN users u ON u.id=s.uid WHERE s.h=? AND s.exp>? AND IFNULL(u.status,'active')!='suspended'").bind(await sha(t),Date.now()).first():null};
 const LIVE="IFNULL(u.status,'active')!='suspended'";
 // {school_id} picks a listed school; {school_name,school_state} asks for a new one (hidden until an admin approves it).
+// Where someone is: a state and one of its Local Government Areas (from lib/areas.js), never free text.
+const placeOf=b=>{const st=String(b.state||'').trim(),ar=String(b.area||'').trim();if(!AREAS[st])return{error:'Choose your state.'};if(!AREAS[st].includes(ar))return{error:'Choose your area (Local Government Area).'};return{state:st,area:ar}};
+// Which feed: 'school' (my campus, students), 'area', 'state' or 'all' (Nigeria). Asking for one you can't use falls back to the next wider one.
+const scopeOf=(u,s)=>{s=s||(u.school_id?'school':'area');if(s==='school'&&!u.school_id)s='area';if(s==='area'&&!(u.state&&u.area))s='state';if(s==='state'&&!u.state)s='all';return['school','area','state'].includes(s)?s:'all'};
 const pickSchool=async(env,b)=>{const id=+b.school_id||0;
   if(id){const sc=await env.DB.prepare('SELECT id,name,short,state FROM schools WHERE id=?').bind(id).first();return sc||{error:'Choose your school from the list.'}}
   const n=String(b.school_name||'').trim().replace(/\s+/g,' ').slice(0,90),st=String(b.school_state||'');
@@ -758,8 +766,8 @@ const storeBad=d=>{const t=k=>String(d[k]||'').trim();if(t('name').length<2||t('
 // An account counts as checked only if this server looked it up with Paystack recently, and then the name Paystack gave is used (not what the app sent).
 const bankSeen=async(env,code,acct)=>{const r=await env.DB.prepare('SELECT name FROM bank_seen WHERE k=? AND t>?').bind(code+':'+String(acct||'').replace(/\D/g,''),Date.now()-3*864e5).first().catch(()=>null);return r&&r.name};
 async function makeStore(env,u,d,ref){const seen=!d.bank_manual&&await bankSeen(env,d.bank_code,d.acct),manual=!seen;if(seen)d.acctName=seen;
-  const r=await env.DB.prepare('INSERT INTO stores(uid,name,emoji,cat,descr,spot,phone,bank,acct,bank_code,acct_name,bank_verified,isopen,vendor,ref,created,school_id,state) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?)')
-    .bind(u.id,clean(d.name,40),clean(d.emoji,12),clean(d.cat,20),clean(d.desc,200),clean(d.spot,60),clean(d.phone,20)||u.phone,BANKS[d.bank_code],String(d.acct||'').replace(/\D/g,'').slice(0,10),d.bank_code,clean(d.acctName,60),manual?0:1,u.role==='vendor'?1:0,ref,Date.now(),u.school_id,u.state).run();
+  const r=await env.DB.prepare('INSERT INTO stores(uid,name,emoji,cat,descr,spot,phone,bank,acct,bank_code,acct_name,bank_verified,isopen,vendor,ref,created,school_id,state,area) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?)')
+    .bind(u.id,clean(d.name,40),clean(d.emoji,12),clean(d.cat,20),clean(d.desc,200),clean(d.spot,60),clean(d.phone,20)||u.phone,BANKS[d.bank_code],String(d.acct||'').replace(/\D/g,'').slice(0,10),d.bank_code,clean(d.acctName,60),manual?0:1,u.role==='vendor'?1:0,ref,Date.now(),u.school_id||null,u.state,u.area||null).run();
   const sid=r.meta.last_row_id;if(d.logo&&imgOk(d.logo)){if(env.PHOTOS){const{type,bytes}=b64bytes(d.logo);await env.PHOTOS.put('logo/'+sid,bytes,{httpMetadata:{contentType:type}});await env.DB.prepare('UPDATE stores SET logo=?,logo_v=? WHERE id=?').bind('r2:'+type,Date.now(),sid).run()}else await env.DB.prepare('UPDATE stores SET logo=?,logo_v=? WHERE id=?').bind(d.logo,Date.now(),sid).run()}
   if(manual)await tg(env,'Payout details need confirming (store)\n'+clean(d.name,40)+' - '+u.phone+'\nBank: '+BANKS[d.bank_code]+'\nAccount: '+d.acct+'\nName given: '+clean(d.acctName,60));
   await giveFounding(env,u.school_id).catch(()=>{});
@@ -842,8 +850,11 @@ async function route({request,env,params,waitUntil}){
   if(!env.DB&&(['register','login','logout','me'].includes(path)||path.startsWith('admin/')||path.startsWith('listings')||path.startsWith('stores')||path.startsWith('orders')||path.startsWith('bank')||path==='banks'||path.startsWith('photo/')))return J({error:'Accounts are not set up yet.'},500);
   if(path==='register'&&request.method==='POST'){await ensure(env);if(!await allow(env,'reg:'+ipOf(request),120,36e5))return slow(); // generous: many students share one mobile-network or campus address
     const b=await request.json().catch(()=>({})),t=k=>String(b[k]||'').trim(),bad=(field,error)=>J({error,field},400);
-    const sc=await pickSchool(env,b);if(sc.error)return bad('school',sc.error);
-    const vendor=b.role==='vendor',phone=phoneN(b.phone),name=t('name'),pass=String(b.password||'');
+    // Three kinds of account: 'student' (picks a school), 'member' (anyone else) and 'vendor' (a business; a school is optional).
+    const role=['student','member','vendor'].includes(b.role)?b.role:'student',vendor=role==='vendor',phone=phoneN(b.phone),name=t('name'),pass=String(b.password||'');
+    const hasSch=!!(+b.school_id||t('school_name')),sc=role==='student'||(vendor&&hasSch)?await pickSchool(env,b):null;if(sc&&sc.error)return bad('school',sc.error);
+    // Where they are. Older app versions only sent a school: then the school's state is used and the area is asked for later.
+    const pl=t('state')||t('area')||!sc?placeOf(b):{state:sc.state,area:null};if(pl.error)return bad(/state/.test(pl.error)?'state':'area',pl.error);
     let email=null,biz=null,cat=null;
     if(name.length<3||name.length>50)return bad('name','Enter your full name.');
     {const pb=phoneBad(phone);if(pb)return bad('phone',pb)}
@@ -853,9 +864,9 @@ async function route({request,env,params,waitUntil}){
       if(t('code')&&!await env.DB.prepare('SELECT 1 FROM vendor_codes WHERE code=? AND active=1 AND used_by IS NULL AND IFNULL(kind,\'vendor\')=\'vendor\'').bind(t('code').toUpperCase()).first())return bad('code','That invite code is not valid or was already used. Ask the Stall team for one.');
     }else{email=t('email').toLowerCase();
       if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email))return bad('email','Enter a valid email address.');
-      if(t('where').length<2)return bad('where','Enter your hostel or where you stay.');}
+      if(role==='student'&&t('where').length<2)return bad('where','Enter your hostel or where you stay.');}
     const salt=rnd(16);
-    try{const r=await env.DB.prepare('INSERT INTO users(role,name,email,phone,place,biz,cat,salt,pw,created,status,school_id,state) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(vendor?'vendor':'student',name,email,phone,t('where').slice(0,40),biz,cat,salt,await pbk(pass,salt),Date.now(),'active',sc.id,sc.state).run();
+    try{const r=await env.DB.prepare('INSERT INTO users(role,name,email,phone,place,biz,cat,salt,pw,created,status,school_id,state,area) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(role,name,email,phone,t('where').slice(0,40),biz,cat,salt,await pbk(pass,salt),Date.now(),'active',sc?sc.id:null,pl.state,pl.area).run();
       if(vendor&&t('code'))await env.DB.prepare('UPDATE vendor_codes SET used_by=? WHERE code=?').bind(r.meta.last_row_id,t('code').toUpperCase()).run();
       if(t('ref')){const rf=await env.DB.prepare("SELECT id FROM users WHERE ref_code=? AND status!='deleted'").bind(t('ref').toUpperCase().slice(0,12)).first();if(rf&&rf.id!==r.meta.last_row_id)await env.DB.prepare('UPDATE users SET referred_by=? WHERE id=?').bind(rf.id,r.meta.last_row_id).run()}
       if(phoneOdd(phone))waitUntil(tg(env,'Check this phone number: '+name+' signed up with '+phone+'. It looks unusual. See Admin → People.'));
@@ -1054,12 +1065,20 @@ async function route({request,env,params,waitUntil}){
     if(m.length<3)return J({n:m.length});const p=m.map(r=>r.price).sort((a,b)=>a-b),q=x=>{const v=p[Math.min(p.length-1,Math.round(x*(p.length-1)))];return v>=1000?Math.round(v/100)*100:Math.round(v/50)*50};
     return J({n:m.length,sold:m.filter(r=>r.sold).length,low:q(.25),mid:q(.5),high:q(.75),cond:cond&&same.length>=3?cond:null})}
   if(path==='config'){await tmr(env);return J({timers:{hand:TM.hand/6e4,answer:TM.answer/36e5,send:TM.send/36e5,pay:TM.pay/36e5},creditPct:await creditPct(env),collectFee:await collectFee(env),fee:await feeCfg(env),freeSales:await freeSales(env),foundingN:await foundingN(env),emailOn:!!env.RESEND_API_KEY,androidPkg:(await getK(env,'android_pkg'))||'',androidSha:(await getK(env,'android_sha'))||'',stores:{play:(await getK(env,'play_url'))||'',apple:(await getK(env,'apple_url'))||''},name:(await getK(env,'biz_name'))||'Stall',phone:(await getK(env,'support_phone'))||'',email:(await getK(env,'support_email'))||'',states:STATES,brk:(await getK(env,'brk_on'))==='1'||(await getK(env,'app_closed'))==='1'?{msg:(await getK(env,'brk_msg'))||''}:null,closed:(await getK(env,'app_closed'))==='1'},200,{'cache-control':'public, max-age=60'})}
-  if(path==='schools'&&request.method==='GET'){await ensure(env);return J({schools:(await env.DB.prepare("SELECT id,name,short,state,kind,IFNULL(launch,'soon') launch FROM schools WHERE active=1 ORDER BY name").all()).results,states:STATES},200,{'cache-control':'public, max-age=600'})}
+  if(path==='schools'&&request.method==='GET'){await ensure(env);return J({schools:(await env.DB.prepare("SELECT id,name,short,state,kind,'live' launch FROM schools WHERE active=1 ORDER BY name").all()).results,states:STATES},200,{'cache-control':'public, max-age=600'})}
   if(path==='me/delivery'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);
     const d=dlvIn(await request.json().catch(()=>({})));if(d.error)return J(d,400);
     await env.DB.prepare('UPDATE users SET deliv_on=?,deliv_fee=?,deliv_note=? WHERE id=?').bind(d.on,d.fee,d.note,u.id).run();await bumpVer(env);return J({ok:true,deliv:dlv({deliv_on:d.on,deliv_fee:d.fee,deliv_note:d.note})})}
-  if(path==='me/school'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);const b=await request.json().catch(()=>({})),sc=await pickSchool(env,b);if(sc.error)return J(sc,400);
-    await env.DB.batch([env.DB.prepare('UPDATE users SET school_id=?,state=? WHERE id=?').bind(sc.id,sc.state,u.id),env.DB.prepare('UPDATE waitlist SET school_id=? WHERE uid=?').bind(sc.id,u.id)]);return J({ok:true,school:sc})}
+  // Pick a school (you're a student there) or {none:true} (not a student any more, e.g. after graduating). Businesses keep their kind.
+  if(path==='me/school'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);const b=await request.json().catch(()=>({}));
+    if(b.none){await env.DB.prepare("UPDATE users SET school_id=NULL,role=CASE WHEN role='vendor' THEN role ELSE 'member' END WHERE id=?").bind(u.id).run();await bumpVer(env);return J({ok:true,school:null})}
+    const sc=await pickSchool(env,b);if(sc.error)return J(sc,400);
+    await env.DB.batch([env.DB.prepare("UPDATE users SET school_id=?,state=IFNULL(state,?),role=CASE WHEN role='vendor' THEN role ELSE 'student' END WHERE id=?").bind(sc.id,sc.state,u.id),env.DB.prepare('UPDATE waitlist SET school_id=? WHERE uid=?').bind(sc.id,u.id)]);await bumpVer(env);return J({ok:true,school:sc})}
+  // Where you are: state and Local Government Area. Your listings and stores move with you.
+  if(path==='me/place'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Sign in first.'},401);await ensure(env);const pl=placeOf(await request.json().catch(()=>({})));if(pl.error)return J(pl,400);
+    await env.DB.batch([env.DB.prepare('UPDATE users SET state=?,area=? WHERE id=?').bind(pl.state,pl.area,u.id),env.DB.prepare('UPDATE listings SET state=?,area=? WHERE uid=?').bind(pl.state,pl.area,u.id),env.DB.prepare('UPDATE stores SET state=?,area=? WHERE uid=?').bind(pl.state,pl.area,u.id)]);
+    await bumpVer(env);return J({ok:true,...pl})}
+  if(path==='areas'&&request.method==='GET')return J({areas:AREAS},200,{'cache-control':'public, max-age=86400'});
   // Students at a school that hasn't opened yet join its waitlist (to buy, sell or both) and are told when it opens.
   if(path==='partner/seen'&&request.method==='POST'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);const b=await request.json().catch(()=>({}));
     const p=(await partnersAll(env)).find(x=>x.id===+b.id);if(!p||!pLive(p)||!pFor(p,u))return J({ok:false});const tap=b.tap?1:0;
@@ -1076,7 +1095,7 @@ async function route({request,env,params,waitUntil}){
   if(path==='me'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);
     // Independent lookups go to the database together: each round trip from Nigeria to the database costs time.
     const [v,ic,si,rv,fl]=await Promise.all([env.DB.prepare('SELECT status,reason FROM verify_requests WHERE uid=?').bind(u.id).first(),env.DB.prepare('SELECT status,reason FROM id_checks WHERE uid=?').bind(u.id).first(),schoolOf(env,u.school_id),getK(env,'require_verified'),freeLeft(env,u.id)]);
-    let wait=null;if(si&&si.launch!=='live'){const [wr,wn]=await Promise.all([env.DB.prepare('SELECT want FROM waitlist WHERE uid=?').bind(u.id).first(),env.DB.prepare('SELECT COUNT(*) c FROM waitlist WHERE school_id=? AND want IS NOT NULL').bind(si.id).first()]);wait={want:wr&&wr.want||null,n:wn?wn.c:0}}
+    const wait=null; // school waitlists retired when Stall opened to everyone
     return J({user:{...pub(u),schoolInfo:si,wait,verify:v?v.status:null,verifyReason:v&&v.reason,idCheck:ic?ic.status:null,idReason:ic&&ic.reason,mustVerify:rv==='1',verifyGate:(await getK(env,'verify_gate'))==='1',freeLeft:fl,noCfee:!!u.no_cfee,partners:await partnersFor(env,u)}})}
   if(path==='listings'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);waitUntil(sweep(env).catch(()=>{}));const NOW=Math.floor(Date.now()/6e4)*6e4;waitUntil(dailyCleanup(env));waitUntil(weeklyMails(env));if(Date.now()-TELL_T>6e4){TELL_T=Date.now();waitUntil(tellLaunch(env).catch(()=>{}))}waitUntil(payJobs(env).catch(()=>{}));
     const sp=url.searchParams,ids=(sp.get('ids')||'').split(',').map(x=>+x.slice(1)).filter(x=>x>0).slice(0,60),w=[LIVE],v=[];let lim=Math.min(96,Math.max(1,+sp.get('n')||24)),off=Math.max(0,+sp.get('off')||0),total;
@@ -1085,8 +1104,8 @@ async function route({request,env,params,waitUntil}){
     else if(ids.length){w.push("(l.review='live' OR l.uid=?)",`l.id IN (${ids.map(()=>'?').join(',')})`,'(l.uid=? OR '+SOK('u','sc')+')');v.push(u.id,...ids,u.id);lim=60;off=0;if(await preLaunch(env,u)){w.push('l.uid=?');v.push(u.id)}}
     // Admins see every school's items (to test and moderate before a school opens); everyone else only sees open schools.
     else{if(await preLaunch(env,u))return J({listings:[],total:0,soon:true});w.push("l.review='live'",'(l.sold=0 OR l.created>?)');if(!u.is_admin)w.push(LCH('sc')+"='live'",SOK('u','sc'));v.push(cut);
-      const q=(sp.get('q')||'').trim().slice(0,60),cat=sp.get('cat')||'all',scope=sp.get('scope')||'school';if(cat!=='all'){w.push('l.cat=?');v.push(cat)}
-      if(scope==='school'&&u.school_id){w.push('l.school_id=?');v.push(u.school_id)}else if(scope==='state'&&u.state){w.push('l.state=?');v.push(u.state)}
+      const q=(sp.get('q')||'').trim().slice(0,60),cat=sp.get('cat')||'all',scope=scopeOf(u,sp.get('scope'));if(cat!=='all'){w.push('l.cat=?');v.push(cat)}
+      if(scope==='school'){w.push('l.school_id=?');v.push(u.school_id)}else if(scope==='area'){w.push('l.state=?','l.area=?');v.push(u.state,u.area)}else if(scope==='state'){w.push('l.state=?');v.push(u.state)}
       // Every word must appear somewhere in the title, description or meeting spot.
       for(const word of q.split(/\s+/).filter(Boolean).slice(0,5)){const k='%'+word+'%';w.push('(l.title LIKE ? OR l.descr LIKE ? OR l.spot LIKE ?)');v.push(k,k,k)}
       const mn=Math.round(+sp.get('min')||0),mx=Math.round(+sp.get('max')||0),cond=sp.get('cond');
@@ -1097,9 +1116,9 @@ async function route({request,env,params,waitUntil}){
         env.DB.prepare('SELECT l.*,u.verified AS sv,u.vlevel AS svl,u.role AS srole,u.deliv_on,u.deliv_fee,u.deliv_note,u.rating_sum,u.rating_n,sc.short AS ssh,sc.name AS snm,'+LCH('sc')+' AS lch,'+SOK('u','sc')+' AS sok'+wh+' ORDER BY '+srt+' LIMIT ? OFFSET ?').bind(...v,lim,off).all()]);
       const total=cn?cn.c:undefined,rs=ra.results;
       // Searches also look in open stores, so "jollof" finds food stalls as well as listings.
-      const sq=(sp.get('q')||'').trim().slice(0,60),words=sq.split(/\s+/).filter(Boolean).slice(0,5),sc2=sp.get('scope')||'school';let storeHits=[];
+      const sq=(sp.get('q')||'').trim().slice(0,60),words=sq.split(/\s+/).filter(Boolean).slice(0,5),sc2=scopeOf(u,sp.get('scope'));let storeHits=[];
       if(feed&&words.length&&!off){const ww=["i.review='live'",'i.avail=1','s.isopen=1',LIVE,...(u.is_admin?[]:[LCH('sc')+"='live'",SOK('u','sc')])],vv=[];for(const word of words){ww.push('(i.title LIKE ? OR i.descr LIKE ?)');vv.push('%'+word+'%','%'+word+'%')}
-        if(sc2==='school'&&u.school_id){ww.push('s.school_id=?');vv.push(u.school_id)}else if(sc2==='state'&&u.state){ww.push('s.state=?');vv.push(u.state)}
+        if(sc2==='school'){ww.push('s.school_id=?');vv.push(u.school_id)}else if(sc2==='area'){ww.push('s.state=?','s.area=?');vv.push(u.state,u.area)}else if(sc2==='state'){ww.push('s.state=?');vv.push(u.state)}
         storeHits=(await env.DB.prepare('SELECT i.id,i.title,i.price,s.id sid,s.name sname,s.cat,s.emoji FROM store_items i JOIN stores s ON s.id=i.sid JOIN users u ON u.id=s.uid LEFT JOIN schools sc ON sc.id=s.school_id WHERE '+ww.join(' AND ')+' ORDER BY i.created DESC LIMIT 8').bind(...vv).all()).results
           .map(r=>({id:'I'+r.id,title:r.title,price:r.price,store:'S'+r.sid,storeName:r.sname,cat:r.cat,emoji:r.emoji}))}
       return{total,storeHits,listings:rs.map(r=>({sid:r.uid,id:'L'+r.id,deliv:dlv(r),rating:rat(r),vlevel:r.srole==='vendor'?0:r.svl||0,title:r.title,price:r.price,cat:r.cat,cond:r.cond,spot:r.spot,desc:r.descr,seller:r.seller,phone:r.phone,imgs:Array.from({length:r.n},(_,i)=>'/api/photo/'+r.id+'/'+i),t:r.created,sold:r.sold,featured:(r.featured_until||0)>NOW,featuredUntil:r.featured_until||0,verified:!!r.sv,qty:r.qty||1,qtyLeft:r.qty_left==null?(r.sold?0:1):r.qty_left,school:r.ssh||r.snm||'',state:r.state||'',soon:r.lch!=='live',stuOff:!r.sok,review:r.review,reviewNote:feed?null:r.review_note}))}};
@@ -1121,8 +1140,8 @@ async function route({request,env,params,waitUntil}){
     if(imgs.length<1||imgs.length>8||!imgs.every(imgOk))return J({error:'Add 1 to 8 photos (JPEG, PNG or WebP).'},400);
     if(!await allow(env,'post:'+u.id,40,36e5))return slow();
     const qty=Math.round(+b.qty||1);if(!(qty>=1&&qty<=100000))return J({error:'Enter how many you have (1 or more).'},400);
-    if(!u.school_id)return J({error:'Choose your school first.'},400);await ensure(env);
-    const r=await env.DB.prepare("INSERT INTO listings(uid,title,price,cat,cond,spot,descr,seller,phone,n,created,school_id,state,qty,qty_left,review) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'checking')").bind(u.id,t('title'),price,t('cat').slice(0,20),t('cond').slice(0,20),t('spot').slice(0,60),t('desc').slice(0,500),t('seller').slice(0,50)||u.name,t('phone').slice(0,20)||u.phone,imgs.length,Date.now(),u.school_id,u.state,qty,qty).run();
+    if(!u.state)return J({error:'Choose your state and area first (Account → My area).',needPlace:true},400);await ensure(env);
+    const r=await env.DB.prepare("INSERT INTO listings(uid,title,price,cat,cond,spot,descr,seller,phone,n,created,school_id,state,area,qty,qty_left,review) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'checking')").bind(u.id,t('title'),price,t('cat').slice(0,20),t('cond').slice(0,20),t('spot').slice(0,60),t('desc').slice(0,500),t('seller').slice(0,50)||u.name,t('phone').slice(0,20)||u.phone,imgs.length,Date.now(),u.school_id||null,u.state,u.area||null,qty,qty).run();
     const id=r.meta.last_row_id;
     await savePhotos(env,id,imgs);
     waitUntil(reviewItem(env,'listings',id,imgs[0],t('title'),t('cat'),t('desc')));
@@ -1151,10 +1170,11 @@ async function route({request,env,params,waitUntil}){
     else{const{type,bytes}=b64bytes(r.data);res=new Response(bytes,{headers:{...H,'content-type':type}})}
     if(c)waitUntil(c.put(request,res.clone()).catch(()=>{}));return res}
   if(path==='stores'&&request.method==='GET'){const u=await me(env,request);if(!u)return J({error:'Not signed in'},401);await ensure(env);const NOW=Math.floor(Date.now()/6e4)*6e4;
-    const scope=url.searchParams.get('scope')||'school',mine=!!url.searchParams.get('mine'),w=[LIVE],v=[],up='(IFNULL(s.reach_until,0)>'+NOW+')';
+    const scope=scopeOf(u,url.searchParams.get('scope')),mine=!!url.searchParams.get('mine'),w=[LIVE],v=[],up='(IFNULL(s.reach_until,0)>'+NOW+')';
     if(mine){w.push('s.uid=?');v.push(u.id)}else if(await preLaunch(env,u))return J({stores:[],soon:true});else if(!u.is_admin)w.push(LCH('sc')+"='live'",SOK('u','sc'));
-    if(mine);else if(scope==='school'&&u.school_id){w.push("(s.school_id=? OR ("+up+" AND (s.reach='national' OR (s.reach='state' AND s.state=?))))");v.push(u.school_id,u.state)}
-    else if(scope==='state'&&u.state){w.push("(s.state=? OR ("+up+" AND s.reach='national'))");v.push(u.state)}
+    if(mine);else if(scope==='school'){w.push("(s.school_id=? OR ("+up+" AND (s.reach='national' OR (s.reach='state' AND s.state=?))))");v.push(u.school_id,u.state)}
+    else if(scope==='area'){w.push("((s.state=? AND s.area=?) OR ("+up+" AND (s.reach='national' OR (s.reach='state' AND s.state=?))))");v.push(u.state,u.area,u.state)}
+    else if(scope==='state'){w.push("(s.state=? OR ("+up+" AND s.reach='national'))");v.push(u.state)}
     const run=async()=>{
     const ss=(await env.DB.prepare('SELECT s.*,'+SOK('u','sc')+' AS sok,u.role,u.phone AS up,u.verified AS ov,u.vlevel AS svl,u.rating_sum,u.rating_n,sc.short AS ssh,sc.name AS snm FROM stores s JOIN users u ON u.id=s.uid LEFT JOIN schools sc ON sc.id=s.school_id WHERE '+w.join(' AND ')+' ORDER BY (IFNULL(s.featured_until,0)>'+NOW+') DESC,(s.school_id=?) DESC,s.created DESC LIMIT 300').bind(...v,u.school_id||0).all()).results;
     const sids=ss.map(x=>x.id),its=sids.length?(await env.DB.prepare('SELECT * FROM store_items WHERE sid IN ('+sids.map(()=>'?').join(',')+")"+(mine?'':" AND review='live'")+" ORDER BY created DESC").bind(...sids).all()).results:[];
@@ -1545,7 +1565,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
       return J({ok:true})}
     if(!a.is_admin)return J({error:'Not allowed'},403);
     if(path==='admin/users'&&request.method==='GET'){const role=url.searchParams.get('role'),w=[],v=[];
-      if(role==='student'||role==='vendor'){w.push('role=?');v.push(role)}else if(role==='reviewer')w.push('reviewer=1');
+      if(role==='student'||role==='vendor'||role==='member'){w.push('role=?');v.push(role)}else if(role==='reviewer')w.push('reviewer=1');
       if(q){w.push('(name LIKE ? OR phone LIKE ? OR email LIKE ? OR biz LIKE ?)');v.push(like,like,like,like)}
       if(role==='verified')w.push('verified=1');else if(role==='nofee')w.push('no_cfee=1');
       return list('users','id,role,name,email,phone,biz,place,status,created,is_admin,reviewer,verified,vlevel,no_cfee',w,v,'created DESC',x=>({...x,oddPhone:phoneOdd(x.phone)}))}
