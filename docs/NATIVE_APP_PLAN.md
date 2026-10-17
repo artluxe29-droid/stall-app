@@ -105,12 +105,12 @@ Tick each one only when it works in the native app against the live API.
   - [x] Native push (FCM): on once the Firebase setup below is done
   - [ ] In-app news dots
 - **Collections:**
-  - [ ] Create
-  - [ ] Share link
-  - [ ] Pay
-  - [ ] Paid list
-  - [ ] Close
-  - [ ] No-fee accounts
+  - [x] Create
+  - [x] Share link
+  - [x] Pay
+  - [x] Paid list (and tick off who collected)
+  - [x] Close
+  - [x] No-fee accounts (the server leaves out the charge)
 - **Extras:**
   - [ ] Milestone badges and share images
   - [x] Invite and referrals (code at sign-up, credit)
