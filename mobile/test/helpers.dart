@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:stall/api.dart';
 import 'package:stall/session.dart';
@@ -41,3 +43,14 @@ Map<String, dynamic> user({bool admin = false, String name = 'Ada Obi'}) => {
       'state': 'Oyo',
       'area': 'Ibadan North',
     };
+
+/// Scrolls the page (down, then back up) until [f] is built, for things below the Home hero or lower on Account.
+Future<void> reveal(WidgetTester t, Finder f) async {
+  for (final d in const [300.0, -300.0]) {
+    if (f.evaluate().isNotEmpty) break;
+    try {
+      await t.scrollUntilVisible(f, d, scrollable: find.byType(Scrollable).first, maxScrolls: 20);
+    } catch (_) {}
+  }
+  await t.pumpAndSettle();
+}

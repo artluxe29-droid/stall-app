@@ -77,10 +77,11 @@ class _StoresTabState extends State<StoresTab> {
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 12)),
         FutureBuilder<List<Store>>(
+          key: ValueKey(_scope),
           future: _f,
           builder: (context, snap) {
             Widget fill(Widget w) => SliverFillRemaining(hasScrollBody: false, child: w);
-            if (snap.connectionState != ConnectionState.done) return fill(const Center(child: CircularProgressIndicator()));
+            if (snap.connectionState != ConnectionState.done && !snap.hasData) return fill(const Center(child: CircularProgressIndicator()));
             if (snap.error is _Soon) {
               return fill(const EmptyState(
                   icon: Icons.school_outlined, title: 'Stall isn\'t open at your school yet', text: 'We\'ll tell you the moment it opens.'));

@@ -138,12 +138,19 @@ class _OrdersTabState extends State<OrdersTab> {
   void initState() {
     super.initState();
     ordersSelling.addListener(_side);
+    shellTab.addListener(_back);
   }
 
   @override
   void dispose() {
     ordersSelling.removeListener(_side);
+    shellTab.removeListener(_back);
     super.dispose();
+  }
+
+  /// Back on the Orders tab: check for changes while still showing what was there.
+  void _back() {
+    if (shellTab.value == 3 && mounted) _refresh();
   }
 
   void _side() {
@@ -231,10 +238,11 @@ class _OrdersTabState extends State<OrdersTab> {
             ),
           ),
         FutureBuilder<List<Order>>(
+          key: ValueKey(_selling), // Buying and Selling never show each other's list while loading
           future: _f,
           builder: (context, snap) {
             Widget fill(Widget w) => SliverFillRemaining(hasScrollBody: false, child: w);
-            if (snap.connectionState != ConnectionState.done) return fill(const Center(child: CircularProgressIndicator()));
+            if (snap.connectionState != ConnectionState.done && !snap.hasData) return fill(const Center(child: CircularProgressIndicator()));
             if (snap.hasError) {
               return fill(EmptyState(
                   icon: Icons.wifi_off_rounded,
