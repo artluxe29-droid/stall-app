@@ -124,8 +124,7 @@ class StoreAvatar extends StatelessWidget {
       child: SizedBox.square(
         dimension: size,
         child: store.logo != null
-            ? Image.network(SessionScope.of(context).api.url(store.logo!),
-                fit: BoxFit.cover, errorBuilder: (_, _, _) => CatTile(cat: store.cat, icon: storeIcon(store.emoji, store.cat)))
+            ? NetImage(SessionScope.of(context).api.url(store.logo!), error: CatTile(cat: store.cat, icon: storeIcon(store.emoji, store.cat)))
             : Container(color: c.bg, child: Icon(storeIcon(store.emoji, store.cat), color: c.fg, size: size * .48)),
       ),
     );

@@ -125,7 +125,7 @@ Data is **encrypted in transit** (HTTPS) and users **can request deletion** (in-
 | Email address | Yes | No | Account management |
 | Phone number | Yes | No | Account management, sign-in |
 | Address (delivery address) | Yes, optional | No | App functionality (delivery) |
-| Other info (matric number, school) | Yes | No | Account management, fraud prevention |
+| Other info (state and area, school for students) | Yes | No | Account management, showing items near you |
 | Financial info → purchase history | Yes | No | App functionality |
 | Financial info → other (seller's bank account for payouts) | Yes, sellers only | Yes, with Paystack | App functionality (paying sellers) |
 | Messages → other in-app messages (chats) | Yes | No | App functionality, fraud prevention |
@@ -133,7 +133,7 @@ Data is **encrypted in transit** (HTTPS) and users **can request deletion** (in-
 | App activity (orders, listings) | Yes | No | App functionality |
 | Location → precise location (live delivery tracking, meeting-spot pins) | Yes, optional | No (shown only to the other person on that order) | App functionality |
 | Photos → verification documents (student ID etc.) | Yes, optional | No (checked by Cloudflare's AI as a service provider) | Fraud prevention, account verification |
-| Device or other IDs (push notification address) | Yes | No | App functionality (notifications) |
+| Device or other IDs (push notification address) | Yes | No (Google's Firebase Cloud Messaging delivers the notices as a service provider, which Play doesn't count as sharing) | App functionality (notifications) |
 | Audio (voice search) | No (the phone's speech service turns it into text; Stall gets only the text) | No | App functionality |
 
 Card details are entered on Paystack's page and **never reach Stall**, so you don't declare card numbers. Paystack is a "service provider", which Google doesn't count as sharing.

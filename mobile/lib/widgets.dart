@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -82,6 +85,27 @@ class EmptyState extends StatelessWidget {
           ]),
         ),
       );
+}
+
+/// Keep photos on the phone (off in tests, which have no file system for it).
+final bool _diskCache = !Platform.environment.containsKey('FLUTTER_TEST');
+
+/// A network image that's saved on the phone after the first download (Stall's photo links never change, so
+/// opening Stall again costs no data for photos already seen), and decoded only as big as it's shown,
+/// which keeps low-end phones from running out of memory on long feeds.
+class NetImage extends StatelessWidget {
+  const NetImage(this.url, {super.key, this.fit = BoxFit.cover, this.error});
+  final String url;
+  final BoxFit fit;
+  final Widget? error;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
+        final w = c.maxWidth.isFinite ? (c.maxWidth * MediaQuery.devicePixelRatioOf(context)).round() : null;
+        final err = error ?? const SizedBox();
+        return _diskCache
+            ? CachedNetworkImage(imageUrl: url, fit: fit, memCacheWidth: w, fadeInDuration: const Duration(milliseconds: 150), errorWidget: (_, _, _) => err)
+            : Image.network(url, fit: fit, cacheWidth: w, errorBuilder: (_, _, _) => err);
+      });
 }
 
 /// Shown while an account is paused for strikes.
