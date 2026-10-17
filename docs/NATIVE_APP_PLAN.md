@@ -1,6 +1,6 @@
 # Stall native app: rebuild plan
 
-Status: **Phase 3 in progress.** 3a (chat, problem reports, review replies, strikes notice) is in the app; 3b (live map) and 3c (push notifications) are next. Phases 0, 1 and 2 are done: browsing, accounts, buying, selling items, selling orders and payouts, and opening and running a store. The app also has "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
+Status: **Phase 3 in progress.** 3a (chat, problem reports, review replies, strikes notice) and 3b (live map) are in the app; 3c (push notifications) is next. Phases 0, 1 and 2 are done: browsing, accounts, buying, selling items, selling orders and payouts, and opening and running a store. The app also has "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
 
 ## Why
 
@@ -88,8 +88,8 @@ Tick each one only when it works in the native app against the live API.
   - [x] Stages (packed, on the way, ready)
   - [x] "I handed it over"
   - [x] Arrival time ("10 min away", "I'm here")
-  - [ ] Meeting-spot pins (with the live map, Phase 3)
-  - [ ] Live tracking
+  - [x] Meeting-spot pins
+  - [x] Live tracking (map, share location while the screen is open)
   - [x] Payouts and bank details
   - [x] Weekly statement
   - [x] Answer a problem report: accept and refund, or give your side with a photo

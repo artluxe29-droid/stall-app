@@ -13,6 +13,7 @@ import 'account_setup.dart' show pickPhoto;
 import 'checkout.dart' show confirm;
 import 'chat.dart';
 import 'orders.dart';
+import 'trip.dart';
 
 /// The handover timer, worded like the web app ("30 minutes", "2 hours").
 String handText(Map config) {
@@ -217,6 +218,15 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
             ),
           ),
           if ((ver || o.status == 'released') && o.method != null) ...[const SizedBox(height: 16), Tracker(order: o)],
+          if (ver && o.method != null && o.handedAt == null) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              key: const Key('liveMap'),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TripScreen(order: o, seller: true))),
+              icon: const Icon(Icons.map_outlined),
+              label: Text(o.method == 'delivery' ? 'Delivery map: share your location' : 'Pickup map: set the meeting spot'),
+            ),
+          ],
           if (o.status == 'under_review') _note('Stall is checking this order. Don\'t hand over the item yet.'),
           if (ver && o.method == 'delivery') _note('Deliver to: ${o.addr}${o.dphone.isEmpty ? '' : ' · ${o.dphone}'}'),
           if (ver && o.method == 'pickup') _note('The buyer collects${o.pickup.isEmpty ? '' : ' at ${o.pickup}'}.'),

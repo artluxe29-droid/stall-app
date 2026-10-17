@@ -9,6 +9,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'chat.dart';
 import 'checkout.dart';
+import 'trip.dart';
 import 'selling.dart';
 
 /// "Send code on WhatsApp", with the same message as the web app.
@@ -349,6 +350,15 @@ class _OrderScreenState extends State<OrderScreen> {
                 : _note('This order was placed before online payment started, or its payment window ended. Add the item to your bag again to buy it.'),
           if (o.status == 'under_review') _note('Stall is checking this order. You will see the result here, usually within a few hours.'),
           if (o.status == 'rejected') _note('Payment not accepted${o.note.isEmpty ? '' : ': ${o.note}'}. If you did pay, contact the seller or the Stall team.', bad: true),
+          if (o.verified && o.method != null && o.handedAt == null) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              key: const Key('liveMap'),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TripScreen(order: o, seller: false))),
+              icon: const Icon(Icons.map_outlined),
+              label: Text(o.method == 'delivery' ? 'Follow your delivery, set the drop-off spot' : 'Pickup map: share your location'),
+            ),
+          ],
           if (o.verified && o.method == 'delivery') _note('Delivering to ${o.addr}'),
           if (o.verified && o.method == 'pickup') _note('${o.stage == 'ready' ? 'Ready for pickup' : 'Pick up'}${o.pickup.isEmpty ? '' : ' at ${o.pickup}'}. Bring your release code.'),
           if (o.verified && ps)
