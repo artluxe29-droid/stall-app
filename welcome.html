@@ -977,7 +977,7 @@ const storeBtns=()=>(STORES.play?`<a class="btn acc" href="${esc(STORES.play)}" 
 function flows(){if(STORES.play||STORES.apple)return storeFlows();return{
  android:[{t:'Tap "Install Stall"',p:'Your phone will ask if you want to add Stall. It\'s free and tiny.',f:'menu',a:()=>dip?`<button class="btn acc" data-gi>Install Stall</button>`:`<p class="note" style="margin-top:0">Tap <b>⋮</b> at the top right of Chrome, then <b>Install app</b> (or <b>Add to Home screen</b>).</p><button class="btn ghost sm" data-gn>Done, next</button>`},
   {t:'Tap "Install" to confirm',p:'Android shows a small box. Tap Install.',f:'prompt',a:()=>`<button class="btn ghost sm" data-gn>Done, next</button>`},
-  {t:'Open Stall from your home screen',p:'Look for the indigo Stall icon with the little awning, open it and sign up with your matric number.',f:'home',a:()=>`<a class="btn acc" href="/app">Open Stall now</a>`}],
+  {t:'Open Stall from your home screen',p:'Look for the indigo Stall icon with the little awning, open it and sign up with your phone number.',f:'home',a:()=>`<a class="btn acc" href="/app">Open Stall now</a>`}],
  androidOther:[{t:'Open this page in Chrome',p:'This browser makes its own copy of apps, and Google Play Protect may block it. Chrome installs Stall safely.',f:'chrome',a:()=>`<a class="btn acc" href="${intent}" data-goc>Open in Chrome</a><button class="btn ghost sm" data-copy>Copy link</button>`},
   {t:'Then tap "Install Stall"',p:'In Chrome, scroll to this section and follow the steps.',f:'menu',a:()=>''}],
  inapp:[{t:'Tap ⋮ at the top right',p:'Apps like WhatsApp and Instagram can\'t install other apps, so open this page in your browser first.',f:'inapp',pt:['tr','Tap ⋮ up here ↗'],a:()=>`<button class="btn ghost sm" data-copy>Or copy the link</button><button class="btn ghost sm" data-gn>Done, next</button>`},
@@ -988,21 +988,21 @@ function flows(){if(STORES.play||STORES.apple)return storeFlows();return{
  iosOther:[{t:'Open this page in Safari',p:'On iPhone, apps can only be added from Safari. Copy the link, open Safari and paste it.',f:'share',a:()=>`<button class="btn acc" data-copy>Copy link</button><button class="btn ghost sm" data-gn>Done, next</button>`},
   {t:'Then tap Share → Add to Home Screen',p:'Come back to this section in Safari and follow along.',f:'sheet',a:()=>''}],
  desktop:[{t:'Scan with your phone',p:'Point your phone camera at the code. It opens this page on your phone, with the right steps for it.',f:'qr',qr:1,a:()=>`<button class="btn ghost sm" data-copy>Copy link</button>`}],
- done:[{t:'You\'re in 🎉',p:'Stall is on your home screen. Open it and sign up with your matric number.',f:'done',a:()=>`<a class="btn acc" href="/app">Open Stall</a>`}]}}
+ done:[{t:'You\'re in 🎉',p:'Stall is on your home screen. Open it and sign up with your phone number.',f:'done',a:()=>`<a class="btn acc" href="/app">Open Stall</a>`}]}}
 function storeFlows(){const open=`<a class="btn acc" href="/app">Open Stall</a>`,F={
  play:[{t:'Get Stall on Google Play',p:'Tap the button to open Stall in the Play Store. It\'s free.',f:'play',a:()=>storeBtns()},
-  {t:'Tap "Install", then open it',p:'Stall installs like any other app. Open it and sign up with your matric number.',f:'home',a:()=>open}],
+  {t:'Tap "Install", then open it',p:'Stall installs like any other app. Open it and sign up with your phone number.',f:'home',a:()=>open}],
  apple:[{t:'Get Stall on the App Store',p:'Tap the button to open Stall in the App Store. It\'s free.',f:'apple',a:()=>storeBtns()},
-  {t:'Tap "Get", then open it',p:'Stall installs like any other app. Open it and sign up with your matric number.',f:'home',a:()=>open}],
+  {t:'Tap "Get", then open it',p:'Stall installs like any other app. Open it and sign up with your phone number.',f:'home',a:()=>open}],
  desktop:[{t:'Scan with your phone',p:'Point your phone camera at the code to get Stall on your phone.',f:'qr',qr:1,a:()=>storeBtns()}],
- done:[{t:'You\'re in 🎉',p:'Stall is on your phone. Open it and sign up with your matric number.',f:'done',a:()=>open}]};
+ done:[{t:'You\'re in 🎉',p:'Stall is on your phone. Open it and sign up with your phone number.',f:'done',a:()=>open}]};
  // A phone whose store isn't ready yet still gets the home-screen steps.
  return{...F,android:STORES.play?F.play:oldFlows().android,androidOther:STORES.play?F.play:oldFlows().androidOther,inapp:android&&STORES.play?F.play:ios&&STORES.apple?F.apple:oldFlows().inapp,
   ios:STORES.apple?F.apple:oldFlows().ios,iosOther:STORES.apple?F.apple:oldFlows().iosOther}}
 function oldFlows(){const p=STORES;STORES={play:'',apple:''};const f=flows();STORES=p;return f}
 function variant(){if(matchMedia('(display-mode: standalone)').matches)return'done';if(inApp)return'inapp';if(ios)return iosOther?'iosOther':'ios';if(android)return andOther?'androidOther':'android';return'desktop'}
 function drawG(){const F=flows()[G.v],n=F.length;G.i=Math.min(G.i,n-1);const S=F[G.i];
- $('#gsteps').innerHTML=G.v==='done'?`<div class="yay"><h3>You're in 🎉</h3><p class="lead" style="margin:8px auto 16px">Stall is on your phone. Open it and sign up with your matric number.</p><a class="btn acc" href="/app">Open Stall</a></div>`
+ $('#gsteps').innerHTML=G.v==='done'?`<div class="yay"><h3>You're in 🎉</h3><p class="lead" style="margin:8px auto 16px">Stall is on your phone. Open it and sign up with your phone number.</p><a class="btn acc" href="/app">Open Stall</a></div>`
   :F.map((s,k)=>`<div class="gst ${k===G.i?'on':k<G.i?'done':''}"><span class="n">${k<G.i?'✓':k+1}</span><div><b>${esc(s.t)}</b><p>${esc(s.p)}</p>${k===G.i?`<div class="acts">${s.a()}</div>${s.qr?'<div class="qrbox" style="margin-top:14px"><div id="qrG"></div><small>Scan to install</small></div>':''}`:''}</div></div>`).join('');
  $('#gbar').style.width=(G.v==='done'?100:Math.round(G.i/n*100))+'%';$('#gfake').innerHTML=FAKE[S.f]||'';
  if(S.qr)loadQR().then(()=>{try{const q=qrcode(0,'M');q.addData(location.origin+'/#get');q.make();$('#qrG').innerHTML=q.createSvgTag({cellSize:6,margin:1,scalable:true})}catch(e){}});

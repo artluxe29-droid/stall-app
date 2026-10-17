@@ -66,8 +66,8 @@ class _SignInScreenState extends State<SignInScreen> {
                 keyboardType: TextInputType.phone,
                 autofillHints: const [AutofillHints.telephoneNumber],
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(labelText: 'Phone or matric number', hintText: '0803 123 4567'),
-                validator: (v) => (v ?? '').trim().length < 4 ? 'Enter your phone or matric number.' : null,
+                decoration: const InputDecoration(labelText: 'Phone number', hintText: '0803 123 4567'),
+                validator: (v) => (v ?? '').trim().length < 4 ? 'Enter your phone number.' : null,
               ),
               const SizedBox(height: 14),
               TextFormField(

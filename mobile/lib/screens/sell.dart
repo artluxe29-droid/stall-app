@@ -13,6 +13,7 @@ import '../widgets.dart';
 import 'account_setup.dart';
 import 'browse.dart';
 import 'checkout.dart' show confirm;
+import 'selling.dart';
 
 /// Picks listing photos (1 to 8), shrunk like the web app does (720px, JPEG), as data URLs for the API.
 /// Tests replace this.
@@ -178,7 +179,7 @@ class _SellTabState extends State<SellTab> {
     if (u != null && u.isVendor) {
       return const EmptyState(
         icon: Icons.storefront_outlined,
-        title: 'Campus vendors sell through a store',
+        title: 'Businesses sell through a store',
         text: 'Opening and running your store in the app arrives in the next update. For now, manage it on stall.com.ng.',
       );
     }
@@ -203,6 +204,15 @@ class _SellTabState extends State<SellTab> {
                   : 'Off: buyers collect from you'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DeliveryScreen())),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              key: const Key('weeklyTile'),
+              leading: const Icon(Icons.bar_chart_rounded, color: StallColors.indigo),
+              title: const Text('Weekly statement'),
+              subtitle: const Text('What you sold and were paid this week'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WeeklyScreen())),
             ),
             const Divider(height: 1),
             ListTile(

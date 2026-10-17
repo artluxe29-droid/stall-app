@@ -86,7 +86,6 @@ void main() {
     await t.pumpAndSettle();
 
     await type(t, 'su-name', 'Ada Obi');
-    await type(t, 'su-matric', 'ac20201234');
     await type(t, 'su-email', 'ada@gmail.com');
     await type(t, 'su-phone', '0803 123 4567');
     await type(t, 'su-pw', 'password123');
@@ -101,7 +100,6 @@ void main() {
       'phone': '0803 123 4567',
       'where': 'Hall B',
       'password': 'password123',
-      'matric': 'ac20201234',
       'email': 'ada@gmail.com',
     });
     expect(f.calls.last.headers['x-stall-app'], '1');
@@ -118,7 +116,7 @@ void main() {
 
   testWidgets('a server error lands on the right field; an unlisted school sends its name and state', (t) async {
     final f = await start(t, {
-      'POST register': (_) => (409, {'error': 'An account with this matric number or phone number already exists. Try signing in.', 'field': 'matric'}),
+      'POST register': (_) => (409, {'error': 'An account with this phone number already exists. Try signing in.', 'field': 'phone'}),
     });
     await tap(t, 'toSignUp');
     await tap(t, 'school');
@@ -135,7 +133,6 @@ void main() {
     expect(find.text('Kings College — Lagos'), findsOneWidget);
 
     await type(t, 'su-name', 'Ada Obi');
-    await type(t, 'su-matric', 'AC20201234');
     await type(t, 'su-email', 'ada@gmail.com');
     await type(t, 'su-phone', '08031234567');
     await type(t, 'su-pw', 'password123');
@@ -144,7 +141,7 @@ void main() {
     await tap(t, 'su-submit');
     expect(body(f, 'register'), containsPair('school_name', 'Kings College'));
     expect(body(f, 'register'), containsPair('school_state', 'Lagos'));
-    expect(find.text('An account with this matric number or phone number already exists. Try signing in.'), findsOneWidget);
+    expect(find.text('An account with this phone number already exists. Try signing in.'), findsOneWidget);
     expect(find.text('Create your account'), findsOneWidget);
   });
 
@@ -154,9 +151,9 @@ void main() {
       'GET me': (_) => (200, {'user': {...user(), 'role': 'vendor'}}),
     });
     await tap(t, 'toSignUp');
-    await t.tap(find.text('Campus vendor'));
+    await t.tap(find.text('Business'));
     await t.pumpAndSettle();
-    expect(find.byKey(const Key('su-matric')), findsNothing);
+    expect(find.byKey(const Key('su-email')), findsNothing);
     await tap(t, 'school');
     await t.tap(find.text('Ajayi Crowther University (ACU)'));
     await t.pumpAndSettle();

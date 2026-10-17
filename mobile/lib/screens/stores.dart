@@ -169,7 +169,7 @@ class StoreCard extends StatelessWidget {
                   [
                     Category.of(s.cat).name,
                     if (s.spot.isNotEmpty) s.spot,
-                    if (s.vendor) 'Campus vendor',
+                    if (s.vendor) 'Business',
                     if (s.school.isNotEmpty && s.school != mySchool) s.school,
                     if (s.reach == 'national') 'Ships nationwide',
                   ].join(' · '),
@@ -289,7 +289,7 @@ class _StoreBody extends StatelessWidget {
             const SizedBox(height: 6),
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               _OpenDot(open: s.open),
-              if (s.vendor) Text(' · Campus vendor', style: t.bodySmall),
+              if (s.vendor) Text(' · Business', style: t.bodySmall),
             ]),
             if (s.rating.n > 0)
               TextButton(onPressed: () => showReviews(context, uid: s.ownerId, name: s.name), child: StarText('${s.rating.label} · reviews')),
