@@ -7,6 +7,7 @@ import '../main.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'chat.dart';
 import 'checkout.dart';
 import 'selling.dart';
 
@@ -296,6 +297,25 @@ class _OrderScreenState extends State<OrderScreen> {
     }
   }
 
+  Future<void> _report() async {
+    final r = await askNote(context,
+        title: 'Report a problem',
+        text: 'What went wrong? Be specific, e.g. "the screen is cracked" or "they didn\'t come to the meeting point". The money stays on hold. '
+            'The seller has ${((SessionScope.of(context).config['timers'] as Map?)?['answer'] as num?) ?? 4} hours to accept or give their side. Reports that turn out to be false count as a strike.',
+        hint: 'Write it here',
+        button: 'Send report');
+    if (r != null && mounted) await _act('orders/report', {'id': o.id, 'reason': r.$1, 'text': r.$1, 'note': r.$1, 'photo': r.$2}, 'Reported. The money is on hold.');
+  }
+
+  Future<void> _side() async {
+    final r = await askNote(context,
+        title: 'Give your side',
+        text: 'Explain what happened. A photo helps Stall decide fairly, e.g. the item, the handover spot or a chat screenshot.',
+        hint: 'Write it here',
+        button: 'Send');
+    if (r != null && mounted) await _act('orders/evidence', {'id': o.id, 'reason': r.$1, 'text': r.$1, 'note': r.$1, 'photo': r.$2}, 'Sent to Stall');
+  }
+
   Widget _note(String text, {bool bad = false}) => Container(
         width: double.infinity,
         margin: const EdgeInsets.only(top: 12),
@@ -319,6 +339,8 @@ class _OrderScreenState extends State<OrderScreen> {
           ]),
           const SizedBox(height: 4),
           Text('${naira(o.amount)} · from ${o.sellerName}', style: t.bodyMedium?.copyWith(color: StallColors.muted)),
+          if (o.status != 'pending' && o.status != 'expired')
+            Align(alignment: Alignment.centerLeft, child: MessageButton(ref: 'O${o.id}', label: 'Message ${o.sellerName.split(' ').first}')),
           if (o.verified) ...[const SizedBox(height: 16), ReleaseCodeCard(order: o)],
           if (o.status == 'released' && o.method != null) ...[const SizedBox(height: 16), Tracker(order: o)],
           if (o.status == 'pending')
@@ -331,12 +353,66 @@ class _OrderScreenState extends State<OrderScreen> {
           if (o.verified && o.method == 'pickup') _note('${o.stage == 'ready' ? 'Ready for pickup' : 'Pick up'}${o.pickup.isEmpty ? '' : ' at ${o.pickup}'}. Bring your release code.'),
           if (o.verified && ps)
             _note(o.handedAt != null
-                ? 'The seller says they handed it over. If you have it, tap I\'ve got it. If not, report a problem on the website by ${when(o.handUntil ?? 0)}. After that the seller is paid automatically.'
+                ? 'The seller says they handed it over. If you have it, tap I\'ve got it. If not, report a problem by ${when(o.handUntil ?? 0)}. After that the seller is paid automatically.'
                 : 'Stall is holding your ${naira(o.amount)} until you have your order.'
                     '${o.holdUntil != null ? ' If you don\'t report a problem, the seller is paid on ${dayOf(o.holdUntil!)}.' : ''}'
                     '${o.refundAt != null ? ' If the seller hasn\'t sent it by ${dayOf(o.refundAt!)}, you\'re refunded automatically.' : ''}'),
           if (o.status == 'disputed')
-            _note('A problem was reported on this order: ${o.note}. The money stays on hold while Stall looks at both sides. Reply on the website for now.', bad: true),
+            _note(
+                '${o.note}. The money stays on hold.'
+                '${o.dispBy == 'seller' && !o.dispReplied && o.dispDue != null ? ' Accept it or give your side by ${when(o.dispDue!)}, or it\'s decided for the seller.' : ''}'
+                '${o.dispReplied ? ' Both sides have spoken: the Stall team will decide.' : ''}',
+                bad: true),
+          if (o.status == 'disputed') ...[
+            const SizedBox(height: 12),
+            if (o.dispBy == 'seller')
+              FilledButton.tonal(
+                  key: const Key('settleAccept'),
+                  onPressed: _busy
+                      ? null
+                      : () async {
+                          if (await confirm(context, 'Accept and release?', 'The seller is paid and the order is closed. Nobody gets a strike.',
+                              yes: 'Accept and release', no: 'Not now')) {
+                            await _act('orders/settle', {'id': o.id, 'how': 'accept'}, 'Seller paid');
+                          }
+                        },
+                  child: const Text('Accept and release'))
+            else
+              FilledButton.tonal(
+                  key: const Key('settleWithdraw'),
+                  onPressed: _busy
+                      ? null
+                      : () async {
+                          if (await confirm(context, 'Withdraw your report?', 'The order carries on as normal. Only do this if the problem is sorted.',
+                              yes: 'Withdraw report', no: 'Not now')) {
+                            await _act('orders/settle', {'id': o.id, 'how': 'withdraw'}, 'Report withdrawn');
+                          }
+                        },
+                  child: const Text('Withdraw report')),
+            OutlinedButton(
+                key: const Key('giveSide'),
+                onPressed: _busy ? null : _side,
+                child: Text(o.dispBy == 'seller' && !o.dispReplied ? 'Give your side' : 'Add more')),
+            TextButton(
+                key: const Key('bothSides'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => EvidenceScreen(orderId: o.id))),
+                child: const Text('See both sides')),
+          ],
+          if (o.noShow && o.status == 'refunded') ...[
+            _note('The seller says you didn\'t show up, so this counts as a strike on your account. If that isn\'t true, tell Stall and the strike is removed.', bad: true),
+            TextButton(
+              key: const Key('objectNoShow'),
+              onPressed: _busy
+                  ? null
+                  : () async {
+                      if (await confirm(context, 'It isn\'t true?', 'Tell Stall the seller\'s "didn\'t show up" claim isn\'t true? The strike on your account is removed.',
+                          yes: 'It isn\'t true', no: 'Cancel')) {
+                        await _act('orders/object', {'id': o.id}, 'Strike removed');
+                      }
+                    },
+              child: const Text('That isn\'t true'),
+            ),
+          ],
           if (o.status == 'refunded') _note('Refunded to you. It can take a few working days to show in your account.${o.note.isEmpty ? '' : ' ${o.note}'}'),
           if (o.status == 'expired') _note(o.note.isEmpty ? 'You did not complete payment in time. Add it to your bag again to retry.' : o.note),
           const SizedBox(height: 20),
@@ -384,8 +460,11 @@ class _OrderScreenState extends State<OrderScreen> {
                       },
                 child: const Text('Cancel order'),
               ),
-            Text('Something wrong? Report a problem from your orders on stall.com.ng. Reporting in the app arrives soon.',
-                textAlign: TextAlign.center, style: t.bodySmall),
+            TextButton(
+              key: const Key('reportProblem'),
+              onPressed: _busy ? null : _report,
+              child: const Text('Report a problem', style: TextStyle(color: StallColors.red)),
+            ),
           ],
           if (o.status == 'released')
             o.rated != null

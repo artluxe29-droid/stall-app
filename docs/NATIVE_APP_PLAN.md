@@ -1,6 +1,6 @@
 # Stall native app: rebuild plan
 
-Status: **Phase 3 next.** Phases 0, 1 and 2 are done: browsing, accounts, buying, selling items, selling orders and payouts, and opening and running a store. The app also has "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
+Status: **Phase 3 in progress.** 3a (chat, problem reports, review replies, strikes notice) is in the app; 3b (live map) and 3c (push notifications) are next. Phases 0, 1 and 2 are done: browsing, accounts, buying, selling items, selling orders and payouts, and opening and running a store. The app also has "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
 
 ## Why
 
@@ -62,8 +62,9 @@ Tick each one only when it works in the native app against the live API.
   - [x] Timers
   - [x] Release code / "I've got it"
   - [x] Cancel
-  - [ ] Report a problem with evidence
-  - [ ] Ratings and buyer ratings
+  - [x] Report a problem with evidence
+  - [x] Ratings and buyer ratings
+  - [x] Answer a problem report, see both sides, object to a no-show
   - [ ] Receipts
 - **Selling:**
   - [x] List an item (photos, compression, price hint)
@@ -93,9 +94,12 @@ Tick each one only when it works in the native app against the live API.
   - [x] Weekly statement
   - [x] Answer a problem report: accept and refund, or give your side with a photo
 - **Chat:**
-  - [ ] Threads
-  - [ ] Messages
-  - [ ] Report and block
+  - [x] Threads
+  - [x] Messages
+  - [x] Report and block
+- **Trust:**
+  - [x] Review replies
+  - [x] Paused-for-strikes notice
 - **Notifications:**
   - [ ] Native push (FCM)
   - [ ] In-app news dots

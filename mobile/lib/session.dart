@@ -41,6 +41,8 @@ class StallUser {
   bool get acctSet => raw['acctSet'] == true;
   /// Sales left with no Stall fee (launch offer).
   int get freeLeft => (raw['freeLeft'] as num?)?.toInt() ?? 0;
+  /// Paused for strikes (5 in 30 days) until this time, or null.
+  int? get pausedUntil => (raw['pausedUntil'] as num?)?.toInt();
   Map<String, dynamic> get deliv => raw['deliv'] is Map<String, dynamic> ? raw['deliv'] as Map<String, dynamic> : const {};
 }
 

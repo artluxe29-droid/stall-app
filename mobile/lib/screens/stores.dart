@@ -7,6 +7,7 @@ import '../models.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'browse.dart';
+import 'chat.dart';
 import 'checkout.dart';
 import 'item.dart';
 
@@ -318,9 +319,10 @@ class _StoreBody extends StatelessWidget {
             if (mine)
               const Padding(
                 padding: EdgeInsets.only(top: 12),
-                child: Text('This is your store. Managing it in the app arrives with selling; for now use stall.com.ng.',
-                    style: TextStyle(color: StallColors.muted)),
-              ),
+                child: Text('This is your store. Manage it from Sell → Your store.', style: TextStyle(color: StallColors.muted)),
+              )
+            else
+              Padding(padding: const EdgeInsets.only(top: 12), child: MessageButton(ref: s.id, label: 'Message ${s.name}')),
           ]),
         ),
         if (s.items.isEmpty)

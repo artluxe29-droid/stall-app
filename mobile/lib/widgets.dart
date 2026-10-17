@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'models.dart';
 import 'theme.dart';
 
 /// The Stall wordmark (indigo on light backgrounds, cream on dark).
@@ -80,6 +81,22 @@ class EmptyState extends StatelessWidget {
             if (action != null) ...[const SizedBox(height: 18), action!],
           ]),
         ),
+      );
+}
+
+/// Shown while an account is paused for strikes.
+class PausedCard extends StatelessWidget {
+  const PausedCard({super.key, required this.until});
+  final int until;
+  @override
+  Widget build(BuildContext context) => Container(
+        key: const Key('paused'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: const Color(0xFFFDE2E4), borderRadius: BorderRadius.circular(14)),
+        child: Text(
+            'Your account is paused until ${when(until)} because of strikes (late cancels, no-shows, or problem reports lost or not answered). '
+            'You can still see your orders and finish the ones you have.'),
       );
 }
 

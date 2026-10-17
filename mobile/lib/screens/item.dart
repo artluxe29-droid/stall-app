@@ -7,6 +7,7 @@ import '../models.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'browse.dart';
+import 'chat.dart';
 import 'checkout.dart';
 
 /// Swipeable photos with dots.
@@ -161,6 +162,7 @@ class ItemScreen extends StatelessWidget {
               verified: item.verified,
               vlevel: item.vlevel,
             ),
+            if (!item.mine) ...[const SizedBox(height: 10), Align(alignment: Alignment.centerLeft, child: MessageButton(ref: item.id, label: 'Message seller'))],
             const SizedBox(height: 16),
           ]),
         ),
@@ -296,6 +298,40 @@ class _ReviewsViewState extends State<ReviewsView> {
     _f ??= SessionScope.of(context).api.get('reviews', {'uid': '${widget.uid}'});
   }
 
+  /// Sellers can reply once to each review of them.
+  Future<void> _reply(Map<String, dynamic> x) async {
+    var text = '';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reply to this review'),
+        content: TextField(
+            key: const Key('replyText'),
+            onChanged: (v) => text = v,
+            maxLength: 300,
+            maxLines: 3,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: 'Thank them, or explain what happened. Everyone can see it.')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(key: const Key('replySend'), onPressed: () => Navigator.pop(ctx, true), child: const Text('Post reply')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final api = SessionScope.of(context).api;
+    try {
+      await api.post('reviews/reply', {'id': x['id'], 'text': text.trim()});
+      if (!mounted) return;
+      toast(context, 'Reply posted');
+      setState(() {
+        _f = api.get('reviews', {'uid': '${widget.uid}'});
+      });
+    } on ApiError catch (e) {
+      if (mounted) toast(context, e.message);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
@@ -311,6 +347,7 @@ class _ReviewsViewState extends State<ReviewsView> {
         final cn = d['cancels'] as Map? ?? const {};
         final n = (cn['n'] as num? ?? 0).toInt(), of = (cn['of'] as num? ?? 0).toInt();
         final revs = (d['reviews'] as List? ?? const []).cast<Map<String, dynamic>>();
+        final mine = SessionScope.of(context).user?.uid == widget.uid;
         return ListView(controller: widget.controller, padding: const EdgeInsets.fromLTRB(20, 0, 20, 32), children: [
           Text(widget.name, style: t.headlineSmall),
           const SizedBox(height: 4),
@@ -351,7 +388,9 @@ class _ReviewsViewState extends State<ReviewsView> {
                       const TextSpan(text: 'Seller\'s reply: ', style: TextStyle(fontWeight: FontWeight.w700)),
                       TextSpan(text: x['reply'].toString()),
                     ])),
-                  ),
+                  )
+                else if (mine)
+                  TextButton(key: Key('reply-${x['id']}'), onPressed: () => _reply(x), child: const Text('Reply')),
               ]),
             ),
         ]);

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -9,6 +11,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'account_setup.dart' show pickPhoto;
 import 'checkout.dart' show confirm;
+import 'chat.dart';
 import 'orders.dart';
 
 /// The handover timer, worded like the web app ("30 minutes", "2 hours").
@@ -86,7 +89,7 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
       isScrollControlled: true,
       showDragHandle: true,
       backgroundColor: StallColors.cream,
-      builder: (_) => _NoteSheet(
+      builder: (_) => NoteSheet(
         title: 'I handed it over',
         text: 'The buyer will be asked to confirm or report a problem within ${handText(s.config)}. After that you\'re paid automatically. Add a note or photo of the handover if you can.',
         hint: 'e.g. Met at the faculty gate at 2pm (optional)',
@@ -119,7 +122,7 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
       isScrollControlled: true,
       showDragHandle: true,
       backgroundColor: StallColors.cream,
-      builder: (_) => const _NoteSheet(
+      builder: (_) => const NoteSheet(
         title: 'Give your side',
         text: 'Explain what happened. A photo helps Stall decide fairly, e.g. the item, the handover spot or a chat screenshot.',
         hint: 'Write it here',
@@ -197,13 +200,20 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
               leading: const Icon(Icons.person_outline, color: StallColors.indigo),
               title: Text(o.buyerName),
               subtitle: o.buyerRating.n > 0 ? StarText('Buyer ${o.buyerRating.label}') : const Text('New buyer'),
-              trailing: phone.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: 'Call the buyer',
-                      onPressed: () => launchUrl(Uri.parse('tel:$phone')),
-                      icon: const Icon(Icons.call_outlined),
-                    ),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                IconButton(
+                  key: Key('msg-O${o.id}'),
+                  tooltip: 'Message the buyer',
+                  onPressed: () => openChat(context, 'O${o.id}'),
+                  icon: const Icon(Icons.chat_bubble_outline_rounded),
+                ),
+                if (phone.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Call the buyer',
+                    onPressed: () => launchUrl(Uri.parse('tel:$phone')),
+                    icon: const Icon(Icons.call_outlined),
+                  ),
+              ]),
             ),
           ),
           if ((ver || o.status == 'released') && o.method != null) ...[const SizedBox(height: 16), Tracker(order: o)],
@@ -235,6 +245,10 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
                 bad: true),
           if (o.status == 'disputed') ...[
             const SizedBox(height: 12),
+            TextButton(
+                key: const Key('bothSides'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => EvidenceScreen(orderId: o.id))),
+                child: const Text('See both sides')),
             if (o.dispBy == 'buyer')
               FilledButton.tonal(key: const Key('settleAccept'), onPressed: _busy ? null : () => _settle('accept'), child: const Text('Accept and refund'))
             else
@@ -331,18 +345,18 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
   }
 }
 
-/// A note and optional photo (handover proof).
-class _NoteSheet extends StatefulWidget {
-  const _NoteSheet({required this.title, required this.text, required this.hint, required this.button, this.needText = false});
+/// A note and optional photo: handover proof, a problem report, or your side of one.
+class NoteSheet extends StatefulWidget {
+  const NoteSheet({super.key, required this.title, required this.text, required this.hint, required this.button, this.needText = false});
   final String title, text, hint, button;
 
   /// Ask for a written note (at least 10 characters) or a photo.
   final bool needText;
   @override
-  State<_NoteSheet> createState() => _NoteSheetState();
+  State<NoteSheet> createState() => _NoteSheetState();
 }
 
-class _NoteSheetState extends State<_NoteSheet> {
+class _NoteSheetState extends State<NoteSheet> {
   final _t = TextEditingController();
   String? _photo, _err;
   @override
@@ -388,6 +402,67 @@ class _NoteSheetState extends State<_NoteSheet> {
             child: Text(widget.button),
           ),
         ]),
+      );
+}
+
+/// Opens a [NoteSheet] and returns (text, photo), or null if closed.
+Future<(String, String?)?> askNote(BuildContext context, {required String title, required String text, required String hint, required String button, bool needText = true}) =>
+    showModalBottomSheet<(String, String?)>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: StallColors.cream,
+      builder: (_) => NoteSheet(title: title, text: text, hint: hint, button: button, needText: needText),
+    );
+
+/// Both sides of a problem report: what each person wrote, with photos.
+class EvidenceScreen extends StatefulWidget {
+  const EvidenceScreen({super.key, required this.orderId});
+  final int orderId;
+  @override
+  State<EvidenceScreen> createState() => _EvidenceScreenState();
+}
+
+class _EvidenceScreenState extends State<EvidenceScreen> {
+  Future<Map<String, dynamic>>? _f;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _f ??= SessionScope.of(context).api.get('orders/evidence', {'id': '${widget.orderId}'});
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Both sides')),
+        body: FutureBuilder<Map<String, dynamic>>(
+          future: _f,
+          builder: (context, snap) {
+            if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+            if (snap.hasError) return EmptyState(icon: Icons.wifi_off_rounded, title: 'Couldn\'t load it', text: snap.error.toString());
+            final items = (snap.data!['items'] as List? ?? const []).cast<Map<String, dynamic>>();
+            if (items.isEmpty) return const EmptyState(icon: Icons.forum_outlined, title: 'Nothing yet', text: 'Notes and photos from either side show here.');
+            final t = Theme.of(context).textTheme;
+            return ListView(padding: const EdgeInsets.fromLTRB(20, 4, 20, 32), children: [
+              for (final x in items)
+                Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('${x['who']} (${x['side']}) · ${when((x['t'] as num?)?.toInt() ?? 0)}', style: t.bodySmall),
+                      if ((x['text'] ?? '').toString().isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(x['text'].toString())),
+                      if ((x['photo'] ?? '').toString().startsWith('data:image'))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12), child: Image.memory(base64Decode(x['photo'].toString().split(',').last), fit: BoxFit.cover)),
+                        ),
+                    ]),
+                  ),
+                ),
+            ]);
+          },
+        ),
       );
 }
 
