@@ -43,6 +43,8 @@ class StallUser {
   /// Sales left with no Stall fee (launch offer).
   int get freeLeft => (raw['freeLeft'] as num?)?.toInt() ?? 0;
   /// Paused for strikes (5 in 30 days) until this time, or null.
+  /// Partner banners for this person (their school or area), from the server.
+  List<Map<String, dynamic>> get partners => (raw['partners'] as List? ?? const []).whereType<Map<String, dynamic>>().toList();
   bool get emailNotify => raw['emailNotify'] == true;
 
   /// Stall credit (from invites), usable on featuring and store reach.

@@ -12,6 +12,7 @@ import '../widgets.dart';
 import 'account_setup.dart' show pickPhoto;
 import 'checkout.dart' show confirm;
 import 'chat.dart';
+import 'extras.dart';
 import 'orders.dart';
 import 'trip.dart';
 
@@ -322,6 +323,16 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
               ),
             ],
           ],
+          if (o.status == 'released')
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: const Key('receipt'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReceiptScreen(path: 'orders/receipt', query: {'id': '${o.id}'}))),
+                icon: const Icon(Icons.receipt_long_outlined),
+                label: const Text('Sale receipt'),
+              ),
+            ),
           if (o.status == 'released')
             o.brate != null
                 ? _note('You rated this buyer ${'★' * o.brate!}')

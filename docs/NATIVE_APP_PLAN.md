@@ -1,6 +1,6 @@
 # Stall native app: rebuild plan
 
-Status: **Phase 4 next.** Phase 3 (chat, problem reports, review replies, strikes notice, live map, push notifications) is in the app; Phase 4 is next. Phases 0, 1 and 2 are done: browsing, accounts, buying, selling items, selling orders and payouts, and opening and running a store. The app also has "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
+Status: **Phase 5 (launch) next.** Phase 4 is done except voice search, bulk add and the how-to videos. Phase 3 (chat, problem reports, review replies, strikes notice, live map, push notifications) is in the app; Phase 4 is next. Phases 0, 1 and 2 are done: browsing, accounts, buying, selling items, selling orders and payouts, and opening and running a store. The app also has "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
 
 ## Why
 
@@ -57,7 +57,7 @@ Tick each one only when it works in the native app against the live API.
   - [x] Checkout (pickup or delivery)
   - [x] Consent
   - [x] Paystack payment and return
-  - [ ] Credit and fee display
+  - [x] Credit and fee display
 - **Orders:**
   - [x] Order list and detail
   - [x] Timers
@@ -66,7 +66,7 @@ Tick each one only when it works in the native app against the live API.
   - [x] Report a problem with evidence
   - [x] Ratings and buyer ratings
   - [x] Answer a problem report, see both sides, object to a no-show
-  - [ ] Receipts
+  - [x] Receipts
 - **Selling:**
   - [x] List an item (photos, compression, price hint)
   - [ ] Bulk add
@@ -83,8 +83,8 @@ Tick each one only when it works in the native app against the live API.
   - [x] Reach
   - [x] Featured
   - [x] Share link
-  - [ ] Store QR card (Phase 4)
-  - [ ] Pay part with Stall credit
+  - [x] Store QR card
+  - [x] Pay part with Stall credit
 - **Seller orders:**
   - [x] Stages (packed, on the way, ready)
   - [x] "I handed it over"
@@ -112,16 +112,17 @@ Tick each one only when it works in the native app against the live API.
   - [x] Close
   - [x] No-fee accounts (the server leaves out the charge)
 - **Extras:**
-  - [ ] Milestone badges and share images
+  - [x] Milestone badges (shared as text; the website's badge picture comes later)
   - [x] Invite and referrals (code at sign-up, credit)
   - [ ] How-to videos
-  - [ ] Partner banners and reach stats
+  - [x] Partner banners and reach stats
+  - [x] Payments to Stall, with receipts
   - [x] Guide
   - [x] Help and support links
 - **School states:**
-  - [ ] Coming soon and waitlist
-  - [ ] Sellers-only stage
-  - [ ] Students-can't-sell
+  - [x] Coming soon and waitlist (retired when Stall opened to everyone)
+  - [x] Sellers-only stage (retired)
+  - [x] Students-can't-sell (the server's message shows when selling)
   - [x] Short break message
   - [x] Closed screen
 - **Admin:** stays on the web (opened from the app for staff)

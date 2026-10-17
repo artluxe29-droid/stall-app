@@ -9,6 +9,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'chat.dart';
 import 'checkout.dart';
+import 'extras.dart';
 import 'item.dart';
 import 'search.dart';
 
@@ -222,6 +223,7 @@ class _HomeTabState extends State<HomeTab> {
               const BagButton(),
             ]),
             if (s.user?.pausedUntil != null) ...[const SizedBox(height: 12), PausedCard(until: s.user!.pausedUntil!)],
+            for (final p in s.user?.partners ?? const <Map<String, dynamic>>[]) ...[const SizedBox(height: 12), PartnerBanner(p: p)],
             const SizedBox(height: 16),
             SearchBox(onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SearchScreen()))),
             const SizedBox(height: 16),
