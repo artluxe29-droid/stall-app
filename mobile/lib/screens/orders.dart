@@ -160,7 +160,9 @@ class _OrdersTabState extends State<OrdersTab> {
   }
 
   Future<List<Order>> _load() async {
-    final r = await SessionScope.of(context).api.get(_selling ? 'orders/selling' : 'orders/mine');
+    final s = SessionScope.of(context), selling = _selling;
+    final r = await s.api.get(selling ? 'orders/selling' : 'orders/mine');
+    s.news.seen(selling: selling); // after loading, never while the tab is being built
     return (r['orders'] as List? ?? const []).map((e) => Order(e as Map<String, dynamic>)).toList();
   }
 

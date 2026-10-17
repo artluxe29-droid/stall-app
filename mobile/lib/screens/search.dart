@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
 import '../models.dart';
 import '../theme.dart';
+import '../voice.dart';
 import 'browse.dart';
 import 'stores.dart';
 
@@ -120,6 +121,17 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            key: const Key('voice'),
+            tooltip: 'Search by voice',
+            icon: const Icon(Icons.mic_none_rounded),
+            onPressed: () async {
+              final said = await listenOnce(context);
+              if (said == null || said.isEmpty || !mounted) return;
+              _q.text = said;
+              _run();
+            },
+          ),
           IconButton(
             key: const Key('filters'),
             tooltip: 'Filters',

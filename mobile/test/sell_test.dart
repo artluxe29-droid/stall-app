@@ -136,6 +136,7 @@ void main() {
       'POST listings/sold': (_) => (200, {'ok': true}),
       'POST listings/delete': (_) => (200, {'ok': true}),
     }, me: {'acctSet': true});
+    await t.scrollUntilVisible(find.textContaining('Photo doesn\'t show the item'), 200, scrollable: page());
     expect(find.text('Live'), findsOneWidget);
     expect(find.text('Not approved'), findsOneWidget);
     expect(find.textContaining('Photo doesn\'t show the item'), findsOneWidget);
