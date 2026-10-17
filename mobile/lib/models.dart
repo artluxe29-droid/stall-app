@@ -221,6 +221,10 @@ class Order {
   bool get noShow => raw['noShow'] == true;
   String? get dispBy => raw['dispBy'] as String?;
 
+  /// An open problem report must be answered by this time, or it's decided for the side that reported it.
+  int? get dispDue => raw['dispDue'] == null ? null : _int(raw['dispDue']);
+  bool get dispReplied => raw['dispReply'] != null;
+
   bool get verified => status == 'verified';
   bool get payable => card && status == 'pending' && deadline > DateTime.now().millisecondsSinceEpoch;
 

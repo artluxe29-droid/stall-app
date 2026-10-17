@@ -1,6 +1,6 @@
 # Stall native app: rebuild plan
 
-Status: **Phase 2 in progress.** Phases 0 and 1 are done. Phase 2a (sell an item) is in the app, along with "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
+Status: **Phase 2 in progress.** Phases 0 and 1 are done. Phases 2a (sell an item) and 2b (selling orders and payouts) are in the app, along with "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
 
 ## Why
 
@@ -82,12 +82,14 @@ Tick each one only when it works in the native app against the live API.
   - [ ] Featured
   - [ ] Store QR card
 - **Seller orders:**
-  - [ ] Stages (packed, on the way, ready)
-  - [ ] "I handed it over"
-  - [ ] Pins and ETA
+  - [x] Stages (packed, on the way, ready)
+  - [x] "I handed it over"
+  - [x] Arrival time ("10 min away", "I'm here")
+  - [ ] Meeting-spot pins (with the live map, Phase 3)
   - [ ] Live tracking
-  - [ ] Payouts and bank details
-  - [ ] Weekly statement
+  - [x] Payouts and bank details
+  - [x] Weekly statement
+  - [x] Answer a problem report: accept and refund, or give your side with a photo
 - **Chat:**
   - [ ] Threads
   - [ ] Messages
