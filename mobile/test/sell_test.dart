@@ -162,6 +162,6 @@ void main() {
 
   testWidgets('campus vendors are pointed to their store', (t) async {
     await sellTab(t, {}, me: {'role': 'vendor'});
-    expect(find.text('Campus vendors sell through a store'), findsOneWidget);
+    expect(find.text('Businesses sell through a store'), findsOneWidget);
   });
 }

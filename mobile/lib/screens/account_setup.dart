@@ -23,7 +23,6 @@ String? phoneError(String v) {
   return null;
 }
 
-final matricRule = RegExp(r'^[A-Za-z0-9/-]{4,16}$');
 final emailRule = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$');
 
 Future<void> openLink(String path) => launchUrl(Uri.parse('$apiBase$path'), mode: LaunchMode.externalApplication);
@@ -216,7 +215,7 @@ class _NewSchoolSheetState extends State<_NewSchoolSheet> {
       );
 }
 
-/// Create an account: a student (school, matric, email, hostel) or a campus vendor (business, shop location, invite code).
+/// Create an account: a student (school, email, hostel) or a business (business name, location, invite code).
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
   @override
@@ -225,7 +224,7 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   final _form = GlobalKey<FormState>();
-  final _c = {for (final k in ['name', 'matric', 'email', 'phone', 'pw', 'where', 'biz', 'code']) k: TextEditingController()};
+  final _c = {for (final k in ['name', 'email', 'phone', 'pw', 'where', 'biz', 'code']) k: TextEditingController()};
   bool _vendor = false, _ok = false, _hide = true, _busy = false, _okErr = false, _tried = false;
   String _cat = Category.all.first.id;
   SchoolChoice? _school;
@@ -254,22 +253,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() => _busy = true);
     final s = SessionScope.of(context);
     try {
-      final claim = await s.signUp({
+      await s.signUp({
         ..._school!.body,
         'role': _vendor ? 'vendor' : 'student',
         'name': v('name'),
         'phone': v('phone'),
         'where': v('where'),
         'password': _c['pw']!.text,
-        if (_vendor) ...{'biz': v('biz'), 'cat': _cat, 'code': v('code')} else ...{'matric': v('matric'), 'email': v('email')},
+        if (_vendor) ...{'biz': v('biz'), 'cat': _cat, 'code': v('code')} else ...{'email': v('email')},
       });
       if (!mounted) return;
-      // Back to the app (now signed in), then help them finish: claim their matric number, confirm their email.
+      // Back to the app (now signed in), then confirm their email.
       final nav = Navigator.of(context);
       nav.popUntil((r) => r.isFirst);
       final u = s.user;
-      if (u != null && !u.isVendor && (claim || (s.emailOn && u.email.isNotEmpty && !u.emailVerified))) {
-        nav.push(MaterialPageRoute(builder: (_) => FinishSetupScreen(claim: claim)));
+      if (u != null && s.emailOn && u.email.isNotEmpty && !u.emailVerified) {
+        nav.push(MaterialPageRoute(builder: (_) => const FinishSetupScreen()));
       }
     } on ApiError catch (e) {
       final field = e.data['field']?.toString();
@@ -337,7 +336,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 key: const Key('role'),
                 segments: const [
                   ButtonSegment(value: false, label: Text('Student'), icon: Icon(Icons.school_outlined)),
-                  ButtonSegment(value: true, label: Text('Campus vendor'), icon: Icon(Icons.storefront_outlined)),
+                  ButtonSegment(value: true, label: Text('Business'), icon: Icon(Icons.storefront_outlined)),
                 ],
                 selected: {_vendor},
                 onSelectionChanged: (x) => setState(() => _vendor = x.first),
@@ -350,8 +349,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 _field('name', 'Owner\'s full name', max: 50, auto: const [AutofillHints.name], check: (x) => x.length < 3 ? 'Enter your full name.' : null),
               ] else ...[
                 _field('name', 'Full name', max: 50, auto: const [AutofillHints.name], check: (x) => x.length < 3 ? 'Enter your full name.' : null),
-                _field('matric', 'Matric number',
-                    caps: true, max: 16, check: (x) => matricRule.hasMatch(x) ? null : 'Enter your matric number as it appears on your student ID.'),
                 _field('email', 'Email address',
                     hint: 'you@gmail.com',
                     kb: TextInputType.emailAddress,
@@ -429,49 +426,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 }
 
-/// Right after sign-up: claim a matric number someone else typed, and confirm the email address.
+/// Right after sign-up: confirm the email address (for order updates and password resets).
 class FinishSetupScreen extends StatelessWidget {
-  const FinishSetupScreen({super.key, required this.claim});
-  final bool claim;
+  const FinishSetupScreen({super.key});
   @override
   Widget build(BuildContext context) {
-    final s = SessionScope.of(context);
-    final u = s.user;
-    final t = Theme.of(context).textTheme;
+    final u = SessionScope.of(context).user;
     return Scaffold(
       appBar: AppBar(actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Later'))]),
       body: ListView(padding: const EdgeInsets.fromLTRB(24, 0, 24, 32), children: [
-        Text(claim ? 'One more step' : 'Confirm your email', style: t.displaySmall),
+        Text('Confirm your email', style: Theme.of(context).textTheme.displaySmall),
         const SizedBox(height: 16),
-        if (claim) ...[
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.shield_outlined, color: StallColors.indigo),
-              title: const Text('Your matric number is already in use'),
-              subtitle: Text(
-                  'Another account typed ${u?.matricClaim ?? 'it'}. If it\'s yours, verify with your student ID or another school document and it moves to you. Until then your account works for buying.'),
-              isThreeLine: true,
-            ),
-          ),
-          const SizedBox(height: 8),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const VerifyStudentScreen())),
-            child: const Text('Verify now'),
-          ),
-          const SizedBox(height: 24),
-        ],
-        if (s.emailOn && u != null && u.email.isNotEmpty && !u.emailVerified) ...[
-          if (claim) Text('Confirm your email', style: t.titleLarge),
-          const SizedBox(height: 8),
-          EmailCodeFlow(
-            initialEmail: u.email,
-            autoSend: true,
-            onDone: (r) {
-              toast(context, 'Email confirmed ✓');
-              Navigator.pop(context);
-            },
-          ),
-        ],
+        EmailCodeFlow(
+          initialEmail: u?.email ?? '',
+          autoSend: true,
+          onDone: (r) {
+            toast(context, 'Email confirmed ✓');
+            Navigator.pop(context);
+          },
+        ),
       ]),
     );
   }
@@ -633,7 +606,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               key: const Key('fg-id'),
               controller: _id,
               textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(labelText: 'Matric number or phone'))
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Phone number', hintText: '0803 123 4567'))
         else ...[
           TextField(
             key: const Key('fg-code'),
@@ -660,7 +634,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ? null
               : () => _go((api) async {
                     if (!sent) {
-                      if (_id.text.trim().isEmpty) throw ApiError('Enter your matric number or phone.');
+                      if (_id.text.trim().isEmpty) throw ApiError('Enter your phone number.');
                       final r = await api.post('auth/forgot', {'id': _id.text.trim()});
                       setState(() => _message = (r['message'] ?? 'If that account has a confirmed email, we have sent it a code.').toString());
                     } else {

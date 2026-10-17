@@ -179,7 +179,7 @@ class _SellTabState extends State<SellTab> {
     if (u != null && u.isVendor) {
       return const EmptyState(
         icon: Icons.storefront_outlined,
-        title: 'Campus vendors sell through a store',
+        title: 'Businesses sell through a store',
         text: 'Opening and running your store in the app arrives in the next update. For now, manage it on stall.com.ng.',
       );
     }

@@ -22,8 +22,6 @@ class StallUser {
   bool get isVendor => role == 'vendor';
   String get email => (raw['email'] ?? '').toString();
   bool get emailVerified => raw['emailVerified'] == true;
-  String get matric => (raw['matric'] ?? '').toString();
-  String get matricClaim => (raw['matricClaim'] ?? '').toString();
   /// 0 = not verified, 1 = confirmed a school email, 2 = Stall checked a school document.
   int get vlevel => (raw['vlevel'] as num?)?.toInt() ?? 0;
   /// The latest school document check: null, 'pending', 'approved' or 'rejected' (with [idReason]).
@@ -110,9 +108,8 @@ class Session extends ChangeNotifier {
     _set(SessionState.signedIn);
   }
 
-  /// Creates an account (the same fields as the web sign-up form). Returns true when the matric number
-  /// was already on another unverified account, so the person should verify to claim it.
-  Future<bool> signUp(Map<String, dynamic> body) async {
+  /// Creates an account (the same fields as the web sign-up form).
+  Future<void> signUp(Map<String, dynamic> body) async {
     final r = await api.post('register', body);
     final token = r['token'];
     if (token is! String) throw ApiError('Could not create your account. Please update the app and try again.');
@@ -121,7 +118,6 @@ class Session extends ChangeNotifier {
     await refresh();
     await _loadConfig();
     _set(SessionState.signedIn);
-    return r['claim'] == true;
   }
 
   /// Reloads who you are (verification level, email, school…) after something changed it.

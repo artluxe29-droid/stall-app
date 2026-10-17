@@ -1,6 +1,6 @@
 # Opening Stall to everyone
 
-Status: **Waiting for approval** (written 17 Oct 2026).
+Status: **Approved** (17 Oct 2026): yes to all five decisions. Step 1 is done; step 2 is next.
 
 ## The decision
 
