@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>try{var t=localStorage.getItem("stall:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
-<title>Stall – buy and sell on campus</title>
-<meta name="description" content="Buy and sell with students at your school, across your state, or anywhere in Nigeria. Stall holds your money until you have your order."><meta property="og:title" content="Stall – buy and sell on campus"><meta property="og:description" content="Textbooks, gadgets, fashion, hostel gear and food from students near you. Payments held until you have your order."><meta property="og:image" content="/icons/og-default.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:type" content="website"><meta name="twitter:card" content="summary_large_image">
+<title>Stall – buy and sell safely</title>
+<meta name="description" content="Buy and sell with students at your school, across your state, or anywhere in Nigeria. Stall holds your money until you have your order."><meta property="og:title" content="Stall – buy and sell safely"><meta property="og:description" content="Gadgets, fashion, books, home and hostel gear and food from people near you. Payments held until you have your order."><meta property="og:image" content="/icons/og-default.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:type" content="website"><meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml"><link rel="icon" href="/icons/favicon-48-v3.png" sizes="48x48"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#F6F2EA" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#0F1330" media="(prefers-color-scheme: dark)"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Stall"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="apple-touch-icon" href="/icons/apple-touch-icon-v3.png">
 <link rel="preload" href="/brand/fonts/figtree-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/brand/fonts.css">
 <style>
@@ -725,14 +725,14 @@ body.presell #tbShop,body.presell #tbOrders,body.presell #navShop,body.presell #
 <section id="shop">
   <div class="home">
     <div class="promo">
-      <div class="pt"><span class="eyebrow">Nigeria's student marketplace</span><h1>Everything you <span class="rw"><b id="rw">need</b></span>, <br>right on campus.</h1><p class="naija-line" id="naijaLine" hidden></p>
-        <p>Textbooks, gadgets, meals and hostel essentials from fellow students and campus stores.</p>
+      <div class="pt"><span class="eyebrow">Born on campus. Open to everyone.</span><h1>Everything you <span class="rw"><b id="rw">need</b></span>, <br>right near you.</h1><p class="naija-line" id="naijaLine" hidden></p>
+        <p>Gadgets, fashion, meals and everyday essentials from people and stores near you.</p>
         <div class="row"><button class="pill acc" id="shopNow">Shop now</button><button class="pill ghost" id="sellHero">Sell something</button></div></div>
       <div class="pa" aria-hidden="true" id="promoArt"></div>
     </div>
     <div class="soon" id="soonCard" hidden></div>
     <a class="ptnr" id="partnerCard" hidden target="_blank" rel="noopener"></a>
-    <div class="trust"><div><i data-ico="cap"></i><span>Students only<small>Schools across Nigeria</small></span></div><div><i data-ico="shield"></i><span>Checked payments<small>Stall confirms every payment</small></span></div><div><i data-ico="pin"></i><span>Collect on campus<small>Meet at a spot you choose</small></span></div></div>
+    <div class="trust"><div><i data-ico="cap"></i><span>Born on campus<small>Open to everyone in Nigeria</small></span></div><div><i data-ico="shield"></i><span>Checked payments<small>Stall confirms every payment</small></span></div><div><i data-ico="pin"></i><span>Collect nearby<small>Meet at a spot you choose</small></span></div></div>
     <div class="appcard gcard" id="guideCard" hidden><span class="gico" data-ico="sparkle"></span><div><b>New to Stall?</b><small>See how buying, selling and payments work, in about a minute</small></div><button class="pill sm" id="guideGo">Show me</button><button class="x" id="guideX" aria-label="Hide">×</button></div>
     <div class="appcard" id="appCard" hidden><img src="/icons/icon-192-v3.png" alt=""><div><b>Get the Stall app</b><small>Free · on your home screen</small></div><button class="pill sm" id="installGo">Install</button><button class="x" id="installX" aria-label="Hide">×</button></div>
     <div class="sec"><h3>Categories</h3><button class="see" id="toStores">Browse stores →</button></div>
@@ -761,7 +761,7 @@ body.presell #tbShop,body.presell #tbOrders,body.presell #navShop,body.presell #
 <section id="store" hidden></section>
 <section id="orders" hidden><div class="wrap" style="padding-top:36px;max-width:720px"><h2 style="font-size:40px;letter-spacing:-.035em;margin-bottom:18px">Your orders</h2><div id="orderList"></div></div></section>
 <section id="selling" hidden><div class="wrap" style="padding-top:36px;max-width:720px"><h2 style="font-size:40px;letter-spacing:-.035em;margin-bottom:18px">Orders to fulfil</h2><div id="sellingList"></div></div></section>
-<footer><p id="helpLinks" style="margin-bottom:8px"></p><span id="who"></span> <button class="link" id="verifyBtn" hidden>Get verified</button> <button class="link" id="pwBtn" hidden>Change password</button> <button class="link" id="signOut" hidden>Sign out</button> <button class="link" id="adminBtn" hidden>Admin</button><br>Stall connects students and campus shops across Nigeria. Buyers pay through Paystack, and Stall holds the money until they have their order. Never hand over an item, or accept one, without a valid Stall release code.</footer>
+<footer><p id="helpLinks" style="margin-bottom:8px"></p><span id="who"></span> <button class="link" id="verifyBtn" hidden>Get verified</button> <button class="link" id="pwBtn" hidden>Change password</button> <button class="link" id="signOut" hidden>Sign out</button> <button class="link" id="adminBtn" hidden>Admin</button><br>Stall connects buyers and sellers across Nigeria, starting on campus. Buyers pay through Paystack, and Stall holds the money until they have their order. Never hand over an item, or accept one, without a valid Stall release code.</footer>
 
 <dialog id="itemDlg"><div class="pad"><h2>Add item</h2><form id="itemForm" method="dialog">
  <label>Item name<input name="title" required maxlength="60" placeholder="e.g. Jollof rice and chicken"></label>
@@ -1186,7 +1186,7 @@ function badgeHtml(k,n,r){const t=MST[msTier(n)],I=f=>`<img src="/icons/receipt/
     ${who?`<div style="font-size:15px;font-weight:700;margin-top:8px">${esc(who)}${r.school?`<span style="font-weight:500;color:${t.mut}"> · ${esc(r.school)}</span>`:''}</div>`:''}
     <div style="font-size:13px;color:${t.mut};margin-top:4px">${line}</div>
     <div style="border-top:1.5px dashed ${t.mut};opacity:.9;margin:16px 0 12px"></div>
-    <img src="/icons/receipt/${t.wm}.png" alt="" width="63" height="26" style="display:block;border:0;width:63px;height:26px;margin:0 auto"><div style="font-size:11.5px;color:${t.mut};margin-top:6px">Buy and sell safely on campus · ${esc(location.host)}</div>
+    <img src="/icons/receipt/${t.wm}.png" alt="" width="63" height="26" style="display:block;border:0;width:63px;height:26px;margin:0 auto"><div style="font-size:11.5px;color:${t.mut};margin-top:6px">Buy and sell safely · ${esc(location.host)}</div>
    </div><div style="line-height:0"><img src="/icons/receipt/${t.edge}.png" alt="" width="360" height="14" style="display:block;width:360px;height:14px"></div></div>`}
 // ---- Store QR card: a branded picture of the store's own QR code, for WhatsApp Status or printing for the stand.
 const loadQR=()=>window.qrcode?Promise.resolve():new Promise((ok,no)=>{const x=document.createElement('script');x.src='/qr.js';x.onload=ok;x.onerror=no;document.head.appendChild(x)});
@@ -1283,7 +1283,7 @@ async function openBadge(k,n,fresh){const r=MSQ||await fetchJ('/api/me/milestone
   const png=()=>rcPng(html,{pad:0,bg:MST[msTier(n)].bg});
   go($('#bdSave'),async()=>saveBlob(await png(),name+'.png'));
   go($('#bdShare'),async()=>{const ref=await myRef().catch(()=>null),link=ref&&ref.link?ref.link:location.origin;
-    const text=k==='sell'?`I just made my ${n===1?'first':ordn(n)} sale on Stall, the safe way to buy and sell on campus. Your money is held until you get your item. Join me: ${link}`:`I just made my ${n===1?'first':ordn(n)} safe buy on Stall. Your money is held until the item reaches you. Join me: ${link}`;
+    const text=k==='sell'?`I just made my ${n===1?'first':ordn(n)} sale on Stall, the safe way to buy and sell. Your money is held until you get your item. Join me: ${link}`:`I just made my ${n===1?'first':ordn(n)} safe buy on Stall. Your money is held until the item reaches you. Join me: ${link}`;
     const f=new File([await png()],name+'.png',{type:'image/png'});
     if(navigator.canShare&&navigator.canShare({files:[f]}))await navigator.share({files:[f],text}).catch(()=>{});
     else{window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');toast('Save the image too, to post it with your message')}})}
@@ -1743,7 +1743,7 @@ function verifyGate(g){const u=S.user,pend=u.idCheck==='pending',rej=u.idCheck==
    <h1 style="font-size:34px;margin-top:12px">${pend?'We\'re checking your student ID':'Verify you\'re a student'}</h1>
    <p>${pend?'Thanks, '+esc((u.name||'').split(' ')[0])+'. A person on the Stall team is looking at your document. This usually takes a few hours. We\'ll send you a notification and an email as soon as it\'s approved, and this page will open the app by itself.'
      :rej?'<b>Your last document wasn\'t accepted:</b> '+esc(u.idReason||'it wasn\'t clear enough')+'. Send a clearer photo, or a different school document.'
-     :'Stall is only for students, so everyone shows a school document before they can buy, sell or chat. Most are checked in under a minute.'}</p>
+     :'Right now Stall asks students to show a school document before they can buy, sell or chat. Most are checked in under a minute.'}</p>
    <div class="acts" style="margin-top:18px">${pend?'<button class="pill" id="pendRefresh">Check again</button>':'<button class="pill" id="vgGo">Verify now</button>'}</div>
    <p class="meta" style="margin-top:16px">Accepted: student ID card, course registration form, school fees receipt or admission letter, with your name on it. Only the Stall team sees it.</p>
    <p style="margin-top:14px"><button class="link" id="pendOut">Sign out</button></p></div>`;
@@ -1964,7 +1964,7 @@ const uid=()=>S.user?S.user.id:'';
 // Which store is mine: matched on the account id.
 // Admin can turn student selling off at a school (some schools don't allow student businesses); buying and collections carry on.
 const stuOff=()=>!!(S.user&&S.user.role==='student'&&S.user.schoolInfo&&S.user.schoolInfo.stu_sell===0),
-  stuMsg=()=>'Students can\'t sell on Stall at '+(S.user.schoolInfo.short||S.user.schoolInfo.name)+' right now. You can still buy from campus vendors and pay for collections.';
+  stuMsg=()=>'Students can\'t sell on Stall at '+(S.user.schoolInfo.short||S.user.schoolInfo.name)+' right now. You can still buy from businesses and pay for collections.';
 const myStore=()=>S.user?STORES.find(s=>s.uid===S.user.uid):undefined;
 let cur='';
 function refresh(){render();if(!$('#store').hidden)storePage(cur);if($('#cart').open)openCart()}
@@ -1972,14 +1972,14 @@ function renderStores(){
   $('#openStore').textContent=myStore()?'Manage my store':'Open your store';
   const AS=allStores(),ms=$('#moreStores');ms.hidden=AS.length<=SN;
   $('#storeGrid').innerHTML=AS.slice(0,SN).map(s=>`<article class="card in" data-store="${s.id}"><div class="tile" style="background:${ci(s.cat).c};color:${ci(s.cat).k}">${sLogo(s)}<span class="tag">${s.open?'Open':'Closed'}</span>${s.featured?'<span class="tag ft fb">Featured</span>':''}</div>
-   <div class="cb"><h3>${esc(s.name)}</h3>${s.founding?`<div><span class="fsb sm">${ico('found')}Founding Seller</span></div>`:''}${s.verified?VB:''}${s.school&&S.user&&S.user.schoolInfo&&s.school!==(S.user.schoolInfo.short||S.user.schoolInfo.name)?`<div class="meta"><b>${esc(s.school)}</b>${s.reach==='national'?' · Ships nationwide':''}</div>`:''}<div class="meta">${esc(ci(s.cat).name)} · ${esc(s.spot)}${s.vendor?' · Campus vendor':''}</div><div class="meta">${s.items.filter(i=>i.avail).length} available now</div></div></article>`).join('')||`<div class="empty"><h3>No stores yet</h3><p>Campus shops and students can open a store for ₦5,000.</p></div>`;
+   <div class="cb"><h3>${esc(s.name)}</h3>${s.founding?`<div><span class="fsb sm">${ico('found')}Founding Seller</span></div>`:''}${s.verified?VB:''}${s.school&&S.user&&S.user.schoolInfo&&s.school!==(S.user.schoolInfo.short||S.user.schoolInfo.name)?`<div class="meta"><b>${esc(s.school)}</b>${s.reach==='national'?' · Ships nationwide':''}</div>`:''}<div class="meta">${esc(ci(s.cat).name)} · ${esc(s.spot)}${s.vendor?' · Business':''}</div><div class="meta">${s.items.filter(i=>i.avail).length} available now</div></div></article>`).join('')||`<div class="empty"><h3>No stores yet</h3><p>Campus shops and students can open a store for ₦5,000.</p></div>`;
 }
 function storePage(id){
   cur=id;const s=allStores().find(x=>x.id===id);if(!s)return view('stores');
   const own=!!S.user&&s.uid===S.user.uid,qty=k=>S.cart.filter(x=>x===k).length;
   const swa=String(s.phone||'').replace(/\D/g,'').replace(/^0/,'234'),avl=s.items.filter(x=>x.avail).length;
   $('#store').innerHTML=`<div class="shero"><button class="link back" id="backStores" aria-label="All stores">←</button>
-   <div class="sav${s.logo?' haslogo':''}" style="background:${ci(s.cat).c};color:${ci(s.cat).k}">${sLogo(s)}</div><h2>${esc(s.name)}</h2>${s.founding?`<div style="margin:4px 0 6px">${own?`<button class="fsb" data-kit="founding">`:'<span class="fsb">'}${ico('found')}Founding Seller #${s.founding}${s.school?' · '+esc(s.school):''}${own?'</button>':'</span>'}</div>`:''}${s.verified?'<div>'+VB+'</div>':s.vlevel?'<div>'+SB(s.vlevel)+'</div>':''}${s.rating&&s.rating.n?`<p><button class="link" data-reviews="${s.uid}" data-rname="${esc(s.name)}">${stars(s.rating)} · reviews</button></p>`:''}<p class="sst"><i class="${s.open?'on':''}"></i>${s.open?'Open now':'Closed'}${s.vendor?' · Campus vendor':''}</p>
+   <div class="sav${s.logo?' haslogo':''}" style="background:${ci(s.cat).c};color:${ci(s.cat).k}">${sLogo(s)}</div><h2>${esc(s.name)}</h2>${s.founding?`<div style="margin:4px 0 6px">${own?`<button class="fsb" data-kit="founding">`:'<span class="fsb">'}${ico('found')}Founding Seller #${s.founding}${s.school?' · '+esc(s.school):''}${own?'</button>':'</span>'}</div>`:''}${s.verified?'<div>'+VB+'</div>':s.vlevel?'<div>'+SB(s.vlevel)+'</div>':''}${s.rating&&s.rating.n?`<p><button class="link" data-reviews="${s.uid}" data-rname="${esc(s.name)}">${stars(s.rating)} · reviews</button></p>`:''}<p class="sst"><i class="${s.open?'on':''}"></i>${s.open?'Open now':'Closed'}${s.vendor?' · Business':''}</p>
    <div class="sstats"><div><b>${avl}</b><span>Available</span></div><div><b>${s.items.length}</b><span>Items</span></div><div><b>${esc(s.school||ci(s.cat).name)}</b><span>${s.school?esc(s.state):'Category'}</span></div></div>
    <div class="sbtn">${!own?`<button class="pill acc" data-chat="${s.id}">Message the store</button>`:''}${own?`<button class="pill alt" data-kit="status">${ico('megaphone')} Now on Stall kit</button>`:`<button class="pill alt" data-sharestore="${s.id}">${ico('share')} Share store</button>`}${!own?`<button class="link" data-report="store" data-target="${s.id}">${ico('flag')} Report</button>`:''}</div></div>
    <div class="wrap" style="padding-top:18px;max-width:760px">${s.desc?`<p style="color:var(--muted)">${esc(s.desc)}</p>`:""}<p class="meta ico-line">${ico('pin')} ${esc(s.spot)}</p>${dlvLine(s.deliv)}
@@ -2075,14 +2075,14 @@ function drawHelp(){const h=$('#helpLinks');if(!h)return;const w=String(CFG.phon
   h.innerHTML=`<a href="/rules">Buyer protection</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a>${w?` · <a href="https://wa.me/${w}" target="_blank" rel="noopener">WhatsApp support</a>`:''}${CFG.email?` · <a href="mailto:${esc(CFG.email)}">${esc(CFG.email)}</a>`:''}`}
 // Onboarding: four animated "story" slides. Tap right/left or swipe to move, press and hold to pause.
 const SL=[
- {k:'campus',h:'Your campus.<br><em>One marketplace.</em>',p:'Buy and sell with students and campus shops at your school, across your state, or anywhere in Nigeria.'},
- {k:'find',h:'Find it<br><em>in seconds.</em>',p:'Textbooks, gadgets, fashion, hostel gear and hot meals, from people on your campus.'},
- {k:'safe',h:'Pay safe.<br><em>Collect on campus.</em>',p:'Stall confirms every payment and gives you a release code. Hand it over only when the item is in your hands.'},
+ {k:'campus',h:'Your area. Your campus.<br><em>One marketplace.</em>',p:'Buy and sell with people and shops in your area, on your campus, or anywhere in Nigeria.'},
+ {k:'find',h:'Find it<br><em>in seconds.</em>',p:'Gadgets, fashion, books, home gear and hot meals, from people near you.'},
+ {k:'safe',h:'Pay safe.<br><em>Collect nearby.</em>',p:'Stall confirms every payment and gives you a release code. Hand it over only when the item is in your hands.'},
  {k:'sell',h:'Sell anything.<br><em>Get paid.</em>',p:'List in a minute, open a store, get verified, and let buyers from your school find you.'}];
 const OB_SCENES={
  campus:()=>`<div class="sc sc-campus"><div class="orb"></div>
    ${[['book',0,'2%','36%',-8],['headphones',1,'16%','6%',6],['shirt',2,'70%','4%',-5],['bed',3,'82%','40%',8],['bowl',4,'64%','78%',-6],['scissors',5,'10%','74%',5]].map(([k,c,x,y,r],i)=>`<span class="tl" style="--i:${i};--x:${x};--y:${y};--r:${r}deg;background:${CATS[c].c};color:${CATS[c].k}">${ico(k)}</span>`).join('')}
-   <div class="stl"><div class="aw">${[0,1,2,3,4].map(i=>`<i style="--i:${i}"></i>`).join('')}</div><div class="ct"><div><b>Your stall</b><small>Open on campus</small></div></div></div>
+   <div class="stl"><div class="aw">${[0,1,2,3,4].map(i=>`<i style="--i:${i}"></i>`).join('')}</div><div class="ct"><div><b>Your stall</b><small>Open near you</small></div></div></div>
    ${[['UNILAG',30,-4],['OAU',66,92],['UNN',-6,58],['ABU',74,22],['UNIBEN',2,94],['LASU',42,96]].map(([t,x,y],i)=>`<b class="chipf" style="--i:${i};--x:${x}%;--y:${y}%">${t}</b>`).join('')}</div>`,
  find:()=>`<div class="sc sc-find"><div class="sbar crd">${ico('book')}<span class="typed"></span><i class="caret"></i></div>
    <div class="pcards">${[['book','Engineering Maths (Stroud)','₦6,500','Only 2 left',0],['headphones','Wireless earbuds','₦14,000','',1],['bowl','Jollof & chicken','₦2,500','Hot now',3]].map(([k,t,pr,tag,c],i)=>`<div class="pc crd" style="--i:${i}"><div class="pi" style="background:${CATS[c].c};color:${CATS[c].k}">${ico(k)}</div><div><b>${t}</b><span>${pr}</span>${tag?`<em>${tag}</em>`:''}</div></div>`).join('')}</div></div>`,
@@ -2170,7 +2170,7 @@ async function shareThing(id){const r=await myRef(),isS=id[0]==='S',it=isS?allSt
   const d=$('#revDlg');d.innerHTML=`<div class="pad"><h2>Share</h2><p class="meta">${esc(text)}</p><input readonly value="${esc(url)}" style="margin-top:10px" onclick="this.select()">
    <div class="acts"><a class="pill" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(text+' '+url)}">Share on WhatsApp</a><button class="pill alt" type="button" data-copy="${esc(url)}">Copy link</button></div><div class="acts"><button class="pill alt" data-close>Close</button></div></div>`;d.showModal()}
 async function openInvite(){const d=$('#accDlg');d.innerHTML=`<div class="pad"><h2>Invite friends</h2><p class="meta">Loading…</p></div>`;if(!d.open)d.showModal();const r=await myRef();if(!r){d.querySelector('.meta').textContent='Could not load your invite link. Try again.';return}
-  const n=naira(r.reward),msg=`Join me on Stall, the student marketplace. Buy and sell safely on campus: ${r.link}`;
+  const n=naira(r.reward),msg=`Join me on Stall. Buy and sell safely near you: ${r.link}`;
   d.innerHTML=`<div class="pad"><h2>Invite friends</h2><p class="meta">${r.reward?`When a friend signs up with your link and completes their first order of ${naira(r.minOrder||2000)} or more (buying or selling), you <b>both</b> get <b>${n}</b> Stall credit, up to ${naira(r.cap)} a month. Credit pays up to ${r.pct}% of featuring an item or store; you pay the rest.`:'Share Stall with your friends.'}</p>
    <div class="codebox" style="margin-top:14px"><small>Your invite code</small><b>${esc(r.code)}</b><input readonly value="${esc(r.link)}" onclick="this.select()"></div>
    <div class="acts"><a class="pill" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">Share on WhatsApp</a><button class="pill alt" type="button" data-copy="${esc(r.link)}">Copy link</button>${navigator.share?'<button class="pill alt" type="button" id="invShare">More…</button>':''}</div>
@@ -2228,7 +2228,7 @@ const GUIDE={buy:['Buying',[
   ['bag','Add to bag and pay','Add items, open your bag, and tap <b>Check out</b>. Choose <b>Pick up</b> (free) or <b>Delivery</b> if the seller offers it, then pay by card, bank transfer or USSD on Paystack\'s secure page.',null],
   ['truck','Track your order','Under <b>Orders</b> you\'ll see each step: paid, packed, on the way (or ready for pickup), delivered. You get a notice at every step. On deliveries you can drop a pin for the exact meeting spot and, once it\'s out for delivery, tap <b>Track live</b> to see the seller coming on a map with an arrival time. For pickups it works the other way: tap <b>Heading there</b> to show the seller you\'re on your way. Sharing your location is always optional.','orders'],
   ['key','Use your release code','After paying you get a <b>release code</b>. Only give it to the seller once the item is in your hands and you\'ve checked it. You can also tap <b>I\'ve got it</b>.','orders'],
-  ['star','Rate the seller','When your order is complete, give the seller 1 to 5 stars. Your rating helps other students choose good sellers.',null]]],
+  ['star','Rate the seller','When your order is complete, give the seller 1 to 5 stars. Your rating helps other buyers choose good sellers.',null]]],
  sell:['Selling',[
   ['plus','Post an item','Tap <b>Sell</b>, add photos, a title and a price, and say how many you have. Listing single items is free. Stall checks the photo matches before it goes live.','sell'],
   ['lock','Add your bank account once','When you first sell, add the account you want to be paid into. Tap <b>Verify account</b> so the name is confirmed automatically.',null],
@@ -2355,7 +2355,7 @@ async function openAdmin(){const d=$('#adminDlg');AD.rev=!S.user.admin;if(AD.rev
     if(b=c('[data-mact]')){b.disabled=true;await mailAct({act:b.dataset.mact});return}
     if(b=c('[data-wl]')){AD.wl={id:+b.dataset.wl,nm:b.dataset.nm,q:'',want:'',page:0};return adminTab('wait')}
     if(b=c('[data-stusell]')){const on=b.dataset.on==='1',nm=b.dataset.nm;
-      if(!confirm(on?`Let students sell at ${nm} again?\n\nTheir items and stores show to buyers again, and students there who wanted to sell are told.`:`Stop students selling at ${nm}?\n\nStudents there can't list items or open stores, and their items and stores are hidden from buyers. Campus vendors keep selling, and buying and collections carry on.`))return;
+      if(!confirm(on?`Let students sell at ${nm} again?\n\nTheir items and stores show to buyers again, and students there who wanted to sell are told.`:`Stop students selling at ${nm}?\n\nStudents there can't list items or open stores, and their items and stores are hidden from buyers. Businesses keep selling, and buying and collections carry on.`))return;
       b.disabled=true;const r=await apiPost('admin/schools/stusell',{id:+b.dataset.stusell,on});if(r.error){b.disabled=false;return toast(r.error)}toast(on?'Students can sell at '+nm+' again.':'Student selling is off at '+nm+'.');adminLoad();return}
     if(b=c('[data-sched]')){const f=$('#se'+b.dataset.sched);f.hidden=!f.hidden;return}
     if(b=c('[data-launch]')){const l=b.dataset.l,nm=b.dataset.nm,msg={live:`Launch Stall at ${nm}?\n\nEveryone can buy and sell there, and everyone at ${nm} (waitlist included) gets a notification and an email.`,sellers:`Open ${nm} to sellers only?\n\nSellers can verify, open stores and list items now. Buyers wait until you launch. Sellers on the waitlist are told.`,soon:`Set ${nm} back to Coming soon?\n\nIts listings and stores are hidden and selling stops until you open it again.`}[l];
@@ -2403,7 +2403,7 @@ function adminTab(k){AD.tab=k;const S0=ast(k),m=AMETA[k];document.querySelectorA
   if(k==='settings'){$('#ab').innerHTML=`<form id="setForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('store')}</span><b>Business and support details</b></div><p class="meta">Shown in the app footer, the Account sheet and the policy pages.</p>
      <label>Business or brand name<input name="biz_name" maxlength="120" value="${esc(CFG.name||'')}"></label><label>Support WhatsApp number<input name="support_phone" maxlength="20" value="${esc(CFG.phone||'')}" placeholder="080..."></label>
      <label>Support email<input name="support_email" type="email" maxlength="120" value="${esc(CFG.email||'')}" placeholder="support@..."></label><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>
-     <form id="stuForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('id')}</span><b>Student verification</b></div><p class="meta">Students become <b>✓ Verified student</b> by showing a school document: a student ID, course registration form, school fees receipt or admission letter. This works for every school, whatever email addresses its students use. A school email ending in .edu.ng, or one of the domains below, gives the lighter <b>✓ School email</b> badge. Campus vendors don't need either.</p>
+     <form id="stuForm" class="rjf acard"><div class="acardh"><span class="aic">${ico('id')}</span><b>Student verification</b></div><p class="meta">Students become <b>✓ Verified student</b> by showing a school document: a student ID, course registration form, school fees receipt or admission letter. This works for every school, whatever email addresses its students use. A school email ending in .edu.ng, or one of the domains below, gives the lighter <b>✓ School email</b> badge. Businesses and members who aren't students don't need either.</p>
      <label class="opt" style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="verify_gate" ${AD.sum.verifyGate?'checked':''} style="width:auto"> <span><b>Students must be verified to use Stall</b><br><small class="meta">On: new students see a "verify you're a student" page and can't buy, sell or chat until a document or school email is approved. Off: they can buy straight away.</small></span></label>
      <label class="opt" style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="require_verified" ${AD.sum.requireVerified?'checked':''} style="width:auto"> <span><b>Only verified students can sell</b><br><small class="meta">Off: anyone can list, and verified students get a badge. On: students need a badge before they can list or open a store.</small></span></label>
      <label>Other school email domains<input name="school_domains" value="${esc(AD.sum.schoolDomains||'')}" placeholder="only if your school issues its own addresses, e.g. stu.cu.edu.ng"></label><div class="aacts"><button class="pill sm" type="submit">Save</button></div></form>

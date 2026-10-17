@@ -191,7 +191,7 @@ const aiCheckListing=async(env,dataUrl,title,cat,desc)=>{
   if(!env.AI)return{ok:null,why:'Automatic photo check is not connected.'};
   try{const m=dataUrl.match(/^data:image\/[a-z]+;base64,(.*)$/s);if(!m)return{ok:null,why:'Could not read the photo.'};
     const bytes=Uint8Array.from(atob(m[1]),c=>c.charCodeAt(0));
-    const prompt='You check product photos for a Nigerian student marketplace. The seller says this photo shows: "'+title+'" (category: '+cat+'). Description: "'+String(desc||'').slice(0,300)+'". '
+    const prompt='You check product photos for a Nigerian marketplace. The seller says this photo shows: "'+title+'" (category: '+cat+'). Description: "'+String(desc||'').slice(0,300)+'". '
       +'Reply with exactly one word. YES if the photo clearly shows that item (or the service being offered). '
       +'NO if it shows something different, is a blank/unrelated/meme/screenshot image, or shows weapons, drugs, alcohol for sale, explicit or adult content, or exam papers. UNSURE if you cannot tell.';
     const M='@cf/meta/llama-3.2-11b-vision-instruct',go=()=>env.AI.run(M,{image:[...bytes],prompt,max_tokens:6});
@@ -1009,13 +1009,13 @@ async function route({request,env,params,waitUntil}){
     const one=async(q,...v)=>((await env.DB.prepare(q).bind(...v).first())||{}).c||0,all=async(q,...v)=>(await env.DB.prepare(q).bind(...v).all()).results;
     const sch=r=>r.ssh||r.snm||'',it=r=>({title:clean(r.title,60),price:r.price,cat:r.cat||'',school:sch(r),state:r.state||'',at:r.created});
     if(path==='site/pulse'&&request.method==='GET')return edge('site/pulse/'+(await ver(env)),60,async()=>{const wk=Date.now()-7*864e5;
-      const stats={items:await one('SELECT COUNT(*) c '+LL+' AND l.sold=0')+await one('SELECT COUNT(*) c '+II),students:await one("SELECT COUNT(*) c FROM users WHERE role='student'"),
+      const stats={items:await one('SELECT COUNT(*) c '+LL+' AND l.sold=0')+await one('SELECT COUNT(*) c '+II),students:await one("SELECT COUNT(*) c FROM users WHERE role IN ('student','member','vendor')"),
         schools:await one('SELECT COUNT(DISTINCT school_id) c FROM users WHERE school_id IS NOT NULL'),sold:await one("SELECT COUNT(*) c FROM orders WHERE status='released'"),
         paid:await one("SELECT IFNULL(SUM(amount-IFNULL(fee,0)),0) c FROM orders WHERE status='released'"),stores:await one('SELECT COUNT(*) c FROM stores WHERE isopen=1')};
       const listed=(await all('SELECT l.title,l.price,l.cat,l.created,IFNULL(l.state,sc.state) state,sc.short ssh,sc.name snm '+LL+' ORDER BY l.created DESC LIMIT 18')).map(r=>({...it(r),k:'listed'}));
       const sold=(await all("SELECT o.title,o.amount price,o.updated created,IFNULL(u.state,sc.state) state,sc.short ssh,sc.name snm FROM orders o JOIN users u ON u.id=o.seller LEFT JOIN schools sc ON sc.id=u.school_id WHERE o.status='released' ORDER BY o.updated DESC LIMIT 8")).map(r=>({...it(r),k:'sold'}));
       // New people joining: school or state only, never who.
-      const joined=(await all("SELECT u.created,IFNULL(u.state,sc.state) state,sc.short ssh,sc.name snm,u.role FROM users u LEFT JOIN schools sc ON sc.id=u.school_id WHERE IFNULL(u.status,'active')='active' AND IFNULL(u.is_admin,0)=0 ORDER BY u.created DESC LIMIT 8")).map(r=>({title:r.role==='vendor'?'A campus shop joined':'A new student joined',price:0,cat:'',school:sch(r),state:r.state||'',at:r.created,k:'joined'}));
+      const joined=(await all("SELECT u.created,IFNULL(u.state,sc.state) state,sc.short ssh,sc.name snm,u.role FROM users u LEFT JOIN schools sc ON sc.id=u.school_id WHERE IFNULL(u.status,'active')='active' AND IFNULL(u.is_admin,0)=0 ORDER BY u.created DESC LIMIT 8")).map(r=>({title:r.role==='vendor'?'A business joined':r.role==='student'?'A new student joined':'Someone new joined',price:0,cat:'',school:sch(r),state:r.state||'',at:r.created,k:'joined'}));
       const feed=[...listed,...sold,...joined].sort((a,b)=>b.at-a.at).slice(0,28);
       // Each state: items for sale (i) and people on Stall (p). A state lights up as soon as anyone from it joins.
       const states={},add=(st,k,c)=>{if(!st)return;(states[st]=states[st]||{i:0,p:0})[k]+=c};
@@ -1633,7 +1633,7 @@ const oRow=r=>({id:r.id,title:r.title,amount:r.amount,bank:r.bank_name,acct:mask
     if(path==='admin/ids/decide'&&request.method==='POST'){const c=await env.DB.prepare("SELECT c.*,u.name FROM id_checks c JOIN users u ON u.id=c.uid WHERE c.uid=? AND c.status='pending'").bind(+b.uid).first();if(!c)return J({error:'Already handled.'},404);
       const why=String(b.reason||'').slice(0,200);await env.DB.prepare('UPDATE id_checks SET status=?,reason=?,updated=? WHERE uid=?').bind(b.approve?'approved':'rejected',b.approve?null:why||'Not accepted',Date.now(),c.uid).run();
       if(b.approve){await env.DB.prepare('UPDATE users SET vlevel=MAX(vlevel,2) WHERE id=?').bind(c.uid).run();await bumpVer(env)}
-      waitUntil(b.approve?notify(env,c.uid,'You\'re verified on Stall','You\'re a verified student ✓',['Your school document was approved. You can now buy, sell and chat on Stall.'],'Open Stall',SITE(env)+'/app')
+      waitUntil(b.approve?notify(env,c.uid,'You\'re verified on Stall','You\'re a verified student ✓',['Your school document was approved. The ✓ Student badge now shows on your listings and store.'],'Open Stall',SITE(env)+'/app')
         :notify(env,c.uid,'Your Stall verification needs another try','Please try verifying again',['We couldn\'t accept the document you sent: '+esc(why||'it wasn\'t clear enough')+'.','Open Stall and send a clearer photo, or a different school document.'],'Try again',SITE(env)+'/app'));
       await logA(env,a,'account',b.approve?'approved a student ID':'rejected a student ID',c.name,{detail:why||null});return J({ok:true})}
     if(path==='admin/email-test'&&request.method==='POST'){const to=String(b.to||'').trim();if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(to))return J({error:'Enter an email address.'},400);

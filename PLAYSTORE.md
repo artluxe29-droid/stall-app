@@ -30,13 +30,13 @@ The package name is **`ng.com.stall.app`**. Location and notification delegation
 
 ## 3. Create the app in Play Console
 
-1. **Create app:** name `Stall – student marketplace`, language English (United Kingdom or United States), **App**, **Free**. Accept the declarations.
+1. **Create app:** name `Stall – buy and sell safely`, language English (United Kingdom or United States), **App**, **Free**. Accept the declarations.
 2. Work through **Dashboard → Set up your app**:
    - **Privacy policy:** `https://stall.com.ng/privacy`
-   - **App access:** *All or some functionality is restricted* → add a test account the reviewers can sign in with: create a normal student account on Stall (e.g. phone `08000000000`, password of your choice) and give them those details plus "Sign in with the phone number and password".
+   - **App access:** *All or some functionality is restricted* → add a test account the reviewers can sign in with: create a normal personal account on Stall (e.g. phone `08000000000`, password of your choice) and give them those details plus "Sign in with the phone number and password".
    - **Ads:** No.
    - **Content rating:** fill in the questionnaire. Category **Shopping / marketplace**; users can interact and exchange messages; no violence or adult content.
-   - **Target audience:** 18 and over (and 16–17 if you accept younger students). Not designed for children.
+   - **Target audience:** 18 and over (and 16–17, since Stall allows users from 16). Not designed for children.
    - **News app:** No. **Government app:** No.
    - **Financial features:** the app takes payments for goods through a third-party processor (Paystack); it is not a bank, loan or crypto app.
    - **Data safety:** see the answers below.
@@ -78,32 +78,32 @@ Each year in August, Google raises the minimum Android version that apps must ta
 
 ## Store listing text (ready to paste)
 
-**App name (30 max):** `Stall – student marketplace`
+**App name (30 max):** `Stall – buy and sell safely`
 
 **Short description (80 max):**
-`Buy and sell on campus. Payments held until you get your item. Students only.`
+`Buy and sell near you, safely. Your money is held until you get your item.`
 
 **Full description:**
 
 ```
-Stall is the marketplace for Nigerian students. Buy and sell textbooks, gadgets, fashion, hostel gear, food and services with students and campus shops at your school, across your state, or anywhere in Nigeria.
+Stall is where Nigerians buy and sell safely. Born on campus, open to everyone. Buy and sell gadgets, fashion, textbooks, food and services with people and shops in your area, at your school, across your state, or anywhere in Nigeria.
 
 YOUR MONEY IS PROTECTED
 • Pay by card, bank transfer or USSD through Paystack.
 • Stall holds your money until you have your order. The seller is only paid when you hand over your release code or tap "I've got it".
 • Something wrong? Report a problem and your money stays on hold while we sort it out, with a full refund if the item never came or wasn't as described.
 
-SHOP YOUR CAMPUS
-• See what students at your school are selling, or switch to your state or all of Nigeria.
+SHOP NEAR YOU
+• See what people in your area are selling (or your campus, if you're a student), or switch to your state or all of Nigeria.
 • Search with filters for price, condition, verified sellers, sellers who deliver and 4★ ratings.
 • Seller ratings and reviews from real buyers.
-• Pick up on campus for free, or get it delivered to your hall.
+• Pick up nearby for free, or get it delivered.
 • Track your order: paid, packed, on the way, delivered.
 • Live delivery tracking: see the seller coming on a map with an arrival time, and drop a pin for the exact meeting spot. Sharing your location is always optional.
 
 SELL IN A MINUTE
 • Snap a photo, set a price, done. Listing single items is free.
-• Open a store for your campus business and reach your whole state or the country.
+• Open a store for your business and reach your area, your whole state or the country.
 • Get paid straight to your bank when the buyer gets their order. A small sale fee applies (5%, capped).
 • Collect money from your class with class collections.
 
@@ -112,7 +112,7 @@ SAFE BY DESIGN
 • Every new listing photo is checked before it goes live.
 • Verified-seller badges and buyer reviews help you shop with confidence.
 
-Stall is for students and campus vendors in Nigeria.
+Stall is for anyone in Nigeria aged 16 or older, with a campus feed and Student badge for students.
 ```
 
 ## Data safety answers

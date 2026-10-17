@@ -1,6 +1,6 @@
 # Opening Stall to everyone
 
-Status: **Approved** (17 Oct 2026): yes to all five decisions. Steps 1 and 2 are done on the server and website; step 3 (words) and step 4 (native app) are next.
+Status: **Approved** (17 Oct 2026): yes to all five decisions. Steps 1, 2 and 3 are done on the server and website; step 4 (native app) is next.
 
 ## The decision
 
