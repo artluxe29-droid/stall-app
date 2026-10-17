@@ -10,6 +10,7 @@ import 'account_setup.dart';
 import 'browse.dart';
 import 'chat.dart';
 import 'collections.dart';
+import 'extras.dart';
 import 'item.dart' show showReviews;
 import 'orders.dart';
 import 'settings.dart';
@@ -217,6 +218,24 @@ class AccountTab extends StatelessWidget {
             subtitle: const Text('Collect money from your class, or pay into one'),
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CollectionsScreen())),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            key: const Key('badgesTile'),
+            leading: const Icon(Icons.military_tech_outlined, color: StallColors.indigo),
+            title: const Text('Badges'),
+            subtitle: const Text('Milestones for selling and buying safely'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BadgesScreen())),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            key: const Key('paymentsTile'),
+            leading: const Icon(Icons.receipt_long_outlined, color: StallColors.indigo),
+            title: const Text('Payments to Stall'),
+            subtitle: const Text('Store fee, featuring, reach and collections, with receipts'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PaymentsScreen())),
           ),
           const Divider(height: 1),
           ListTile(

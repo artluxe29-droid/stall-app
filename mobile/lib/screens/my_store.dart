@@ -11,6 +11,7 @@ import '../widgets.dart';
 import 'account_setup.dart' show phoneError, VerifyStudentScreen;
 import 'browse.dart' show Photo, shareThing;
 import 'checkout.dart' show confirm, openPaystack;
+import 'extras.dart' show StoreQrScreen;
 import 'sell.dart';
 import 'stores.dart';
 
@@ -372,10 +373,29 @@ class _MyStoreViewState extends State<MyStoreView> {
   }
 
   Future<void> _pay(Map<String, dynamic> body, String done) async {
+    // Stall credit (from invites) can pay part of featuring and reach.
+    final credit = SessionScope.of(context).user?.credit ?? 0;
+    if (credit > 0) {
+      final pct = (SessionScope.of(context).config['creditPct'] as num?)?.toInt() ?? 50;
+      final use = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Use your credit?'),
+          content: Text('You have ${naira(credit)} Stall credit. It can pay up to $pct% of this; the rest is paid on Paystack.'),
+          actions: [
+            TextButton(key: const Key('noCredit'), onPressed: () => Navigator.pop(ctx, false), child: const Text('Pay it all')),
+            FilledButton(key: const Key('useCredit'), onPressed: () => Navigator.pop(ctx, true), child: const Text('Use credit')),
+          ],
+        ),
+      );
+      if (use == null || !mounted) return;
+      if (use) body = {...body, 'credit': true};
+    }
     setState(() => _busy = true);
     try {
       if (await payStall(context, body) && mounted) {
         toast(context, done);
+        await SessionScope.of(context).refresh(); // credit may have been used
         await _reload();
       }
     } on ApiError catch (e) {
@@ -578,6 +598,12 @@ class _MyStoreViewState extends State<MyStoreView> {
                       ),
                     ),
                   ],
+                ),
+                TextButton.icon(
+                  key: const Key('qrStore'),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => StoreQrScreen(store: st))),
+                  icon: const Icon(Icons.qr_code_rounded, size: 18),
+                  label: const Text('Store QR card to print or share'),
                 ),
               ],
             ),

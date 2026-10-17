@@ -9,6 +9,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'chat.dart';
 import 'checkout.dart';
+import 'extras.dart';
 import 'trip.dart';
 import 'selling.dart';
 
@@ -499,6 +500,16 @@ class _OrderScreenState extends State<OrderScreen> {
               child: const Text('Report a problem', style: TextStyle(color: StallColors.red)),
             ),
           ],
+          if (o.status == 'released' || o.status == 'refunded')
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: const Key('receipt'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReceiptScreen(path: 'orders/receipt', query: {'id': '${o.id}'}))),
+                icon: const Icon(Icons.receipt_long_outlined),
+                label: const Text('Receipt'),
+              ),
+            ),
           if (o.status == 'released')
             o.rated != null
                 ? _note('You rated this seller ${'★' * o.rated!}')
