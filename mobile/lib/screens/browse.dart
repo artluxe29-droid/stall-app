@@ -328,7 +328,7 @@ class Photo extends StatelessWidget {
     final api = SessionScope.of(context).api;
     return Stack(fit: StackFit.expand, children: [
       CatTile(cat: cat, icon: icon),
-      if (path != null) Image.network(api.url(path!), fit: fit, errorBuilder: (_, _, _) => const SizedBox()),
+      if (path != null) NetImage(api.url(path!), fit: fit),
     ]);
   }
 }

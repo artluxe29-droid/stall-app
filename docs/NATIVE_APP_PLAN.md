@@ -1,6 +1,6 @@
 # Stall native app: rebuild plan
 
-Status: **Phase 5 (launch) next.** Phases 0 to 4 are done. Phase 3 (chat, problem reports, review replies, strikes notice, live map, push notifications) is in the app; Phase 4 is next. Phases 0, 1 and 2 are done: browsing, accounts, buying, selling items, selling orders and payouts, and opening and running a store. The app also has "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
+Status: **Phase 5 (launch) in progress.** Phases 0 to 4 are done; the launch checklist is [`LAUNCH.md`](LAUNCH.md). Phase 3 (chat, problem reports, review replies, strikes notice, live map, push notifications) is in the app; Phase 4 is next. Phases 0, 1 and 2 are done: browsing, accounts, buying, selling items, selling orders and payouts, and opening and running a store. The app also has "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
 
 ## Why
 

@@ -1,7 +1,8 @@
 # Checks and builds the native Stall app (Flutter, in mobile/) on every change.
 # By hand (Actions → "Native app" → Run workflow) you can set the version for a Google Play upload.
-# Download "stall-native-…" at the bottom of a run: app-release.apk installs on any Android phone for testing,
-# app-release.aab is for Google Play.
+# Download "stall-native-…" at the bottom of a run: app-release.apk installs on any Android phone for testing
+# (app-arm64-v8a-release.apk is the same app, smaller, for most phones; app-armeabi-v7a-release.apk
+# for older, cheaper ones), app-release.aab is for Google Play, which sends each phone only what it needs.
 # Automatic updates: once Google Play is set up (docs/AUTO_UPDATES.md), every change to the app merged into main
 # is sent to the Google Play internal testing track, and testers' phones update by themselves.
 name: Native app
@@ -95,6 +96,8 @@ jobs:
           STALL_KEY_PASSWORD: ${{ secrets.STALL_KEY_PASSWORD }}
         run: |
           flutter build apk --release --build-number="$VERSION_CODE" --build-name="$VERSION_NAME" $FCM_DEFINES
+          # Smaller downloads for testers: one APK per phone type (arm64 for most phones, armeabi-v7a for older and cheaper ones).
+          flutter build apk --release --split-per-abi --build-number="$VERSION_CODE" --build-name="$VERSION_NAME" $FCM_DEFINES
           flutter build appbundle --release --build-number="$VERSION_CODE" --build-name="$VERSION_NAME" $FCM_DEFINES
 
       - uses: actions/upload-artifact@v4
@@ -102,6 +105,8 @@ jobs:
           name: stall-native-${{ env.VERSION_NAME }}
           path: |
             mobile/build/app/outputs/flutter-apk/app-release.apk
+            mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            mobile/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
             mobile/build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
 

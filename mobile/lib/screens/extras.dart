@@ -371,7 +371,7 @@ class _PartnerBannerState extends State<PartnerBanner> {
                 padding: const EdgeInsets.only(right: 12),
                 child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network('$apiBase$img', width: 56, height: 56, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink())),
+                    child: SizedBox.square(dimension: 56, child: NetImage('$apiBase$img'))),
               ),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
