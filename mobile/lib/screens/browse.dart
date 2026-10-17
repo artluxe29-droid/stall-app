@@ -11,12 +11,13 @@ import 'checkout.dart';
 import 'item.dart';
 import 'search.dart';
 
-/// Where to look: my school, my state, or all of Nigeria (the API's "scope").
+/// Where to look: my campus (students), my area, my state, or all of Nigeria (the API's "scope").
 class Scope {
-  static const school = 'school', state = 'state', all = 'all';
+  static const school = 'school', area = 'area', state = 'state', all = 'all';
 
   static List<(String, String)> options(StallUser? u) => [
-        if (u?.school != null) (school, u!.schoolName.isEmpty ? 'My school' : u.schoolName),
+        if (u?.school != null) (school, u!.schoolName.isEmpty ? 'My campus' : u.schoolName),
+        if ((u?.area ?? '').isNotEmpty) (area, u!.area),
         if ((u?.state ?? '').isNotEmpty) (state, u!.state),
         (all, 'All Nigeria'),
       ];
@@ -218,6 +219,7 @@ class _HomeTabState extends State<HomeTab> {
             Text(
                 switch (_scope) {
                   Scope.school => 'What\'s new at ${s.user?.schoolName ?? 'your school'}',
+                  Scope.area => 'What\'s new in ${s.user?.area ?? 'your area'}',
                   Scope.state => 'What\'s new in ${s.user?.state ?? 'your state'}',
                   _ => 'What\'s new across Nigeria',
                 },

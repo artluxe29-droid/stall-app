@@ -16,6 +16,13 @@ final schools = {
   'states': ['Lagos', 'Oyo'],
 };
 
+final areas = {
+  'areas': {
+    'Lagos': ['Ikeja', 'Lagos Mainland'],
+    'Oyo': ['Ibadan North', 'Ibadan South-West'],
+  },
+};
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -31,6 +38,7 @@ void main() {
     final f = FakeApi({
       'GET config': (_) => (200, {'emailOn': true}),
       'GET schools': (_) => (200, schools),
+      'GET areas': (_) => (200, areas),
       'GET listings': (_) => (200, {'listings': [], 'total': 0}),
       ...routes,
     });
@@ -57,6 +65,15 @@ void main() {
     await settle(t);
   }
 
+  Future<void> place(WidgetTester t, String state, String area) async {
+    await tap(t, 'pl-state');
+    await t.tap(find.text(state).last);
+    await t.pumpAndSettle();
+    await tap(t, 'pl-area-$state');
+    await t.tap(find.text(area).last);
+    await t.pumpAndSettle();
+  }
+
   testWidgets('a student signs up, then confirms their email with a code', (t) async {
     var me = {...user(), 'email': 'ada@gmail.com', 'emailVerified': false};
     final f = await start(t, {
@@ -73,11 +90,13 @@ void main() {
 
     // Nothing filled in: every field explains what it needs.
     await tap(t, 'su-submit');
-    expect(find.text('Choose your school.'), findsOneWidget);
+    expect(find.text('Choose your state.'), findsOneWidget);
     expect(find.text('Enter your full name.'), findsOneWidget);
+    expect(find.byKey(const Key('school')), findsNothing);
     expect(find.text('Please confirm to continue.'), findsOneWidget);
     expect(f.calls.where((c) => c.url.path == '/api/register'), isEmpty);
 
+    await tap(t, 'su-student');
     await tap(t, 'school');
     await t.enterText(find.byKey(const Key('schoolSearch')), 'acu');
     await t.pumpAndSettle();
@@ -90,12 +109,15 @@ void main() {
     await type(t, 'su-phone', '0803 123 4567');
     await type(t, 'su-pw', 'password123');
     await type(t, 'su-where', 'Hall B');
+    await place(t, 'Oyo', 'Ibadan North');
     await tap(t, 'su-ok');
     await tap(t, 'su-submit');
 
     expect(body(f, 'register'), {
       'school_id': 1,
       'role': 'student',
+      'state': 'Oyo',
+      'area': 'Ibadan North',
       'name': 'Ada Obi',
       'phone': '0803 123 4567',
       'where': 'Hall B',
@@ -119,6 +141,7 @@ void main() {
       'POST register': (_) => (409, {'error': 'An account with this phone number already exists. Try signing in.', 'field': 'phone'}),
     });
     await tap(t, 'toSignUp');
+    await tap(t, 'su-student');
     await tap(t, 'school');
     await t.enterText(find.byKey(const Key('schoolSearch')), 'Kings College');
     await t.pumpAndSettle();
@@ -137,6 +160,7 @@ void main() {
     await type(t, 'su-phone', '08031234567');
     await type(t, 'su-pw', 'password123');
     await type(t, 'su-where', 'Hall B');
+    await place(t, 'Lagos', 'Ikeja');
     await tap(t, 'su-ok');
     await tap(t, 'su-submit');
     expect(body(f, 'register'), containsPair('school_name', 'Kings College'));
@@ -145,7 +169,34 @@ void main() {
     expect(find.text('Create your account'), findsOneWidget);
   });
 
-  testWidgets('a campus vendor signs up with business details', (t) async {
+  testWidgets('anyone signs up with a personal account: no school, no hostel', (t) async {
+    final f = await start(t, {
+      'POST register': (_) => (200, {'user': {...user(), 'role': 'member', 'schoolInfo': null, 'state': 'Lagos', 'area': 'Lagos Mainland'}, 'token': 'd' * 64}),
+      'GET me': (_) => (200, {'user': {...user(), 'role': 'member', 'schoolInfo': null, 'state': 'Lagos', 'area': 'Lagos Mainland', 'emailVerified': true}}),
+    });
+    await tap(t, 'toSignUp');
+    expect(find.byKey(const Key('su-where')), findsNothing);
+    await type(t, 'su-name', 'Funmi Lawal');
+    await type(t, 'su-email', 'funmi@gmail.com');
+    await type(t, 'su-phone', '08051234567');
+    await type(t, 'su-pw', 'password123');
+    await place(t, 'Lagos', 'Lagos Mainland');
+    await tap(t, 'su-ok');
+    await tap(t, 'su-submit');
+    expect(body(f, 'register'), {
+      'role': 'member',
+      'state': 'Lagos',
+      'area': 'Lagos Mainland',
+      'name': 'Funmi Lawal',
+      'phone': '08051234567',
+      'password': 'password123',
+      'email': 'funmi@gmail.com',
+    });
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.text('Lagos Mainland'), findsWidgets); // the "My area" feed chip
+  });
+
+  testWidgets('a business signs up with no campus, or links one', (t) async {
     final f = await start(t, {
       'POST register': (_) => (200, {'user': {...user(), 'role': 'vendor'}, 'token': 'c' * 64}),
       'GET me': (_) => (200, {'user': {...user(), 'role': 'vendor'}}),
@@ -154,17 +205,21 @@ void main() {
     await t.tap(find.text('Business'));
     await t.pumpAndSettle();
     expect(find.byKey(const Key('su-email')), findsNothing);
-    await tap(t, 'school');
-    await t.tap(find.text('Ajayi Crowther University (ACU)'));
-    await t.pumpAndSettle();
+    expect(find.byKey(const Key('school')), findsNothing);
     await type(t, 'su-biz', 'Mama T Kitchen');
     await type(t, 'su-name', 'Titi Ade');
     await type(t, 'su-phone', '08091234567');
     await type(t, 'su-pw', 'password123');
-    await type(t, 'su-where', 'Cafeteria, Stall 4');
+    await type(t, 'su-where', 'Bodija Market');
+    await place(t, 'Oyo', 'Ibadan North');
+    // Ticking "on or near a campus" asks for the school; unticking drops it again.
+    await tap(t, 'su-student');
+    expect(find.byKey(const Key('school')), findsOneWidget);
+    await tap(t, 'su-student');
     await tap(t, 'su-ok');
     await tap(t, 'su-submit');
-    expect(body(f, 'register'), allOf(containsPair('role', 'vendor'), containsPair('biz', 'Mama T Kitchen'), containsPair('cat', 'books')));
+    expect(body(f, 'register'), allOf(containsPair('role', 'vendor'), containsPair('biz', 'Mama T Kitchen'), containsPair('cat', 'books'),
+        containsPair('area', 'Ibadan North'), isNot(contains('school_id'))));
     expect(find.byType(NavigationBar), findsOneWidget);
   });
 
@@ -231,5 +286,35 @@ void main() {
     expect(phoneError('0603 123 4567'), isNotNull);
     expect(phoneError('0801 111 1111'), isNotNull);
     expect(phoneError('08012345678'), isNotNull);
+  });
+
+  testWidgets('an older account is asked for its area once, and can change area and school in Account', (t) async {
+    var me = {...user(), 'area': null};
+    final f = await start(t, {
+      'GET me': (_) => (200, {'user': me}),
+      'POST me/place': (r) {
+        final b = jsonDecode(r.body) as Map<String, dynamic>;
+        me = {...me, 'state': b['state'], 'area': b['area']};
+        return (200, {'ok': true, ...b});
+      },
+      'POST me/school': (_) {
+        me = {...me, 'role': 'member', 'schoolInfo': null};
+        return (200, {'ok': true, 'school': null});
+      },
+    }, signedIn: true);
+    expect(find.text('Which area are you in?'), findsOneWidget);
+    await place(t, 'Oyo', 'Ibadan South-West');
+    await tap(t, 'pl-save');
+    expect(body(f, 'me/place'), {'state': 'Oyo', 'area': 'Ibadan South-West'});
+    expect(find.text('Ibadan South-West'), findsWidgets); // feed chip
+
+    await t.tap(find.text('Account'));
+    await t.pumpAndSettle();
+    expect(find.text('Ibadan South-West, Oyo'), findsOneWidget);
+    await tap(t, 'student');
+    await tap(t, 'st-none');
+    expect(body(f, 'me/school'), {'none': true});
+    expect(find.text('Not a student'), findsOneWidget);
+    expect(find.byKey(const Key('verify')), findsNothing);
   });
 }

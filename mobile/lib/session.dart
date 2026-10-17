@@ -18,8 +18,15 @@ class StallUser {
   bool get isStaff => isAdmin || isReviewer;
   Map<String, dynamic>? get school => raw['schoolInfo'] is Map<String, dynamic> ? raw['schoolInfo'] as Map<String, dynamic> : null;
   String get schoolName => (school?['short'] ?? school?['name'] ?? '').toString();
-  String get state => (school?['state'] ?? '').toString();
+  /// Where they are: a state and a Local Government Area. Older accounts may only have their school's state until they pick an area.
+  String get state {
+    final s = (raw['state'] ?? '').toString();
+    return s.isNotEmpty ? s : (school?['state'] ?? '').toString();
+  }
+
+  String get area => (raw['area'] ?? '').toString();
   bool get isVendor => role == 'vendor';
+  bool get isStudent => role == 'student';
   String get email => (raw['email'] ?? '').toString();
   bool get emailVerified => raw['emailVerified'] == true;
   /// 0 = not verified, 1 = confirmed a school email, 2 = Stall checked a school document.
@@ -28,7 +35,7 @@ class StallUser {
   String? get idCheck => raw['idCheck'] as String?;
   String get idReason => (raw['idReason'] ?? '').toString();
   bool get mustVerify => raw['mustVerify'] == true;
-  /// Admin → "Students must be verified to use Stall" (on unless turned off).
+  /// Admin → "Students must be verified to use Stall" (off unless turned on).
   bool get verifyGate => raw['verifyGate'] == true;
   /// Has a payout bank account saved (it's added with the first listing).
   bool get acctSet => raw['acctSet'] == true;
@@ -54,7 +61,7 @@ class Session extends ChangeNotifier {
   /// Students must show a school document before they can buy, sell or chat (when Admin has that on).
   bool get verifyFirst {
     final u = user;
-    return u != null && u.verifyGate && !u.isVendor && !u.isAdmin && u.vlevel < 1;
+    return u != null && u.verifyGate && u.isStudent && !u.isAdmin && u.vlevel < 1;
   }
 
   bool get closedForMe => config['closed'] == true && !(user?.isStaff ?? false);

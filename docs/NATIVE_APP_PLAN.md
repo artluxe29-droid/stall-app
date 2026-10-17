@@ -1,6 +1,6 @@
 # Stall native app: rebuild plan
 
-Status: **Phase 1 in progress.** Phase 0 is done (16 Oct 2026). Phase 1 (browse, accounts, buying) is in the app; Phase 2 (selling) is in progress.
+Status: **Phase 2 in progress.** Phases 0 and 1 are done. Phase 2a (sell an item) is in the app, along with "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
 
 ## Why
 
