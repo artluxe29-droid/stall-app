@@ -125,6 +125,7 @@ class OrdersTab extends StatefulWidget {
 
 class _OrdersTabState extends State<OrdersTab> {
   Future<List<Order>>? _f;
+  Future<Map<String, dynamic>>? _week;
   bool _selling = false;
 
   @override
@@ -142,6 +143,8 @@ class _OrdersTabState extends State<OrdersTab> {
     final f = _load();
     setState(() {
       _f = f;
+      // This week's sales, shown above the selling orders (the same statement as the weekly email).
+      _week = _selling ? SessionScope.of(context).api.get('orders/weekly').catchError((_) => <String, dynamic>{}) : null;
     });
     await f.catchError((_) => <Order>[]);
   }
@@ -170,6 +173,35 @@ class _OrdersTabState extends State<OrdersTab> {
             ),
           ),
         ),
+        if (_selling)
+          SliverToBoxAdapter(
+            child: FutureBuilder<Map<String, dynamic>>(
+              future: _week,
+              builder: (context, snap) {
+                final w = snap.data;
+                if (w == null || ((w['n'] as num?) ?? 0) == 0) return const SizedBox.shrink();
+                final n = (w['n'] as num).toInt();
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Card(
+                    margin: EdgeInsets.zero,
+                    color: StallColors.indigo,
+                    child: ListTile(
+                      key: const Key('weekCard'),
+                      contentPadding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+                      textColor: StallColors.cream,
+                      iconColor: StallColors.cream,
+                      title: Text((w['label'] ?? 'Your sales this week').toString(), style: t.bodySmall?.copyWith(color: StallColors.cream)),
+                      subtitle: Text('${naira((w['total'] as num?) ?? 0)} · $n order${n == 1 ? '' : 's'} delivered',
+                          style: t.titleMedium?.copyWith(color: StallColors.cream)),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WeeklyScreen())),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         FutureBuilder<List<Order>>(
           future: _f,
           builder: (context, snap) {

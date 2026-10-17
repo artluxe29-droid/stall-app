@@ -97,6 +97,44 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
     await _act('orders/handed', {'id': o.id, 'note': r.$1, 'text': r.$1, 'reason': r.$1, 'photo': r.$2}, 'Buyer asked to confirm');
   }
 
+  /// A problem report on this order: accept it (refund the buyer), give your side, or withdraw your own report.
+  Future<void> _settle(String how) async {
+    final accept = how == 'accept';
+    if (!await confirm(
+        context,
+        accept ? 'Accept and refund?' : 'Withdraw your report?',
+        accept
+            ? 'The buyer gets their ${naira(o.amount)} back and the order is closed. Nobody gets a strike.'
+            : 'The order carries on as normal, and you\'re paid when the buyer confirms.',
+        yes: accept ? 'Accept and refund' : 'Withdraw report',
+        no: 'Not now')) {
+      return;
+    }
+    if (mounted) await _act('orders/settle', {'id': o.id, 'how': how}, accept ? 'Buyer refunded' : 'Report withdrawn');
+  }
+
+  Future<void> _side() async {
+    final r = await showModalBottomSheet<(String, String?)>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: StallColors.cream,
+      builder: (_) => const _NoteSheet(
+        title: 'Give your side',
+        text: 'Explain what happened. A photo helps Stall decide fairly, e.g. the item, the handover spot or a chat screenshot.',
+        hint: 'Write it here',
+        button: 'Send',
+        needText: true,
+      ),
+    );
+    if (r == null || !mounted) return;
+    await _act('orders/evidence', {'id': o.id, 'reason': r.$1, 'text': r.$1, 'note': r.$1, 'photo': r.$2}, 'Sent to Stall');
+  }
+
+  /// On a delivery that's on its way: tell the buyer roughly when you'll arrive.
+  Future<void> _eta({int? min}) => _act('orders/eta', {'id': o.id, if (min == null) 'here': true else 'min': min},
+      min == null ? 'Buyer told you\'re here' : 'Buyer told you\'re about $min min away');
+
   Future<void> _cancel({bool noshow = false}) async {
     if (noshow) {
       if (await confirm(context, 'Buyer didn\'t show up?',
@@ -190,7 +228,20 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
               good: o.payout == 'paid',
             ),
           if (o.status == 'disputed')
-            _note('A problem was reported on this order: ${o.note}. The money stays on hold. Don\'t hand over anything until it\'s sorted. Reply on the website for now.', bad: true),
+            _note(
+                '${o.note}. The money stays on hold, so don\'t hand over anything until it\'s sorted.'
+                '${o.dispBy == 'buyer' && !o.dispReplied && o.dispDue != null ? ' Accept it or give your side by ${when(o.dispDue!)}, or it\'s decided for the buyer.' : ''}'
+                '${o.dispReplied ? ' Both sides have spoken: the Stall team will decide.' : ''}',
+                bad: true),
+          if (o.status == 'disputed') ...[
+            const SizedBox(height: 12),
+            if (o.dispBy == 'buyer')
+              FilledButton.tonal(key: const Key('settleAccept'), onPressed: _busy ? null : () => _settle('accept'), child: const Text('Accept and refund'))
+            else
+              FilledButton.tonal(key: const Key('settleWithdraw'), onPressed: _busy ? null : () => _settle('withdraw'), child: const Text('Withdraw report')),
+            OutlinedButton(
+                key: const Key('giveSide'), onPressed: _busy ? null : _side, child: Text(o.dispBy == 'buyer' && !o.dispReplied ? 'Give your side' : 'Add more')),
+          ],
           if (o.status == 'refunded') _note('This order was cancelled and the buyer refunded.${o.note.isEmpty ? '' : ' ${o.note}'}'),
           const SizedBox(height: 20),
           if (ver) ...[
@@ -221,6 +272,20 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
                 onPressed: _busy ? null : () => _act('orders/stage', {'id': o.id, 'stage': next.$1}, 'Buyer updated'),
                 child: Text(next.$2),
               ),
+            if (o.method == 'delivery' && o.stage == 'on_way' && o.handedAt == null) ...[
+              Text('Tell the buyer when you\'ll arrive', style: t.titleSmall),
+              const SizedBox(height: 6),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final m in const [5, 10, 20, 30])
+                  ActionChip(key: Key('eta-$m'), label: Text('$m min'), onPressed: _busy ? null : () => _eta(min: m)),
+                ActionChip(
+                    key: const Key('eta-here'),
+                    avatar: const Icon(Icons.place_rounded, size: 18),
+                    label: const Text('I\'m here'),
+                    onPressed: _busy ? null : () => _eta()),
+              ]),
+              const SizedBox(height: 12),
+            ],
             if (o.handedAt == null && (o.moved || o.stage == 'packed'))
               OutlinedButton(key: const Key('handed'), onPressed: _busy ? null : _handed, child: const Text('I handed it over')),
             if (o.handedAt == null) ...[
@@ -268,15 +333,18 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
 
 /// A note and optional photo (handover proof).
 class _NoteSheet extends StatefulWidget {
-  const _NoteSheet({required this.title, required this.text, required this.hint, required this.button});
+  const _NoteSheet({required this.title, required this.text, required this.hint, required this.button, this.needText = false});
   final String title, text, hint, button;
+
+  /// Ask for a written note (at least 10 characters) or a photo.
+  final bool needText;
   @override
   State<_NoteSheet> createState() => _NoteSheetState();
 }
 
 class _NoteSheetState extends State<_NoteSheet> {
   final _t = TextEditingController();
-  String? _photo;
+  String? _photo, _err;
   @override
   void dispose() {
     _t.dispose();
@@ -291,7 +359,12 @@ class _NoteSheetState extends State<_NoteSheet> {
           const SizedBox(height: 6),
           Text(widget.text),
           const SizedBox(height: 12),
-          TextField(key: const Key('noteText'), controller: _t, maxLength: 300, maxLines: 3, decoration: InputDecoration(hintText: widget.hint)),
+          TextField(
+              key: const Key('noteText'),
+              controller: _t,
+              maxLength: 300,
+              maxLines: 3,
+              decoration: InputDecoration(hintText: widget.hint, errorText: _err)),
           OutlinedButton.icon(
             onPressed: () async {
               try {
@@ -305,7 +378,15 @@ class _NoteSheetState extends State<_NoteSheet> {
             label: Text(_photo == null ? 'Add a photo' : 'Photo added'),
           ),
           const SizedBox(height: 12),
-          FilledButton(key: const Key('noteSend'), onPressed: () => Navigator.pop(context, (_t.text.trim(), _photo)), child: Text(widget.button)),
+          FilledButton(
+            key: const Key('noteSend'),
+            onPressed: () {
+              final x = _t.text.trim();
+              if (widget.needText && x.length < 10 && _photo == null) return setState(() => _err = 'Write what happened (a sentence or two) or add a photo.');
+              Navigator.pop(context, (x, _photo));
+            },
+            child: Text(widget.button),
+          ),
         ]),
       );
 }
