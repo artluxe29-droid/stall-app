@@ -83,11 +83,20 @@ void main() {
     expect(find.text('₦4,500'), findsOneWidget);
     expect(lastQuery(f, 'listings')['scope'], 'school');
 
+    await t.tap(find.byKey(const Key('chip-area')));
+    await settle(t);
+    expect(lastQuery(f, 'listings')['scope'], 'area');
+    expect(find.text('What\'s new in Ibadan North'), findsOneWidget);
+
+    await t.ensureVisible(find.byKey(const Key('chip-state')));
+    await t.pumpAndSettle();
     await t.tap(find.byKey(const Key('chip-state')));
     await settle(t);
     expect(lastQuery(f, 'listings')['scope'], 'state');
     expect(find.text('What\'s new in Oyo'), findsOneWidget);
 
+    await t.ensureVisible(find.byKey(const Key('chip-all')).first);
+    await t.pumpAndSettle();
     await t.tap(find.byKey(const Key('chip-all')).first);
     await settle(t);
     expect(lastQuery(f, 'listings')['scope'], 'all');

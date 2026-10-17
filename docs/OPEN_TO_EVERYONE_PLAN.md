@@ -1,6 +1,6 @@
 # Opening Stall to everyone
 
-Status: **Approved** (17 Oct 2026): yes to all five decisions. Steps 1, 2 and 3 are done on the server and website; step 4 (native app) is next.
+Status: **Approved** (17 Oct 2026): yes to all five decisions. All four steps are done: server, website and native app. The native app also updates itself through Google Play internal testing once docs/AUTO_UPDATES.md is set up.
 
 ## The decision
 

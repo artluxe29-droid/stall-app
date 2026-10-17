@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../place.dart';
 import '../theme.dart';
 import 'account_setup.dart';
 import 'browse.dart';
@@ -17,6 +18,20 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> {
   int _tab = 0;
+
+  /// Asked once per app launch, until they answer: accounts from before areas existed have none yet.
+  static bool _asked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final u = SessionScope.of(context).user;
+      if (_asked || u == null || u.area.isNotEmpty || !mounted) return;
+      _asked = true;
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PlaceScreen(prompt: true)));
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +59,7 @@ class _ShellState extends State<Shell> {
   }
 }
 
-/// Account: who's signed in, and sign out.
+/// Account: who's signed in, where they are, their school, and sign out.
 class AccountTab extends StatelessWidget {
   const AccountTab({super.key});
   @override
@@ -68,7 +83,29 @@ class AccountTab extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 12),
-      if (u != null && !u.isVendor)
+      if (u != null)
+        Card(
+          child: ListTile(
+            key: const Key('myArea'),
+            leading: const Icon(Icons.place_outlined, color: StallColors.indigo),
+            title: const Text('My area'),
+            subtitle: Text(u.area.isEmpty ? 'Choose your area to see things for sale near you' : '${u.area}, ${u.state}'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PlaceScreen())),
+          ),
+        ),
+      if (u != null)
+        Card(
+          child: ListTile(
+            key: const Key('student'),
+            leading: const Icon(Icons.school_outlined, color: StallColors.indigo),
+            title: Text(u.isVendor ? 'Campus' : 'Student'),
+            subtitle: Text(u.school != null ? u.schoolName : (u.isVendor ? 'Not linked to a campus' : 'Not a student')),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => openStudentSettings(context),
+          ),
+        ),
+      if (u != null && u.isStudent)
         Card(
           child: ListTile(
             key: const Key('verify'),

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../main.dart';
 import '../models.dart';
+import '../place.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -215,7 +216,8 @@ class _NewSchoolSheetState extends State<_NewSchoolSheet> {
       );
 }
 
-/// Create an account: a student (school, email, hostel) or a business (business name, location, invite code).
+/// Create an account: personal (anyone; students also pick their school) or a business (a campus is optional).
+/// Everyone picks their state and area.
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
   @override
@@ -225,9 +227,13 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final _form = GlobalKey<FormState>();
   final _c = {for (final k in ['name', 'email', 'phone', 'pw', 'where', 'biz', 'code']) k: TextEditingController()};
-  bool _vendor = false, _ok = false, _hide = true, _busy = false, _okErr = false, _tried = false;
+  bool _vendor = false, _student = false, _campus = false, _ok = false, _hide = true, _busy = false, _okErr = false, _tried = false;
   String _cat = Category.all.first.id;
   SchoolChoice? _school;
+  Place _place = const Place(null, null);
+
+  /// Students must pick their school; a business only if it's on or near a campus.
+  bool get _needSchool => _vendor ? _campus : _student;
   final _serverErr = <String, String>{};
   String? _error;
 
@@ -254,11 +260,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final s = SessionScope.of(context);
     try {
       await s.signUp({
-        ..._school!.body,
-        'role': _vendor ? 'vendor' : 'student',
+        if (_needSchool) ..._school!.body,
+        'role': _vendor ? 'vendor' : (_student ? 'student' : 'member'),
+        ..._place.body,
         'name': v('name'),
         'phone': v('phone'),
-        'where': v('where'),
+        if (_vendor || _student) 'where': v('where'),
         'password': _c['pw']!.text,
         if (_vendor) ...{'biz': v('biz'), 'cat': _cat, 'code': v('code')} else ...{'email': v('email')},
       });
@@ -330,20 +337,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Text('Create your account', style: t.displaySmall),
               const SizedBox(height: 8),
-              Text('For students and campus shops at schools across Nigeria.', style: t.bodyLarge?.copyWith(color: StallColors.muted)),
+              Text('Buy and sell safely with people near you, anywhere in Nigeria.', style: t.bodyLarge?.copyWith(color: StallColors.muted)),
               const SizedBox(height: 20),
               SegmentedButton<bool>(
                 key: const Key('role'),
                 segments: const [
-                  ButtonSegment(value: false, label: Text('Student'), icon: Icon(Icons.school_outlined)),
+                  ButtonSegment(value: false, label: Text('Personal'), icon: Icon(Icons.person_outline)),
                   ButtonSegment(value: true, label: Text('Business'), icon: Icon(Icons.storefront_outlined)),
                 ],
                 selected: {_vendor},
                 onSelectionChanged: (x) => setState(() => _vendor = x.first),
               ),
               const SizedBox(height: 20),
-              SchoolField(onPicked: (c) => _school = c),
-              const SizedBox(height: 14),
               if (_vendor) ...[
                 _field('biz', 'Business name', max: 40, check: (x) => x.length < 2 ? 'Enter your business name.' : null),
                 _field('name', 'Owner\'s full name', max: 50, auto: const [AutofillHints.name], check: (x) => x.length < 3 ? 'Enter your full name.' : null),
@@ -362,9 +367,32 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   pw: true,
                   auto: const [AutofillHints.newPassword],
                   check: (_) => _c['pw']!.text.length < 8 ? 'Use at least 8 characters.' : null),
+              PlacePicker(
+                errors: _serverErr,
+                onChanged: (p) => setState(() {
+                  _place = p;
+                  _serverErr.remove('state');
+                  _serverErr.remove('area');
+                }),
+              ),
+              CheckboxListTile(
+                key: const Key('su-student'),
+                value: _vendor ? _campus : _student,
+                onChanged: (x) => setState(() => _vendor ? _campus = x ?? false : _student = x ?? false),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(_vendor ? 'We\'re on or near a campus' : 'I\'m a student'),
+                subtitle: Text(_vendor ? 'Students there see you in their campus feed.' : 'Get your campus feed and the Student badge.'),
+              ),
+              if (_needSchool) ...[
+                SchoolField(key: ValueKey(_vendor), onPicked: (c) => _school = c),
+                const SizedBox(height: 14),
+              ],
               if (_vendor) ...[
-                _field('where', 'Shop location on campus',
-                    hint: 'e.g. Cafeteria, Stall 4', max: 40, check: (x) => x.length < 3 ? 'Where on campus is your shop?' : null),
+                _field('where', 'Shop location',
+                    hint: _campus ? 'e.g. Cafeteria, Stall 4' : 'e.g. Bodija Market, Shop 12',
+                    max: 40,
+                    check: (x) => x.length < 3 ? 'Where is your shop? A street, market or landmark is fine.' : null),
                 DropdownButtonFormField<String>(
             isExpanded: true,
                   key: const Key('su-cat'),
@@ -375,7 +403,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
                 const SizedBox(height: 14),
                 _field('code', 'Invite code (optional)', hint: 'Only if the Stall team gave you one', caps: true, max: 20),
-              ] else
+              ] else if (_student)
                 _field('where', 'Hostel or where you stay',
                     hint: 'e.g. Hall B, Room 214',
                     max: 40,
@@ -390,19 +418,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
                 title: Text(_vendor
-                    ? 'I\'m 16 or older, I run this shop on or near my school\'s campus, these details are correct, and I agree to the Terms and Privacy Policy.'
-                    : 'I\'m 16 or older, I\'m a current student at the school above, and I agree to the Terms and Privacy Policy.'),
+                    ? 'I\'m 16 or older, I run this business, these details are correct, and I agree to the Terms and Privacy Policy.'
+                    : 'I\'m 16 or older${_student ? ', I\'m a current student at the school above' : ''}, these details are correct, and I agree to the Terms and Privacy Policy.'),
                 subtitle: _okErr ? const Text('Please confirm to continue.', style: TextStyle(color: StallColors.red)) : null,
               ),
               Wrap(spacing: 4, children: [
                 TextButton(onPressed: () => openLink('/terms'), child: const Text('Read the Terms')),
                 TextButton(onPressed: () => openLink('/privacy'), child: const Text('Privacy Policy')),
               ]),
-              if (_vendor && v('code').isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text('Without an invite code, the Stall team checks new campus vendors before they can sell.', style: t.bodySmall),
-                ),
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),

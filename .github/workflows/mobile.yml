@@ -2,6 +2,8 @@
 # By hand (Actions → "Native app" → Run workflow) you can set the version for a Google Play upload.
 # Download "stall-native-…" at the bottom of a run: app-release.apk installs on any Android phone for testing,
 # app-release.aab is for Google Play.
+# Automatic updates: once Google Play is set up (docs/AUTO_UPDATES.md), every change to the app merged into main
+# is sent to the Google Play internal testing track, and testers' phones update by themselves.
 name: Native app
 
 on:
@@ -26,11 +28,22 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      PLAY_ON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' && 'yes' || '' }}
     defaults:
       run:
         working-directory: mobile
     steps:
       - uses: actions/checkout@v5
+
+      # Automatic builds count up from 1000, above any version code uploaded by hand.
+      - name: Version
+        env:
+          IN_CODE: ${{ inputs.versionCode }}
+          IN_NAME: ${{ inputs.versionName }}
+        run: |
+          echo "VERSION_CODE=${IN_CODE:-$((1000 + GITHUB_RUN_NUMBER))}" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=${IN_NAME:-2.0.$GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v5
         with:
@@ -68,13 +81,26 @@ jobs:
           STALL_KEY_ALIAS: ${{ secrets.STALL_KEY_ALIAS }}
           STALL_KEY_PASSWORD: ${{ secrets.STALL_KEY_PASSWORD }}
         run: |
-          flutter build apk --release --build-number="${{ inputs.versionCode || github.run_number }}" --build-name="${{ inputs.versionName || '2.0.0' }}"
-          flutter build appbundle --release --build-number="${{ inputs.versionCode || github.run_number }}" --build-name="${{ inputs.versionName || '2.0.0' }}"
+          flutter build apk --release --build-number="$VERSION_CODE" --build-name="$VERSION_NAME"
+          flutter build appbundle --release --build-number="$VERSION_CODE" --build-name="$VERSION_NAME"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: stall-native-${{ inputs.versionName || github.run_number }}
+          name: stall-native-${{ env.VERSION_NAME }}
           path: |
             mobile/build/app/outputs/flutter-apk/app-release.apk
             mobile/build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
+
+      # Only real upload-key builds of main go to Google Play; pull requests and test-key builds never do.
+      - name: Send to Google Play (internal testing)
+        if: env.PLAY_ON == 'yes' && env.STALL_KEYSTORE_FILE != '' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ng.com.stall.app
+          releaseFiles: mobile/build/app/outputs/bundle/release/app-release.aab
+          track: ${{ vars.PLAY_TRACK || 'internal' }}
+          # 'draft' until the app's first release is reviewed by Google, then 'completed' (repository variable PLAY_RELEASE_STATUS).
+          status: ${{ vars.PLAY_RELEASE_STATUS || 'completed' }}
+          releaseName: ${{ env.VERSION_NAME }}
