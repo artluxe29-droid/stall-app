@@ -9,6 +9,7 @@ import '../widgets.dart';
 import 'account_setup.dart';
 import 'browse.dart';
 import 'chat.dart';
+import 'collections.dart';
 import 'item.dart' show showReviews;
 import 'orders.dart';
 import 'settings.dart';
@@ -56,6 +57,11 @@ class _ShellState extends State<Shell> {
     final go = u.queryParameters['go'] ?? '';
     final nav = navKey.currentState ?? Navigator.of(context);
     nav.popUntil((r) => r.isFirst);
+    final collect = u.queryParameters['collect'];
+    if (collect != null && collect.isNotEmpty) {
+      nav.push(MaterialPageRoute(builder: (_) => CollectionScreen(code: collect.toUpperCase())));
+      return;
+    }
     switch (go) {
       case 'orders' || 'selling':
         ordersSelling.value = go == 'selling';
@@ -204,6 +210,15 @@ class AccountTab extends StatelessWidget {
         ),
       Card(
         child: Column(children: [
+          ListTile(
+            key: const Key('collectTile'),
+            leading: const Icon(Icons.groups_outlined, color: StallColors.indigo),
+            title: const Text('Class collections'),
+            subtitle: const Text('Collect money from your class, or pay into one'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CollectionsScreen())),
+          ),
+          const Divider(height: 1),
           ListTile(
             key: const Key('inviteTile'),
             leading: const Icon(Icons.card_giftcard_rounded, color: StallColors.indigo),
