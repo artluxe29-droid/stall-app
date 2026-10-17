@@ -1,6 +1,6 @@
 # Stall native app: rebuild plan
 
-Status: **Phase 3 in progress.** 3a (chat, problem reports, review replies, strikes notice) and 3b (live map) are in the app; 3c (push notifications) is next. Phases 0, 1 and 2 are done: browsing, accounts, buying, selling items, selling orders and payouts, and opening and running a store. The app also has "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
+Status: **Phase 4 next.** Phase 3 (chat, problem reports, review replies, strikes notice, live map, push notifications) is in the app; Phase 4 is next. Phases 0, 1 and 2 are done: browsing, accounts, buying, selling items, selling orders and payouts, and opening and running a store. The app also has "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
 
 ## Why
 
@@ -101,7 +101,7 @@ Tick each one only when it works in the native app against the live API.
   - [x] Review replies
   - [x] Paused-for-strikes notice
 - **Notifications:**
-  - [ ] Native push (FCM)
+  - [x] Native push (FCM): on once the Firebase setup below is done
   - [ ] In-app news dots
 - **Collections:**
   - [ ] Create
@@ -138,5 +138,5 @@ Tick each one only when it works in the native app against the live API.
    2. Add an Android app with package `ng.com.stall.app`, and download `google-services.json`.
    3. In Project settings → Service accounts → **Generate new private key**.
    4. In Cloudflare, add that JSON as a **Secret** called `FCM_SERVICE_ACCOUNT`.
-   5. In GitHub, add the content of `google-services.json` as a repository secret called `GOOGLE_SERVICES_JSON`.
+   5. In GitHub, add the content of `google-services.json` as a repository secret called `GOOGLE_SERVICES_JSON`. The next app build then has push notifications (the build log says so if the secret is missing).
 2. The upload key secrets from `android/README.md` are shared by both apps, so the native app can replace the Trusted Web Activity on Google Play.

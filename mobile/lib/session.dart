@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'api.dart';
 import 'bag.dart';
+import 'push.dart';
 import 'theme.dart';
 
 /// The signed-in person, from the API's user object.
@@ -88,6 +89,7 @@ class Session extends ChangeNotifier {
       final r = await api.get('me');
       user = StallUser(r['user'] as Map<String, dynamic>);
       _set(SessionState.signedIn);
+      Push.start(this);
     } on ApiError catch (e) {
       // Only a rejected token signs you out; a bad connection keeps you signed in for the next try.
       if (e.status == 401) await api.setToken(null);
@@ -115,6 +117,7 @@ class Session extends ChangeNotifier {
     }
     await _loadConfig();
     _set(SessionState.signedIn);
+    Push.start(this);
   }
 
   /// Creates an account (the same fields as the web sign-up form).
@@ -127,6 +130,7 @@ class Session extends ChangeNotifier {
     await refresh();
     await _loadConfig();
     _set(SessionState.signedIn);
+    Push.start(this);
   }
 
   /// Reloads who you are (verification level, email, school…) after something changed it.
@@ -155,6 +159,7 @@ class Session extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    await Push.stop(this);
     try {
       await api.post('logout');
     } catch (_) {}

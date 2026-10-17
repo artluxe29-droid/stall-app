@@ -75,14 +75,27 @@ jobs:
             echo "::notice::No upload key in secrets, so this build uses a test key: fine for trying on a phone, not for Google Play."
           fi
 
+      # Push notifications: the app reads its Firebase settings from google-services.json (the GOOGLE_SERVICES_JSON secret).
+      # Without the secret, the app is built without push and works the same otherwise.
+      - name: Firebase settings for push
+        env:
+          GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GSJ" ]; then echo "::notice::No GOOGLE_SERVICES_JSON secret, so this build has no push notifications."; exit 0; fi
+          C=$(printf '%s' "$GSJ" | jq -c '.client[] | select(.client_info.android_client_info.package_name=="ng.com.stall.app")')
+          if [ -z "$C" ]; then echo "::warning::google-services.json has no Android app ng.com.stall.app, so this build has no push notifications."; exit 0; fi
+          {
+            echo "FCM_DEFINES=--dart-define=FCM_API_KEY=$(printf '%s' "$C" | jq -r '.api_key[0].current_key') --dart-define=FCM_APP_ID=$(printf '%s' "$C" | jq -r '.client_info.mobilesdk_app_id') --dart-define=FCM_SENDER_ID=$(printf '%s' "$GSJ" | jq -r '.project_info.project_number') --dart-define=FCM_PROJECT_ID=$(printf '%s' "$GSJ" | jq -r '.project_info.project_id')"
+          } >> "$GITHUB_ENV"
+
       - name: Build
         env:
           STALL_KEYSTORE_PASSWORD: ${{ secrets.STALL_KEYSTORE_PASSWORD }}
           STALL_KEY_ALIAS: ${{ secrets.STALL_KEY_ALIAS }}
           STALL_KEY_PASSWORD: ${{ secrets.STALL_KEY_PASSWORD }}
         run: |
-          flutter build apk --release --build-number="$VERSION_CODE" --build-name="$VERSION_NAME"
-          flutter build appbundle --release --build-number="$VERSION_CODE" --build-name="$VERSION_NAME"
+          flutter build apk --release --build-number="$VERSION_CODE" --build-name="$VERSION_NAME" $FCM_DEFINES
+          flutter build appbundle --release --build-number="$VERSION_CODE" --build-name="$VERSION_NAME" $FCM_DEFINES
 
       - uses: actions/upload-artifact@v4
         with:

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../place.dart';
+import '../push.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'account_setup.dart';
@@ -28,12 +29,41 @@ class _ShellState extends State<Shell> {
   @override
   void initState() {
     super.initState();
+    pushTarget.addListener(_go);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _go(); // a notification tapped before Stall opened
       final u = SessionScope.of(context).user;
       if (_asked || u == null || u.area.isNotEmpty || !mounted) return;
       _asked = true;
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PlaceScreen(prompt: true)));
     });
+  }
+
+  @override
+  void dispose() {
+    pushTarget.removeListener(_go);
+    ordersSelling.value = false; // the next person to sign in starts on Buying
+    super.dispose();
+  }
+
+  /// Opens what a tapped notification points to: an order list, a chat, or Messages.
+  void _go() {
+    final u = pushTarget.value;
+    if (u == null || !mounted) return;
+    pushTarget.value = null;
+    final go = u.queryParameters['go'] ?? '';
+    final nav = navKey.currentState ?? Navigator.of(context);
+    nav.popUntil((r) => r.isFirst);
+    switch (go) {
+      case 'orders' || 'selling':
+        ordersSelling.value = go == 'selling';
+        setState(() => _tab = 3);
+      case 'messages':
+        final t = int.tryParse(u.queryParameters['t'] ?? '');
+        nav.push(MaterialPageRoute(builder: (_) => t == null ? const MessagesScreen() : ChatScreen(tid: t)));
+      case 'payments' || 'badges' || 'invite':
+        setState(() => _tab = 4);
+    }
   }
 
   @override

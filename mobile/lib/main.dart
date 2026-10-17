@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'api.dart';
+import 'push.dart';
 import 'screens/account_setup.dart';
 import 'screens/closed.dart';
 import 'screens/shell.dart';
@@ -32,6 +33,8 @@ class StallApp extends StatelessWidget {
         session: session,
         child: MaterialApp(
           title: 'Stall',
+          navigatorKey: navKey,
+          scaffoldMessengerKey: messengerKey,
           debugShowCheckedModeBanner: false,
           theme: stallTheme(),
           home: const _Gate(),
