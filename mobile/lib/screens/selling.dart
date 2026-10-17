@@ -144,7 +144,8 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
       }
       return;
     }
-    final why = TextEditingController();
+    // The typed reason, not a controller: a controller disposed here would still be in use while the dialog animates closed.
+    var why = '';
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -154,7 +155,8 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
               ? 'Cancel this order and refund the buyer?'
               : 'You already packed or sent this order, so cancelling now counts as a strike. Cancel and refund the buyer?'),
           const SizedBox(height: 12),
-          TextField(key: const Key('cancelWhy'), controller: why, maxLength: 300, decoration: const InputDecoration(hintText: 'Tell them why (optional)')),
+          TextField(
+              key: const Key('cancelWhy'), onChanged: (x) => why = x, maxLength: 300, decoration: const InputDecoration(hintText: 'Tell them why (optional)')),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep it')),
@@ -162,9 +164,7 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
         ],
       ),
     );
-    final reason = why.text.trim();
-    why.dispose();
-    if (ok == true && mounted) await _act('orders/cancel', {'id': o.id, 'reason': reason}, 'Order cancelled. Buyer refunded');
+    if (ok == true && mounted) await _act('orders/cancel', {'id': o.id, 'reason': why.trim()}, 'Order cancelled. Buyer refunded');
   }
 
   Widget _note(String text, {bool bad = false, bool good = false}) => Container(

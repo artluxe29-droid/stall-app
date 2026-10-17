@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../api.dart';
+import '../bank.dart';
 import '../main.dart';
 import '../models.dart';
 import '../session.dart';
@@ -13,6 +14,7 @@ import '../widgets.dart';
 import 'account_setup.dart';
 import 'browse.dart';
 import 'checkout.dart' show confirm;
+import 'my_store.dart';
 import 'selling.dart';
 
 /// Picks listing photos (1 to 8), shrunk like the web app does (720px, JPEG), as data URLs for the API.
@@ -41,12 +43,6 @@ PhotoPicker pickListingPhotos = (context, max) async {
   }
   return out;
 };
-
-/// The banks Stall can pay out to (GET /api/banks).
-Future<List<(String, String)>> loadBanks(Api api) async {
-  final r = await api.get('banks');
-  return [for (final b in (r['banks'] as List? ?? const [])) ((b as Map)['code'].toString(), b['name'].toString())];
-}
 
 /// "Before you sell": the same rules and two ticks as the web app. Returns true once agreed (and saved).
 Future<bool> sellerRules(BuildContext context) async {
@@ -176,13 +172,8 @@ class _SellTabState extends State<SellTab> {
     final s = SessionScope.of(context);
     final u = s.user;
     final t = Theme.of(context).textTheme;
-    if (u != null && u.isVendor) {
-      return const EmptyState(
-        icon: Icons.storefront_outlined,
-        title: 'Businesses sell through a store',
-        text: 'Opening and running your store in the app arrives in the next update. For now, manage it on stall.com.ng.',
-      );
-    }
+    // Businesses sell through their store, so for them the Sell tab is the store.
+    if (u != null && u.isVendor) return const MyStoreView(heading: true);
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView(padding: const EdgeInsets.fromLTRB(20, 16, 20, 32), children: [
@@ -204,6 +195,15 @@ class _SellTabState extends State<SellTab> {
                   : 'Off: buyers collect from you'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DeliveryScreen())),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              key: const Key('storeTile'),
+              leading: const Icon(Icons.storefront_outlined, color: StallColors.indigo),
+              title: const Text('Your store'),
+              subtitle: const Text('A page for a business: a menu of items, logo, open and closed'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyStoreScreen())),
             ),
             const Divider(height: 1),
             ListTile(
@@ -353,13 +353,12 @@ class SellScreen extends StatefulWidget {
 
 class _SellScreenState extends State<SellScreen> {
   final _form = GlobalKey<FormState>();
-  final _c = {for (final k in ['title', 'price', 'qty', 'spot', 'desc', 'acct', 'acctName']) k: TextEditingController()};
+  final _c = {for (final k in ['title', 'price', 'qty', 'spot', 'desc']) k: TextEditingController()};
   final _photos = <String>[];
   String _cat = Category.all.first.id, _cond = 'Like new';
-  String? _bank, _verifiedName, _bankMsg, _photoErr, _error;
-  List<(String, String)> _banks = const [];
-  bool _busy = false, _checking = false, _manual = false, _tried = false;
-  int _fails = 0;
+  String? _bankMsg, _photoErr, _error;
+  BankChoice? _acct;
+  bool _busy = false, _tried = false;
   Map<String, dynamic>? _hint;
   Timer? _hintT;
   final _scroll = ScrollController();
@@ -370,15 +369,6 @@ class _SellScreenState extends State<SellScreen> {
     _c['qty']!.text = '1';
     _c['title']!.addListener(_hintSoon);
     _c['price']!.addListener(() => setState(() {}));
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final s = SessionScope.of(context);
-    if (_banks.isEmpty && !(s.user?.acctSet ?? true)) {
-      loadBanks(s.api).then((b) => mounted ? setState(() => _banks = b) : null).catchError((_) {});
-    }
   }
 
   @override
@@ -438,28 +428,6 @@ class _SellScreenState extends State<SellScreen> {
     });
   }
 
-  Future<void> _verifyBank() async {
-    final acct = _c['acct']!.text.replaceAll(RegExp(r'\D'), '');
-    if (_bank == null || acct.length != 10) return setState(() => _bankMsg = 'Choose your bank and enter your 10-digit account number.');
-    setState(() {
-      _checking = true;
-      _bankMsg = null;
-    });
-    try {
-      final r = await SessionScope.of(context).api.post('bank/resolve', {'bank_code': _bank, 'acct_no': acct});
-      setState(() => _verifiedName = r['name'].toString());
-    } on ApiError catch (e) {
-      setState(() {
-        _fails++;
-        _bankMsg = e.message;
-        // Paystack can't always check an account (busy, or not set up). After that, accept the name typed in.
-        if (_fails >= 2 || e.status == 503 || e.message.contains('Type the name')) _manual = true;
-      });
-    } finally {
-      if (mounted) setState(() => _checking = false);
-    }
-  }
-
   Future<void> _submit({bool retried = false}) async {
     final s = SessionScope.of(context);
     final needBank = !(s.user?.acctSet ?? false);
@@ -475,9 +443,7 @@ class _SellScreenState extends State<SellScreen> {
       return;
     }
     if (!_form.currentState!.validate()) return;
-    if (needBank && _verifiedName == null && !(_manual && _c['acctName']!.text.trim().length >= 3)) {
-      return setState(() => _bankMsg = _c['acct']!.text.trim().length == 10 ? 'Tap "Verify account" first.' : 'Enter your 10-digit account number, then tap "Verify account".');
-    }
+    if (needBank && _acct == null) return setState(() => _bankMsg = 'Enter your 10-digit account number, then tap "Verify account".');
     setState(() => _busy = true);
     try {
       final u = s.user!;
@@ -493,10 +459,10 @@ class _SellScreenState extends State<SellScreen> {
         'phone': u.phone,
         'imgs': _photos,
         if (needBank) ...{
-          'bank_code': _bank,
-          'acct_no': _c['acct']!.text.replaceAll(RegExp(r'\D'), ''),
-          'acct_name': _verifiedName ?? _c['acctName']!.text.trim(),
-          if (_verifiedName == null) 'bank_manual': '1',
+          'bank_code': _acct!.code,
+          'acct_no': _acct!.acct,
+          'acct_name': _acct!.name,
+          if (_acct!.manual) 'bank_manual': '1',
         },
       });
       await s.refresh();
@@ -660,47 +626,10 @@ class _SellScreenState extends State<SellScreen> {
             Text('Payout account', style: t.titleMedium),
             Text('Where Stall sends your money when you sell. You only add it once.', style: t.bodySmall),
             const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              key: const Key('s-bank'),
-              isExpanded: true,
-              initialValue: _bank,
-              decoration: dec('Bank'),
-              items: [for (final b in _banks) DropdownMenuItem(value: b.$1, child: Text(b.$2))],
-              onChanged: (v) => setState(() {
-                _bank = v;
-                _verifiedName = null;
-                _fails = 0;
-              }),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              key: const Key('s-acct'),
-              controller: _c['acct'],
-              keyboardType: TextInputType.number,
-              maxLength: 10,
-              onChanged: (_) => setState(() {
-                _verifiedName = null;
-                _fails = 0;
-              }),
-              decoration: dec('Account number', hint: '10 digits'),
-            ),
-            Row(children: [
-              OutlinedButton(key: const Key('verifyBank'), style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)), onPressed: _checking ? null : _verifyBank, child: Text(_checking ? 'Checking…' : 'Verify account')),
-              const SizedBox(width: 12),
-              if (_verifiedName != null)
-                Expanded(child: Text('✓ $_verifiedName', key: const Key('bankName'), style: const TextStyle(color: StallColors.green, fontWeight: FontWeight.w700))),
-            ]),
-            if (_bankMsg != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(_bankMsg!, style: const TextStyle(color: StallColors.red))),
-            if (_manual && _verifiedName == null) ...[
-              const SizedBox(height: 10),
-              TextField(
-                key: const Key('s-acctName'),
-                controller: _c['acctName'],
-                textCapitalization: TextCapitalization.characters,
-                decoration: dec('Name on the account', hint: 'Exactly as your bank shows it'),
-              ),
-              Text('The Stall team checks this name before your first payout.', style: t.bodySmall),
-            ],
+            BankBox(error: _bankMsg, onChanged: (c) => setState(() {
+                  _acct = c;
+                  if (c != null) _bankMsg = null;
+                })),
           ],
           const SizedBox(height: 12),
           Text('Free to list. Stall holds each buyer\'s payment until they have their order, then sends it to your account minus a sale fee of ${s.feeDesc}.',
@@ -714,9 +643,11 @@ class _SellScreenState extends State<SellScreen> {
   }
 }
 
-/// Delivery settings for the items you list: buyers can always collect; if you deliver, they can pay your fee with their order.
+/// Delivery settings for the items you list (or, with [store], for your store): buyers can always collect;
+/// if you deliver, they can pay your fee with their order.
 class DeliveryScreen extends StatefulWidget {
-  const DeliveryScreen({super.key});
+  const DeliveryScreen({super.key, this.store});
+  final Delivery? store;
   @override
   State<DeliveryScreen> createState() => _DeliveryScreenState();
 }
@@ -732,7 +663,8 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     super.didChangeDependencies();
     if (_init) return;
     _init = true;
-    final d = SessionScope.of(context).user?.deliv ?? const {};
+    final st = widget.store;
+    final d = st != null ? {'on': st.on, 'fee': st.fee, 'note': st.note} : SessionScope.of(context).user?.deliv ?? const {};
     _on = d['on'] == true;
     _fee.text = '${(d['fee'] as num?) ?? 0}';
     _note.text = (d['note'] ?? '').toString();
@@ -752,11 +684,11 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     });
     final s = SessionScope.of(context);
     try {
-      await s.api.post('me/delivery', {'on': _on, 'fee': int.tryParse(_fee.text.trim()) ?? 0, 'note': _note.text.trim()});
+      await s.api.post(widget.store != null ? 'stores/delivery' : 'me/delivery', {'on': _on, 'fee': int.tryParse(_fee.text.trim()) ?? 0, 'note': _note.text.trim()});
       await s.refresh();
       if (!mounted) return;
       toast(context, 'Delivery settings saved');
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     } on ApiError catch (e) {
       setState(() => _err = e.message);
     } finally {
@@ -770,7 +702,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Delivery')),
       body: ListView(padding: const EdgeInsets.fromLTRB(20, 4, 20, 32), children: [
-        Text('For the items you list. Buyers can always collect from you. If you also deliver, they can choose delivery and pay your fee with their order. Stall\'s fee is on the item price only; you keep the whole delivery fee.',
+        Text('${widget.store != null ? 'For your store.' : 'For the items you list.'} Buyers can always collect from you. If you also deliver, they can choose delivery and pay your fee with their order. Stall\'s fee is on the item price only; you keep the whole delivery fee.',
             style: t.bodyMedium?.copyWith(color: StallColors.muted)),
         SwitchListTile(key: const Key('deliverOn'), contentPadding: EdgeInsets.zero, title: const Text('I deliver'), value: _on, onChanged: (v) => setState(() => _on = v)),
         if (_on) ...[

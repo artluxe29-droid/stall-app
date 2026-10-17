@@ -43,8 +43,11 @@ void main() {
   Map<String, dynamic> body(FakeApi f, String path) =>
       jsonDecode(f.calls.lastWhere((c) => c.url.path == '/api/$path' && c.method == 'POST').body) as Map<String, dynamic>;
 
+  // The screen's own list, not a text field's scrollable.
+  Finder page() => find.byType(Scrollable).first;
+
   Future<void> tap(WidgetTester t, Finder f) async {
-    if (f.evaluate().isEmpty) await t.scrollUntilVisible(f, 200, scrollable: find.byType(Scrollable).last);
+    if (f.evaluate().isEmpty) await t.scrollUntilVisible(f, 200, scrollable: page());
     await t.ensureVisible(f);
     await t.pump();
     await t.tap(f);
@@ -53,7 +56,7 @@ void main() {
 
   Future<void> type(WidgetTester t, String key, String text) async {
     final f = find.byKey(Key(key));
-    if (f.evaluate().isEmpty) await t.scrollUntilVisible(f, 200, scrollable: find.byType(Scrollable).last);
+    if (f.evaluate().isEmpty) await t.scrollUntilVisible(f, 200, scrollable: page());
     await t.ensureVisible(f);
     await t.enterText(f, text);
     await t.pump();
@@ -160,8 +163,10 @@ void main() {
     expect(body(f, 'me/delivery'), {'on': true, 'fee': 400, 'note': ''});
   });
 
-  testWidgets('campus vendors are pointed to their store', (t) async {
-    await sellTab(t, {}, me: {'role': 'vendor'});
-    expect(find.text('Businesses sell through a store'), findsOneWidget);
+  testWidgets('for a business, the Sell tab is their store', (t) async {
+    await sellTab(t, {'GET stores': (_) => (200, {'stores': []})}, me: {'role': 'vendor'});
+    expect(find.text('Your store'), findsOneWidget);
+    expect(find.byKey(const Key('openStore')), findsOneWidget);
+    expect(find.byKey(const Key('sellItem')), findsNothing);
   });
 }
