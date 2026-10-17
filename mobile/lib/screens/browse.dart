@@ -214,11 +214,17 @@ class _HomeTabState extends State<HomeTab> {
             Row(children: [
               const Wordmark(height: 28),
               const Spacer(),
-              IconButton(
-                key: const Key('messages'),
-                tooltip: 'Messages',
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MessagesScreen())),
-                icon: const Icon(Icons.chat_bubble_outline_rounded),
+              ListenableBuilder(
+                listenable: s.news,
+                builder: (context, _) => IconButton(
+                  key: const Key('messages'),
+                  tooltip: 'Messages',
+                  onPressed: () async {
+                    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MessagesScreen()));
+                    s.news.check();
+                  },
+                  icon: Badge(isLabelVisible: s.news.chats > 0, label: Text('${s.news.chats}'), child: const Icon(Icons.chat_bubble_outline_rounded)),
+                ),
               ),
               const BagButton(),
             ]),

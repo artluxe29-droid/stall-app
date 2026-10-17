@@ -13,6 +13,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'account_setup.dart';
 import 'browse.dart';
+import 'bulk.dart';
 import 'checkout.dart' show confirm;
 import 'my_store.dart';
 import 'selling.dart';
@@ -182,6 +183,17 @@ class _SellTabState extends State<SellTab> {
         Text('Free to list. Stall holds the buyer\'s payment until they have the item, then pays you.', style: t.bodyLarge?.copyWith(color: StallColors.muted)),
         const SizedBox(height: 16),
         FilledButton.icon(key: const Key('sellItem'), onPressed: _sell, icon: const Icon(Icons.add_rounded), label: const Text('Sell an item')),
+        // Several at once needs the payout account, which is added with the first single item.
+        if (u?.acctSet ?? false)
+          TextButton.icon(
+            key: const Key('bulkAdd'),
+            onPressed: () async {
+              final added = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const BulkAddScreen()));
+              if (added == true) _refresh();
+            },
+            icon: const Icon(Icons.library_add_outlined),
+            label: const Text('Add several items at once'),
+          ),
         const SizedBox(height: 12),
         Card(
           margin: EdgeInsets.zero,

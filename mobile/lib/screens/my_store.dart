@@ -10,6 +10,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'account_setup.dart' show phoneError, VerifyStudentScreen;
 import 'browse.dart' show Photo, shareThing;
+import 'bulk.dart';
 import 'checkout.dart' show confirm, openPaystack;
 import 'extras.dart' show StoreQrScreen;
 import 'sell.dart';
@@ -618,6 +619,15 @@ class _MyStoreViewState extends State<MyStoreView> {
             },
             icon: const Icon(Icons.add_rounded),
             label: const Text('Add an item'),
+          ),
+          TextButton.icon(
+            key: const Key('bulkStore'),
+            onPressed: () async {
+              final added = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => BulkAddScreen(storeName: st.name)));
+              if (added == true) _reload();
+            },
+            icon: const Icon(Icons.library_add_outlined),
+            label: const Text('Add several at once'),
           ),
           if (st.items.isEmpty) const Padding(padding: EdgeInsets.only(top: 12), child: Text('No items yet. Add what you sell so buyers can order.')),
           for (final it in st.items) _itemRow(context, st, it),

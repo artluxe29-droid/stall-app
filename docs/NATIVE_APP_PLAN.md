@@ -1,6 +1,6 @@
 # Stall native app: rebuild plan
 
-Status: **Phase 5 (launch) next.** Phase 4 is done except voice search, bulk add and the how-to videos. Phase 3 (chat, problem reports, review replies, strikes notice, live map, push notifications) is in the app; Phase 4 is next. Phases 0, 1 and 2 are done: browsing, accounts, buying, selling items, selling orders and payouts, and opening and running a store. The app also has "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
+Status: **Phase 5 (launch) next.** Phases 0 to 4 are done. Phase 3 (chat, problem reports, review replies, strikes notice, live map, push notifications) is in the app; Phase 4 is next. Phases 0, 1 and 2 are done: browsing, accounts, buying, selling items, selling orders and payouts, and opening and running a store. The app also has "open to everyone": personal and business sign-up with state and area, an optional student tick, the My area feed, and the My area and Student settings. Updates can reach phones automatically through Google Play internal testing (docs/AUTO_UPDATES.md).
 
 ## Why
 
@@ -43,7 +43,7 @@ Tick each one only when it works in the native app against the live API.
   - [x] Categories
   - [x] Search with filters and sort
   - [x] Recent searches
-  - [ ] Voice search
+  - [x] Voice search
   - [x] Store search hits
 - **Items and stores:**
   - [x] Item page and photos
@@ -69,7 +69,7 @@ Tick each one only when it works in the native app against the live API.
   - [x] Receipts
 - **Selling:**
   - [x] List an item (photos, compression, price hint)
-  - [ ] Bulk add
+  - [x] Bulk add (listings and store items)
   - [x] Stock
   - [x] Mark sold
   - [x] Delete
@@ -103,7 +103,7 @@ Tick each one only when it works in the native app against the live API.
   - [x] Paused-for-strikes notice
 - **Notifications:**
   - [x] Native push (FCM): on once the Firebase setup below is done
-  - [ ] In-app news dots
+  - [x] In-app news dots (Orders and Messages)
 - **Collections:**
   - [x] Create
   - [x] Share link
@@ -112,9 +112,9 @@ Tick each one only when it works in the native app against the live API.
   - [x] Close
   - [x] No-fee accounts (the server leaves out the charge)
 - **Extras:**
-  - [x] Milestone badges (shared as text; the website's badge picture comes later)
+  - [x] Milestone badges and share pictures
   - [x] Invite and referrals (code at sign-up, credit)
-  - [ ] How-to videos
+  - [ ] How-to videos: these are social videos (`brand/howto`), not in the website app either; link them from Help once they're posted
   - [x] Partner banners and reach stats
   - [x] Payments to Stall, with receipts
   - [x] Guide

@@ -68,16 +68,13 @@ class _BadgesScreenState extends State<BadgesScreen> {
     return r;
   }
 
-  Future<void> _share(String k, int n) async {
-    final api = SessionScope.of(context).api;
-    String link = apiBase;
-    try {
-      link = (await api.get('me/referral'))['link']?.toString() ?? link;
-    } catch (_) {}
-    final line = k == 'sell' ? (n == 1 ? 'First sale on Stall! Paid safely, straight to the bank.' : '${ordinal(n)} sale on Stall. Paid safely, every single time.')
-        : (n == 1 ? 'First safe buy on Stall. My money was held until it reached me.' : '${ordinal(n)} safe buy on Stall. My money was held until it reached me.');
-    await SharePlus.instance.share(ShareParams(text: '$line Join me: $link', subject: 'Stall'));
+  Future<void> _share(String k, int n) {
+    final d = _data ?? const {};
+    final who = (k == 'sell' && d['store'] != null ? d['store'] : d['name']) ?? '';
+    return Navigator.of(context).push(MaterialPageRoute(builder: (_) => BadgeCardScreen(kind: k, n: n, who: who.toString())));
   }
+
+  Map<String, dynamic>? _data;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -87,7 +84,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
           builder: (context, snap) {
             if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
             if (snap.hasError) return EmptyState(icon: Icons.wifi_off_rounded, title: 'Couldn\'t load your badges', text: snap.error.toString());
-            final d = snap.data!;
+            final d = _data = snap.data!;
             final t = Theme.of(context).textTheme;
             final fresh = [for (final k in const ['sell', 'buy']) if ((d[k] as Map?)?['fresh'] != null) (k, ((d[k] as Map)['fresh'] as num).toInt())];
             return ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 32), children: [
@@ -141,6 +138,99 @@ class _BadgesScreenState extends State<BadgesScreen> {
       ]),
       const SizedBox(height: 28),
     ];
+  }
+}
+
+/// The badge as a picture to share (WhatsApp status), in the website's four looks: first, rising, trusted, legend.
+class BadgeCardScreen extends StatefulWidget {
+  const BadgeCardScreen({super.key, required this.kind, required this.n, required this.who});
+  final String kind, who;
+  final int n;
+  @override
+  State<BadgeCardScreen> createState() => _BadgeCardScreenState();
+}
+
+class _BadgeCardScreenState extends State<BadgeCardScreen> {
+  final _card = GlobalKey();
+
+  String get _title => widget.kind == 'sell'
+      ? (widget.n == 1 ? 'First sale on Stall!' : '${ordinal(widget.n)} sale on Stall')
+      : (widget.n == 1 ? 'First safe buy on Stall' : '${ordinal(widget.n)} safe buy on Stall');
+  String get _line => widget.kind == 'sell'
+      ? (widget.n == 1 ? 'Paid safely, straight to the bank.' : 'Paid safely, every single time.')
+      : 'My money was held until it reached me.';
+
+  Future<void> _shareImage() async {
+    final api = SessionScope.of(context).api;
+    var link = apiBase;
+    try {
+      link = (await api.get('me/referral'))['link']?.toString() ?? link;
+    } catch (_) {}
+    final text = '$_title. $_line Join me on Stall: $link';
+    try {
+      final b = _card.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final png = await (await b.toImage(pixelRatio: 3)).toByteData(format: ui.ImageByteFormat.png);
+      await SharePlus.instance.share(ShareParams(files: [XFile.fromData(png!.buffer.asUint8List(), mimeType: 'image/png', name: 'stall-badge.png')], text: text));
+    } catch (_) {
+      await SharePlus.instance.share(ShareParams(text: text));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final n = widget.n;
+    // first, rising (dots), trusted (night), legend
+    final (bg, ink, mut, fill, ring) = n == 1
+        ? (StallColors.cream, StallColors.indigo, StallColors.muted, StallColors.lime, StallColors.indigo)
+        : n < 20
+            ? (Colors.white, StallColors.indigo, StallColors.muted, StallColors.indigo, StallColors.lime)
+            : n < 50
+                ? (StallColors.night, StallColors.cream, const Color(0xFF9AA1C9), StallColors.lime, StallColors.night)
+                : (StallColors.indigo, StallColors.cream, const Color(0xFFCDD2F0), StallColors.lime, StallColors.cream);
+    final t = Theme.of(context).textTheme;
+    return Scaffold(
+      appBar: AppBar(title: Text(badgeName(widget.kind, n))),
+      body: ListView(padding: const EdgeInsets.all(20), children: [
+        Center(
+          child: RepaintBoundary(
+            key: _card,
+            child: Container(
+              width: 320,
+              padding: const EdgeInsets.fromLTRB(24, 26, 24, 22),
+              decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(24), border: Border.all(color: StallColors.line)),
+              child: Column(children: [
+                Text(badgeKicker(widget.kind, n).toUpperCase(),
+                    style: t.labelMedium?.copyWith(color: n >= 20 ? StallColors.lime : StallColors.indigo, letterSpacing: 1.4, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 16),
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: fill, border: Border.all(color: ring, width: 7)),
+                  alignment: Alignment.center,
+                  child: Text('$n',
+                      key: const Key('badgeN'),
+                      style: TextStyle(fontSize: 44, fontWeight: FontWeight.w900, color: fill == StallColors.lime ? StallColors.indigo : StallColors.lime)),
+                ),
+                const SizedBox(height: 16),
+                Text(_title, textAlign: TextAlign.center, style: t.headlineSmall?.copyWith(color: ink)),
+                const SizedBox(height: 6),
+                Text(_line, textAlign: TextAlign.center, style: t.bodyMedium?.copyWith(color: mut)),
+                if (widget.who.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(widget.who, textAlign: TextAlign.center, style: t.titleMedium?.copyWith(color: ink)),
+                ],
+                const SizedBox(height: 18),
+                Wordmark(height: 22, light: n >= 20),
+              ]),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        FilledButton.icon(key: const Key('shareBadge'), onPressed: _shareImage, icon: const Icon(Icons.ios_share_rounded), label: const Text('Share the picture')),
+        const SizedBox(height: 8),
+        Text('Your invite link goes with it, so friends who join give you credit.', textAlign: TextAlign.center, style: t.bodySmall),
+      ]),
+    );
   }
 }
 

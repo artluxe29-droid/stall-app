@@ -4,6 +4,8 @@
     <!-- Only while sharing your location on an order that's on its way (never in the background). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Voice search: only while you tap the mic and speak. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <application
         android:label="Stall"
         android:name="${applicationName}"
@@ -44,6 +46,9 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
         <!-- Open Terms, Privacy and payment pages in the browser (url_launcher). -->
         <intent>
             <action android:name="android.intent.action.VIEW" />

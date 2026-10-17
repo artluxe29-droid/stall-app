@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'api.dart';
 import 'bag.dart';
+import 'news.dart';
 import 'push.dart';
 import 'theme.dart';
 
@@ -61,6 +62,7 @@ class Session extends ChangeNotifier {
   Session(this.api);
   final Api api;
   final bag = Bag();
+  late final news = News(api);
 
   SessionState state = SessionState.loading;
   StallUser? user;
@@ -166,6 +168,7 @@ class Session extends ChangeNotifier {
 
   Future<void> signOut() async {
     await Push.stop(this);
+    news.stop();
     try {
       await api.post('logout');
     } catch (_) {}
