@@ -8,6 +8,7 @@ import '../models.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'checkout.dart';
+import 'selling.dart';
 
 /// "Send code on WhatsApp", with the same message as the web app.
 Uri? waCode(String phone, String code, String title) {
@@ -124,6 +125,7 @@ class OrdersTab extends StatefulWidget {
 
 class _OrdersTabState extends State<OrdersTab> {
   Future<List<Order>>? _f;
+  bool _selling = false;
 
   @override
   void didChangeDependencies() {
@@ -132,7 +134,7 @@ class _OrdersTabState extends State<OrdersTab> {
   }
 
   Future<List<Order>> _load() async {
-    final r = await SessionScope.of(context).api.get('orders/mine');
+    final r = await SessionScope.of(context).api.get(_selling ? 'orders/selling' : 'orders/mine');
     return (r['orders'] as List? ?? const []).map((e) => Order(e as Map<String, dynamic>)).toList();
   }
 
@@ -154,6 +156,20 @@ class _OrdersTabState extends State<OrdersTab> {
           padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
           sliver: SliverToBoxAdapter(child: Row(children: [Expanded(child: Text('Orders', style: t.headlineMedium)), const BagButton()])),
         ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+          sliver: SliverToBoxAdapter(
+            child: SegmentedButton<bool>(
+              key: const Key('ordersSide'),
+              segments: const [ButtonSegment(value: false, label: Text('Buying')), ButtonSegment(value: true, label: Text('Selling'))],
+              selected: {_selling},
+              onSelectionChanged: (v) {
+                _selling = v.first;
+                _refresh();
+              },
+            ),
+          ),
+        ),
         FutureBuilder<List<Order>>(
           future: _f,
           builder: (context, snap) {
@@ -167,8 +183,10 @@ class _OrdersTabState extends State<OrdersTab> {
             }
             final os = snap.data!;
             if (os.isEmpty) {
-              return fill(const EmptyState(
-                  icon: Icons.receipt_long_outlined, title: 'No orders yet', text: 'When you buy something, your release code and order updates show here.'));
+              return fill(_selling
+                  ? const EmptyState(icon: Icons.sell_outlined, title: 'No sales yet', text: 'When someone buys from you, the order shows here with what to do next.')
+                  : const EmptyState(
+                      icon: Icons.receipt_long_outlined, title: 'No orders yet', text: 'When you buy something, your release code and order updates show here.'));
             }
             return SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
@@ -184,13 +202,14 @@ class _OrdersTabState extends State<OrdersTab> {
                       contentPadding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
                       title: Text(o.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
                       subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('${naira(o.amount)} · ${o.sellerName}'),
+                        Text('${naira(o.amount)} · ${_selling ? o.buyerName : o.sellerName}'),
                         const SizedBox(height: 6),
                         _Chip(o),
                       ]),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () async {
-                        await Navigator.of(context).push(MaterialPageRoute(builder: (_) => OrderScreen(order: o)));
+                        await Navigator.of(context)
+                            .push(MaterialPageRoute(builder: (_) => _selling ? SellingOrderScreen(order: o) : OrderScreen(order: o)));
                         _refresh();
                       },
                     ),

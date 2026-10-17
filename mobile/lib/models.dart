@@ -265,3 +265,24 @@ String clock(int ms) {
   final s = ms ~/ 1000;
   return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
 }
+
+/// Seller-side fields on an order (from orders/selling).
+extension SellerOrder on Order {
+  String get buyerName => _str(raw['buyerName']);
+  String get buyerPhone => _str(raw['buyerPhone']);
+  String get dphone => _str(raw['dphone']);
+  Rating get buyerRating => Rating.from(raw['buyerRating']);
+  String? get payout => raw['payout'] as String?;
+  int? get brate => raw['brate'] == null ? null : _int(raw['brate']);
+  /// What the seller gets: the price minus Stall's fee.
+  int get sellerGets => amount - fee;
+  bool get moved => stage == 'on_way' || stage == 'ready';
+
+  /// The next step the seller can mark: (stage, button label), or null.
+  (String, String)? get nextStage => switch ((method == 'delivery', stage ?? 'paid')) {
+        (true, 'paid') => ('packed', 'Mark as packed'),
+        (true, 'packed') => ('on_way', 'Out for delivery'),
+        (false, 'paid') => ('ready', 'Ready for pickup'),
+        _ => null,
+      };
+}
