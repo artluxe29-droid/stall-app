@@ -452,10 +452,7 @@ class _HomeHeroState extends State<HomeHero> {
               ]),
               key: const Key('heroLine'),
             ),
-            const SizedBox(height: 10),
-            const Text('Gadgets, fashion, meals and everyday essentials from people and stores near you.',
-                style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 15, height: 1.4)),
-            const SizedBox(height: 20),
+            const SizedBox(height: 22),
             Row(children: [
               Expanded(
                 child: FilledButton(

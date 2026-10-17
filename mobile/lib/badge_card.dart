@@ -107,7 +107,7 @@ class BadgeCard extends StatelessWidget {
                   ),
           ),
           child: Column(children: [
-            if (t.mark != null) Padding(padding: const EdgeInsets.only(bottom: 4), child: img(t.mark!, w: 43, h: 40)),
+            if (t.mark != null) Padding(padding: const EdgeInsets.only(bottom: 4), child: img(t.mark!, w: 86, h: 80)),
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(kicker.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 11 * .18, color: t.mut)),
