@@ -12,7 +12,7 @@ import 'account_setup.dart' show phoneError, VerifyStudentScreen;
 import 'browse.dart' show Photo, shareThing;
 import 'bulk.dart';
 import 'checkout.dart' show confirm, openPaystack;
-import 'extras.dart' show StoreQrScreen;
+import 'kit.dart';
 import 'sell.dart';
 import 'stores.dart';
 
@@ -518,8 +518,14 @@ class _MyStoreViewState extends State<MyStoreView> {
         FilledButton.icon(
           key: const Key('openStore'),
           onPressed: () async {
-            await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OpenStoreScreen()));
-            if (mounted) _reload();
+            final opened = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const OpenStoreScreen()));
+            if (!mounted) return;
+            await _reload();
+            // Like the website: a new store gets its "Now on Stall" kit straight away.
+            final st = await _f?.catchError((_) => null);
+            if (opened == true && st != null && context.mounted) {
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => StallKitScreen(store: st, fresh: true)));
+            }
           },
           icon: const Icon(Icons.add_business_rounded),
           label: const Text('Open a store'),
@@ -609,9 +615,9 @@ class _MyStoreViewState extends State<MyStoreView> {
                 ),
                 TextButton.icon(
                   key: const Key('qrStore'),
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => StoreQrScreen(store: st))),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => StallKitScreen(store: st))),
                   icon: const Icon(Icons.qr_code_rounded, size: 18),
-                  label: const Text('Store QR card to print or share'),
+                  label: const Text('Now on Stall kit: QR cards, posts and a sign'),
                 ),
               ],
             ),

@@ -2,7 +2,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -336,78 +335,6 @@ class _PartnerBannerState extends State<PartnerBanner> {
           ]),
         ),
       ),
-    );
-  }
-}
-
-// ---- Store QR card: print it or put it on your stall, so people can scan straight to your store.
-
-class StoreQrScreen extends StatefulWidget {
-  const StoreQrScreen({super.key, required this.store});
-  final Store store;
-  @override
-  State<StoreQrScreen> createState() => _StoreQrScreenState();
-}
-
-class _StoreQrScreenState extends State<StoreQrScreen> {
-  final _card = GlobalKey();
-
-  String get _link => '$apiBase/?store=${widget.store.id}';
-
-  Future<void> _shareImage() async {
-    try {
-      final b = _card.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      final img = await b.toImage(pixelRatio: 3);
-      final png = await img.toByteData(format: ui.ImageByteFormat.png);
-      await SharePlus.instance.share(ShareParams(
-          files: [XFile.fromData(png!.buffer.asUint8List(), mimeType: 'image/png', name: 'stall-store.png')],
-          text: 'Order from ${widget.store.name} on Stall: $_link'));
-    } catch (_) {
-      await SharePlus.instance.share(ShareParams(text: 'Order from ${widget.store.name} on Stall: $_link'));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Store QR card')),
-      body: ListView(padding: const EdgeInsets.all(20), children: [
-        Center(
-          child: RepaintBoundary(
-            key: _card,
-            child: Container(
-              width: 300,
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(color: StallColors.cream, borderRadius: BorderRadius.circular(22), border: Border.all(color: StallColors.line)),
-              child: Column(children: [
-                const Wordmark(height: 26),
-                const SizedBox(height: 14),
-                Text(widget.store.name, textAlign: TextAlign.center, style: t.titleLarge),
-                if (widget.store.spot.isNotEmpty) Text(widget.store.spot, textAlign: TextAlign.center, style: t.bodySmall),
-                const SizedBox(height: 14),
-                Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.all(10),
-                  child: QrImageView(
-                    key: const Key('qr'),
-                    data: _link,
-                    size: 200,
-                    eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.square, color: StallColors.indigo),
-                    dataModuleStyle: QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: StallColors.indigo),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text('Scan to order. Pay safely: your money is held until you have it.', textAlign: TextAlign.center, style: t.bodySmall),
-              ]),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        FilledButton.icon(key: const Key('shareQr'), onPressed: _shareImage, icon: const Icon(Icons.ios_share_rounded), label: const Text('Share or save the card')),
-        const SizedBox(height: 8),
-        Text('Print it, or put it on your WhatsApp status.', textAlign: TextAlign.center, style: t.bodySmall),
-      ]),
     );
   }
 }
