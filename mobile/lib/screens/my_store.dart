@@ -49,6 +49,32 @@ Future<bool> payStall(BuildContext context, Map<String, dynamic> body) async {
   }
 }
 
+/// Featuring and reach: offers the person's Stall credit (from invites) first, then pays the rest with [payStall].
+/// Returns true once paid. Refreshes the account afterwards, since credit may have been used.
+Future<bool> payWithCredit(BuildContext context, Map<String, dynamic> body) async {
+  final s = SessionScope.of(context);
+  final credit = s.user?.credit ?? 0;
+  if (credit > 0) {
+    final pct = (s.config['creditPct'] as num?)?.toInt() ?? 50;
+    final use = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Use your credit?'),
+        content: Text('You have ${naira(credit)} Stall credit. It can pay up to $pct% of this; the rest is paid on Paystack.'),
+        actions: [
+          TextButton(key: const Key('noCredit'), onPressed: () => Navigator.pop(ctx, false), child: const Text('Pay it all')),
+          FilledButton(key: const Key('useCredit'), onPressed: () => Navigator.pop(ctx, true), child: const Text('Use credit')),
+        ],
+      ),
+    );
+    if (use == null || !context.mounted) return false;
+    if (use) body = {...body, 'credit': true};
+  }
+  final paid = await payStall(context, body);
+  if (paid) await s.refresh();
+  return paid;
+}
+
 /// Square store logo, shrunk like a listing photo. Tests replace this.
 Future<String?> Function(BuildContext context) pickLogo = (context) async => (await pickListingPhotos(context, 1)).firstOrNull;
 
@@ -374,29 +400,10 @@ class _MyStoreViewState extends State<MyStoreView> {
   }
 
   Future<void> _pay(Map<String, dynamic> body, String done) async {
-    // Stall credit (from invites) can pay part of featuring and reach.
-    final credit = SessionScope.of(context).user?.credit ?? 0;
-    if (credit > 0) {
-      final pct = (SessionScope.of(context).config['creditPct'] as num?)?.toInt() ?? 50;
-      final use = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Use your credit?'),
-          content: Text('You have ${naira(credit)} Stall credit. It can pay up to $pct% of this; the rest is paid on Paystack.'),
-          actions: [
-            TextButton(key: const Key('noCredit'), onPressed: () => Navigator.pop(ctx, false), child: const Text('Pay it all')),
-            FilledButton(key: const Key('useCredit'), onPressed: () => Navigator.pop(ctx, true), child: const Text('Use credit')),
-          ],
-        ),
-      );
-      if (use == null || !mounted) return;
-      if (use) body = {...body, 'credit': true};
-    }
     setState(() => _busy = true);
     try {
-      if (await payStall(context, body) && mounted) {
+      if (await payWithCredit(context, body) && mounted) {
         toast(context, done);
-        await SessionScope.of(context).refresh(); // credit may have been used
         await _reload();
       }
     } on ApiError catch (e) {

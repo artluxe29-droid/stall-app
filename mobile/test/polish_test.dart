@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stall/appearance.dart';
 import 'package:stall/main.dart';
+import 'package:stall/screens/sell.dart' show pickListingPhotos;
 import 'package:stall/theme.dart';
 
 import 'browse_test.dart' show listing;
@@ -40,6 +41,8 @@ void main() {
 
   Future<void> tap(WidgetTester t, String key) async {
     await reveal(t, find.byKey(Key(key)));
+    await t.ensureVisible(find.byKey(Key(key)));
+    await t.pumpAndSettle();
     await t.tap(find.byKey(Key(key)));
     await settle(t);
   }
@@ -131,6 +134,42 @@ void main() {
     await t.tap(find.text('Send report'));
     await settle(t);
     expect(body(f, 'report'), {'kind': 'listing', 'target': 'L1', 'reason': 'Looks like a scam'});
+    await t.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('apply for the verified seller badge, then pay once approved', (t) async {
+    var me = {...user(), 'verify': null};
+    final f = await start(t, {
+      'GET me': (_) => (200, {'user': me}),
+      'POST verify/apply': (_) {
+        me = {...me, 'verify': 'pending'};
+        return (200, {'ok': true});
+      },
+    });
+    pickListingPhotos = (_, _) async => ['data:image/jpeg;base64,AAAA'];
+    await t.tap(find.text('Account'));
+    await settle(t);
+    await tap(t, 'accVerify');
+    await t.enterText(find.byKey(const Key('verNote')), '300L student, I sell perfumes');
+    await tap(t, 'verPhoto');
+    await tap(t, 'verSend');
+    expect(body(f, 'verify/apply'), {'note': '300L student, I sell perfumes', 'photo': 'data:image/jpeg;base64,AAAA'});
+    expect(find.byKey(const Key('verPending')), findsOneWidget);
+    await t.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('a seller features their own listing for 3 days', (t) async {
+    final f = await start(t, {
+      'GET listings': (_) => (200, {'listings': [listing(1, extra: {'mine': true})], 'total': 1}),
+      'GET reviews': (_) => (200, {'rating': {'avg': 0, 'n': 0}, 'reviews': []}),
+      'POST pay/start': (_) => (200, {'ok': true}),
+    });
+    await reveal(t, find.byKey(const Key('item-L1')));
+    await t.tap(find.byKey(const Key('item-L1')));
+    await settle(t);
+    await tap(t, 'feat-3');
+    expect(body(f, 'pay/start'), {'kind': 'boost', 'target': 'L1', 'days': 3});
+    expect(find.text('Featured for 3 days'), findsOneWidget);
     await t.pump(const Duration(seconds: 5));
   });
 }

@@ -18,6 +18,7 @@ import 'my_store.dart' show MyStoreScreen;
 import 'orders.dart';
 import 'settings.dart';
 import 'sell.dart';
+import 'seller.dart';
 import 'selling.dart' show WeeklyScreen;
 import 'stores.dart';
 
@@ -271,6 +272,20 @@ class AccountTab extends StatelessWidget {
                   ? 'You deliver · ${((u.deliv['fee'] as num?) ?? 0) > 0 ? naira(u.deliv['fee'] as num) : 'free'}'
                   : 'Off · buyers collect from you',
               onTap: () => _open(context, const DeliveryScreen()),
+            ),
+            _Row(
+              key: const Key('accVerify'),
+              icon: Icons.verified_outlined,
+              title: 'Verified seller badge',
+              sub: u.verified
+                  ? 'You\'re verified ✓'
+                  : switch (u.verifyState) {
+                      'pending' => 'Waiting for review',
+                      'approved' => 'Approved · pay to switch it on',
+                      _ => 'Show buyers a ✓ badge on your listings',
+                    },
+              trailing: u.verified || u.verifyState == 'pending' ? null : const _Chip('Get ✓', hot: true),
+              onTap: () => _open(context, const VerifySellerScreen()),
             ),
             _Row(
               key: const Key('myReviews'),
