@@ -156,6 +156,11 @@ void main() {
       'bank_manual': '',
       'logo': photo,
     });
+    // A new store gets its "Now on Stall" kit straight away.
+    expect(find.text('Your store is live'), findsOneWidget);
+    expect(find.byKey(const Key('kit-post')), findsOneWidget);
+    await t.pageBack();
+    await settle(t);
     expect(find.text('Mama T Kitchen'), findsOneWidget);
     expect(find.text('Open: taking orders'), findsOneWidget);
   });
@@ -181,6 +186,9 @@ void main() {
     expect(body(f, 'pay/start').containsKey('code'), isFalse);
     expect(opened, 'https://checkout.paystack.com/x');
     expect(body(f, 'pay/confirm'), {'reference': 'R1'});
+    expect(find.text('Your store is live'), findsOneWidget);
+    await t.pageBack();
+    await settle(t);
     expect(find.text('Mama T Kitchen'), findsOneWidget);
   });
 

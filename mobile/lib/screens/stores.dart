@@ -9,7 +9,7 @@ import '../widgets.dart';
 import 'browse.dart';
 import 'chat.dart';
 import 'checkout.dart';
-import 'extras.dart' show StoreQrScreen;
+import 'kit.dart';
 import 'item.dart';
 import 'my_store.dart' show MyStoreScreen, StoreItemScreen, loadMyStore;
 
@@ -310,7 +310,12 @@ class _StoreBodyState extends State<_StoreBody> {
             if (s.founding > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Tag('Founding Seller #${s.founding}${s.school.isEmpty ? '' : ' · ${s.school}'}', bg: StallColors.lime, fg: StallColors.limeInk),
+                child: GestureDetector(
+                  key: const Key('foundingTag'),
+                  // The owner opens their Founding Seller card from the badge, as on the website.
+                  onTap: mine ? () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => StallKitScreen(store: s, tab: 'founding'))) : null,
+                  child: Tag('Founding Seller #${s.founding}${s.school.isEmpty ? '' : ' · ${s.school}'}', bg: StallColors.lime, fg: StallColors.limeInk),
+                ),
               ),
             const SizedBox(height: 4),
             VerifyBadge(verified: s.verified, vlevel: s.vlevel),
@@ -342,7 +347,7 @@ class _StoreBodyState extends State<_StoreBody> {
             if (mine)
               FilledButton.icon(
                 key: const Key('storeKit'),
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => StoreQrScreen(store: s))),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => StallKitScreen(store: s))),
                 style: FilledButton.styleFrom(
                     backgroundColor: StallColors.cream2, foregroundColor: StallColors.ink, minimumSize: const Size(0, 50), padding: const EdgeInsets.symmetric(horizontal: 24)),
                 icon: const Icon(Icons.campaign_outlined),
@@ -359,7 +364,8 @@ class _StoreBodyState extends State<_StoreBody> {
                   label: const Text('Message the store'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => shareThing(context, id: s.id, text: 'Check out ${s.name} on Stall'),
+                  key: const Key('shareStoreCard'),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ShareStoreScreen(store: s))),
                   style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
                       backgroundColor: Colors.white.withValues(alpha: .1),

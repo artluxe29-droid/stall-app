@@ -128,6 +128,12 @@ void main() {
     await tap(t, 'qrStore');
     expect(find.byType(QrImageView), findsOneWidget);
     expect(find.text('Mama T Kitchen'), findsOneWidget);
+    // The kit: Status, Post and Sign cards, with captions to copy; the sign comes as a PDF too.
+    await tap(t, 'kit-post');
+    expect(find.text('We\'re now on '), findsNothing); // a rich text, so look for the store's line
+    expect(find.textContaining('is now on Stall 🎉'), findsWidgets);
+    await tap(t, 'kit-sign');
+    expect(find.byKey(const Key('kitPdf')), findsOneWidget);
     await t.pageBack();
     await settle(t);
 
