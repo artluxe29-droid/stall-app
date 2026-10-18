@@ -163,7 +163,7 @@ class HelpScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Help')),
       body: ListView(padding: const EdgeInsets.symmetric(vertical: 8), children: [
         ListTile(
-          leading: const Icon(Icons.menu_book_outlined, color: StallColors.indigo),
+          leading: Icon(Icons.menu_book_outlined, color: StallColors.indigo),
           title: const Text('How Stall works'),
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GuideScreen())),
@@ -171,13 +171,13 @@ class HelpScreen extends StatelessWidget {
         if (phone.isNotEmpty)
           ListTile(
             key: const Key('helpWa'),
-            leading: const Icon(Icons.chat_outlined, color: StallColors.indigo),
+            leading: Icon(Icons.chat_outlined, color: StallColors.indigo),
             title: const Text('Message the Stall team on WhatsApp'),
             onTap: () => launchUrl(Uri.parse('https://wa.me/$phone'), mode: LaunchMode.externalApplication),
           ),
         if (email.isNotEmpty)
           ListTile(
-            leading: const Icon(Icons.mail_outline_rounded, color: StallColors.indigo),
+            leading: Icon(Icons.mail_outline_rounded, color: StallColors.indigo),
             title: Text('Email $email'),
             onTap: () => launchUrl(Uri.parse('mailto:$email')),
           ),

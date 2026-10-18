@@ -96,7 +96,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 key: const Key('signIn'),
                 onPressed: _busy ? null : _submit,
                 child: _busy
-                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                    ? SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: StallColors.onBrand))
                     : const Text('Sign in'),
               ),
               const SizedBox(height: 18),

@@ -11,6 +11,7 @@ import 'chat.dart';
 import 'checkout.dart';
 import 'extras.dart' show StoreQrScreen;
 import 'item.dart';
+import 'my_store.dart' show MyStoreScreen, StoreItemScreen, loadMyStore;
 
 Future<List<Store>> loadStores(Api api, String scope) async {
   final r = await api.get('stores', {'scope': scope});
@@ -163,7 +164,7 @@ class StoreCard extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 4),
                     child: Wrap(spacing: 6, children: [
                       if (s.featured) const Tag('Featured', bg: StallColors.lime, fg: StallColors.limeInk),
-                      if (s.founding > 0) const Tag('Founding Seller', bg: StallColors.indigo),
+                      if (s.founding > 0) Tag('Founding Seller', bg: StallColors.indigo),
                     ]),
                   ),
                 const SizedBox(height: 4),
@@ -250,13 +251,29 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 }
 
-class _StoreBody extends StatelessWidget {
+class _StoreBody extends StatefulWidget {
   const _StoreBody({required this.store});
   final Store store;
+  @override
+  State<_StoreBody> createState() => _StoreBodyState();
+}
+
+class _StoreBodyState extends State<_StoreBody> {
+  late Store _s = widget.store;
+
+  /// The owner went to add or change something: show the store as it is now.
+  Future<void> _manage(Widget screen) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    if (!mounted) return;
+    try {
+      final st = await loadMyStore(SessionScope.of(context).api);
+      if (st != null && mounted) setState(() => _s = st);
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
-    final s = store;
+    final s = _s;
     final t = Theme.of(context).textTheme;
     final c = Category.of(s.cat);
     final mine = SessionScope.of(context).user?.uid == s.ownerId;
@@ -363,17 +380,47 @@ class _StoreBody extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Row(children: [
-                  const Icon(Icons.place_outlined, size: 18, color: StallColors.indigo),
+                  Icon(Icons.place_outlined, size: 18, color: StallColors.indigo),
                   const SizedBox(width: 6),
                   Expanded(child: Text(s.spot)),
                 ]),
               ),
             DeliveryLine(d: s.deliv),
-            if (mine)
-              const Padding(
-                padding: EdgeInsets.only(top: 12),
-                child: Text('This is your store. Manage it from Sell → Your store.', style: TextStyle(color: StallColors.muted)),
-              ),
+            if (mine) ...[
+              // Like the website: the owner runs the store from its own page.
+              if (s.logo == null)
+                Card(
+                  key: const Key('logoNudge'),
+                  margin: const EdgeInsets.only(top: 14),
+                  child: ListTile(
+                    leading: Icon(Icons.photo_camera_outlined, color: StallColors.indigo),
+                    title: const Text('Add your logo'),
+                    subtitle: const Text('Many stores use the same icon. A logo helps buyers spot you and remember you.'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _manage(const MyStoreScreen()),
+                  ),
+                ),
+              const SizedBox(height: 14),
+              Row(children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    key: const Key('ownerAddItem'),
+                    onPressed: () => _manage(StoreItemScreen(cat: s.cat)),
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Add item'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const Key('ownerManage'),
+                    onPressed: () => _manage(const MyStoreScreen()),
+                    icon: const Icon(Icons.tune_rounded, size: 18),
+                    label: const Text('Manage store'),
+                  ),
+                ),
+              ]),
+            ],
           ]),
         ),
         if (s.items.isEmpty)
@@ -484,7 +531,7 @@ void _showStoreItem(BuildContext context, StoreItem it, Store s) => showModalBot
                       child: const Text('Add to bag'),
                     )
                   else
-                    Text(s.open ? 'Sold out right now.' : 'This store is closed right now.', style: const TextStyle(color: StallColors.muted)),
+                    Text(s.open ? 'Sold out right now.' : 'This store is closed right now.', style: TextStyle(color: StallColors.muted)),
                 ]),
               ),
             ]),

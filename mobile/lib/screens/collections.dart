@@ -205,7 +205,7 @@ class _NewCollectionScreenState extends State<NewCollectionScreen> {
           TextField(controller: _c['descr'], maxLength: 300, maxLines: 3, decoration: const InputDecoration(labelText: 'Details (optional)')),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.event_outlined, color: StallColors.indigo),
+            leading: Icon(Icons.event_outlined, color: StallColors.indigo),
             title: Text(d == null ? 'No closing date' : 'Closes at the end of ${d.day}/${d.month}/${d.year}'),
             trailing: TextButton(
               onPressed: () async {
@@ -395,7 +395,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
                   Container(
                     key: const Key('coPaid'),
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(color: const Color(0xFFDCF7E6), borderRadius: BorderRadius.circular(14)),
+                    decoration: BoxDecoration(color: StallColors.greenTint, borderRadius: BorderRadius.circular(14)),
                     child: Text('You paid on ${when((d['mine']['t'] as num?)?.toInt() ?? 0)} ✓'),
                   )
                 else if (open) ...[
@@ -422,7 +422,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
                   Text('Who has paid', style: t.titleMedium),
                   for (final p in paid) ListTile(contentPadding: EdgeInsets.zero, dense: true, title: Text((p['name'] ?? '').toString())),
                 ],
-                TextButton(onPressed: _busy ? null : _report, child: const Text('Report this collection', style: TextStyle(color: StallColors.muted))),
+                TextButton(onPressed: _busy ? null : _report, child: Text('Report this collection', style: TextStyle(color: StallColors.muted))),
               ],
             ]);
           },

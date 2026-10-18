@@ -218,7 +218,7 @@ class _TripScreenState extends State<TripScreen> {
                       child: Container(
                         key: const Key('liveMarker'),
                         decoration: BoxDecoration(color: StallColors.indigo, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3)),
-                        child: Icon(_delivery ? Icons.delivery_dining_rounded : Icons.directions_walk_rounded, color: Colors.white, size: 18),
+                        child: Icon(_delivery ? Icons.delivery_dining_rounded : Icons.directions_walk_rounded, color: StallColors.onBrand, size: 18),
                       ),
                     ),
                 ]),

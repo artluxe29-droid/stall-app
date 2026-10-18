@@ -265,7 +265,7 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(children: [
         Container(
           width: double.infinity,
-          color: _warn ? const Color(0xFFFDE2E4) : StallColors.cream2,
+          color: _warn ? StallColors.redTint : StallColors.cream2,
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Text(
             _warn
@@ -333,7 +333,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       key: const Key('chatSend'),
                       tooltip: 'Send',
                       onPressed: _sending ? null : _send,
-                      icon: const Icon(Icons.send_rounded, color: StallColors.indigo),
+                      icon: Icon(Icons.send_rounded, color: StallColors.indigo),
                     ),
                   ]),
           ),

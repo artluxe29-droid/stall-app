@@ -109,8 +109,8 @@ class _SearchScreenState extends State<SearchScreen> {
             filled: true,
             fillColor: StallColors.card,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: StallColors.line)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: StallColors.line)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: StallColors.line)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: StallColors.line)),
             suffixIcon: IconButton(
                 icon: const Icon(Icons.close_rounded),
                 tooltip: 'Clear',
@@ -190,7 +190,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   List<Widget> _recentSlivers() {
     if (_recent.isEmpty) {
-      return const [
+      return [
         SliverFillRemaining(
           hasScrollBody: false,
           child: Padding(
@@ -219,7 +219,7 @@ class _SearchScreenState extends State<SearchScreen> {
       SliverList.builder(
         itemCount: _recent.length,
         itemBuilder: (_, i) => ListTile(
-          leading: const Icon(Icons.history_rounded, color: StallColors.muted),
+          leading: Icon(Icons.history_rounded, color: StallColors.muted),
           title: Text(_recent[i]),
           onTap: () {
             _q.text = _recent[i];

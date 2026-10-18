@@ -86,7 +86,7 @@ class DeliveryLine extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Icon(Icons.local_shipping_outlined, size: 18, color: StallColors.indigo),
+        Icon(Icons.local_shipping_outlined, size: 18, color: StallColors.indigo),
         const SizedBox(width: 6),
         Expanded(
           child: Text('Delivers ${d.fee > 0 ? 'for ${naira(d.fee)}' : 'for free'}${d.note.isEmpty ? '' : ' · ${d.note}'}',

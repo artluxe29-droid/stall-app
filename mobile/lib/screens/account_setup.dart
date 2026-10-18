@@ -149,8 +149,8 @@ class _SchoolPickerScreenState extends State<SchoolPickerScreen> {
                     ),
                   ListTile(
                     key: const Key('notListed'),
-                    leading: const Icon(Icons.add_rounded, color: StallColors.indigo),
-                    title: const Text('My school isn\'t on the list', style: TextStyle(color: StallColors.indigo, fontWeight: FontWeight.w700)),
+                    leading: Icon(Icons.add_rounded, color: StallColors.indigo),
+                    title: Text('My school isn\'t on the list', style: TextStyle(color: StallColors.indigo, fontWeight: FontWeight.w700)),
                     subtitle: const Text('We\'ll add it after a quick check. You can use Stall straight away.'),
                     onTap: () => _unlisted(states),
                   ),
@@ -438,7 +438,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 key: const Key('su-submit'),
                 onPressed: _busy ? null : _submit,
                 child: _busy
-                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                    ? SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: StallColors.onBrand))
                     : const Text('Create account'),
               ),
               const SizedBox(height: 10),
@@ -539,7 +539,7 @@ class _EmailCodeFlowState extends State<EmailCodeFlow> {
   @override
   Widget build(BuildContext context) {
     final err = _err == null ? null : Padding(padding: const EdgeInsets.only(top: 10), child: Text(_err!, key: const Key('em-error'), style: const TextStyle(color: StallColors.red)));
-    final busy = _busy ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)) : null;
+    final busy = _busy ? SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: StallColors.onBrand)) : null;
     if (_sentTo == null) {
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         TextField(
@@ -944,7 +944,7 @@ class _VerifyGateScreenState extends State<VerifyGateScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(color: StallColors.lime, borderRadius: BorderRadius.circular(99)),
               child: Text(pend ? 'CHECKING' : 'ONE LAST STEP',
-                  style: const TextStyle(color: StallColors.indigo, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: 1.3)),
+                  style: TextStyle(color: StallColors.indigo, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: 1.3)),
             ),
           ),
           const SizedBox(height: 12),

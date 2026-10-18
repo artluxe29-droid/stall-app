@@ -105,10 +105,10 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, fg) = switch (order.status) {
-      'released' => (const Color(0xFFDCF7E6), StallColors.green),
-      'verified' => (const Color(0xFFEEF8C8), const Color(0xFF4E6106)),
-      'pending' || 'under_review' => (const Color(0xFFFEF3C7), StallColors.amber),
-      'disputed' || 'rejected' => (const Color(0xFFFDE2E4), StallColors.red),
+      'released' => (StallColors.greenTint, StallColors.green),
+      'verified' => (StallColors.limeTint, StallColors.olive),
+      'pending' || 'under_review' => (StallColors.amberTint, StallColors.amber),
+      'disputed' || 'rejected' => (StallColors.redTint, StallColors.red),
       _ => (StallColors.cream2, StallColors.muted),
     };
     return Container(
@@ -355,7 +355,7 @@ class _OrderScreenState extends State<OrderScreen> {
         width: double.infinity,
         margin: const EdgeInsets.only(top: 12),
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: bad ? const Color(0xFFFDE2E4) : StallColors.cream2, borderRadius: BorderRadius.circular(14)),
+        decoration: BoxDecoration(color: bad ? StallColors.redTint : StallColors.cream2, borderRadius: BorderRadius.circular(14)),
         child: Text(text),
       );
 
@@ -475,7 +475,7 @@ class _OrderScreenState extends State<OrderScreen> {
                         await _act('orders/cancel', {'id': o.id}, 'Order cancelled');
                       }
                     },
-              child: const Text('Cancel order', style: TextStyle(color: StallColors.muted)),
+              child: Text('Cancel order', style: TextStyle(color: StallColors.muted)),
             ),
           ],
           if (o.verified && ps) ...[
