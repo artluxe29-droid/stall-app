@@ -92,7 +92,15 @@ void main() {
           (jsonDecode(r.body) as Map)['password'] == 'password123' ? (200, {'ok': true}) : (400, {'error': 'That password is wrong.'}),
       'POST logout': (_) => (200, {'ok': true}),
     });
+    await tap(t, 'manageAccount'); // help and a break come first
+    expect(find.text('Problem with an order or payment?'), findsOneWidget);
     await tap(t, 'deleteAccount');
+    await tap(t, 'delGo');
+    expect(find.text('Choose why you\'re leaving.'), findsOneWidget);
+    await t.tap(find.byKey(const Key('delWhy')));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Privacy concerns').last);
+    await t.pumpAndSettle();
     await tap(t, 'delGo');
     expect(find.text('Type your password to confirm.'), findsOneWidget);
     await t.enterText(find.byKey(const Key('delPw')), 'nope');
@@ -100,7 +108,7 @@ void main() {
     expect(find.text('That password is wrong.'), findsOneWidget);
     await t.enterText(find.byKey(const Key('delPw')), 'password123');
     await tap(t, 'delGo');
-    expect(body(f, 'me/delete'), {'password': 'password123'});
+    expect(body(f, 'me/delete'), {'password': 'password123', 'why': 'privacy'});
     expect(find.text('Welcome back'), findsOneWidget);
     expect(await f.store.read(), isNull);
   });

@@ -393,6 +393,16 @@ class _StoreBodyState extends State<_StoreBody> {
                 ]),
               ),
             DeliveryLine(d: s.deliv),
+            if (mine && (SessionScope.of(context).user?.stuOff ?? false))
+              Card(
+                key: const Key('storeHidden'),
+                margin: const EdgeInsets.only(top: 14),
+                color: StallColors.amberTint,
+                child: const Padding(
+                  padding: EdgeInsets.all(14),
+                  child: Text('Your store is hidden from buyers: students can\'t sell at your school right now. It shows again as soon as that changes.'),
+                ),
+              ),
             if (mine) ...[
               // Like the website: the owner runs the store from its own page.
               if (s.logo == null)

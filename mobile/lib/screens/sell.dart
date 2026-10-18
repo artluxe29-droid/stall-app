@@ -181,6 +181,8 @@ class _SellTabState extends State<SellTab> {
   }
 
   Future<void> _sell() async {
+    final u = SessionScope.of(context).user;
+    if (u != null && u.stuOff) return toast(context, u.stuOffMsg);
     final posted = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const SellScreen()));
     if (posted == true) _refresh();
   }
@@ -199,9 +201,17 @@ class _SellTabState extends State<SellTab> {
         const SizedBox(height: 4),
         Text('Free to list. Stall holds the buyer\'s payment until they have the item, then pays you.', style: t.bodyLarge?.copyWith(color: StallColors.muted)),
         const SizedBox(height: 16),
+        if (u?.stuOff ?? false) ...[
+          Card(
+            key: const Key('stuOff'),
+            color: StallColors.amberTint,
+            child: Padding(padding: const EdgeInsets.all(14), child: Text(u!.stuOffMsg, style: TextStyle(color: StallColors.ink))),
+          ),
+          const SizedBox(height: 12),
+        ],
         FilledButton.icon(key: const Key('sellItem'), onPressed: _sell, icon: const Icon(Icons.add_rounded), label: const Text('Sell an item')),
         // Several at once needs the payout account, which is added with the first single item.
-        if (u?.acctSet ?? false)
+        if ((u?.acctSet ?? false) && !(u?.stuOff ?? false))
           TextButton.icon(
             key: const Key('bulkAdd'),
             onPressed: () async {
