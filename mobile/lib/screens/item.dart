@@ -9,6 +9,7 @@ import '../widgets.dart';
 import 'browse.dart';
 import 'chat.dart';
 import 'checkout.dart';
+import 'seller.dart' show FeatureListingCard;
 import 'selling.dart' show askNote;
 
 /// Swipeable photos with dots.
@@ -163,6 +164,7 @@ class ItemScreen extends StatelessWidget {
               verified: item.verified,
               vlevel: item.vlevel,
             ),
+            if (item.mine && !item.sold) ...[const SizedBox(height: 14), FeatureListingCard(id: item.id, featured: item.featured)],
             if (!item.mine) ...[
               const SizedBox(height: 10),
               Row(children: [

@@ -28,6 +28,11 @@ class StallUser {
 
   String get area => (raw['area'] ?? '').toString();
   bool get isVendor => role == 'vendor';
+
+  /// The green "Verified" seller badge: on, or where the request is (pending, approved and waiting for the fee, rejected).
+  bool get verified => raw['verified'] == true;
+  String? get verifyState => raw['verify'] as String?;
+  String get verifyReason => (raw['verifyReason'] ?? '').toString();
   bool get isStudent => role == 'student';
   String get email => (raw['email'] ?? '').toString();
   bool get emailVerified => raw['emailVerified'] == true;
