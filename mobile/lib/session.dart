@@ -29,6 +29,11 @@ class StallUser {
   String get area => (raw['area'] ?? '').toString();
   bool get isVendor => role == 'vendor';
 
+  /// Admin can stop students selling at a school for a while; they can still buy and pay for collections.
+  bool get stuOff => isStudent && !isAdmin && school?['stu_sell'] == 0;
+  String get stuOffMsg =>
+      'Students can\'t sell on Stall at ${schoolName.isEmpty ? 'your school' : schoolName} right now. You can still buy from campus vendors and pay for collections.';
+
   /// The green "Verified" seller badge: on, or where the request is (pending, approved and waiting for the fee, rejected).
   bool get verified => raw['verified'] == true;
   String? get verifyState => raw['verify'] as String?;

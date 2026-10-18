@@ -286,7 +286,12 @@ void main() {
     await t.pump(const Duration(seconds: 5)); // let the "featured" toast go, so it doesn't cover the button
     await t.pumpAndSettle();
     await tapKey(t, 'deleteStore');
-    await t.tap(find.text('Delete store').last);
+    await t.tap(find.text('Delete store').last); // greyed out until the name is typed
+    await t.pumpAndSettle();
+    expect(f.calls.where((c) => c.url.path == '/api/stores/delete'), isEmpty);
+    await t.enterText(find.byKey(const Key('delStoreName')), 'mama t kitchen');
+    await t.pump();
+    await t.tap(find.byKey(const Key('delStoreGo')));
     await settle(t);
     expect(f.calls.where((c) => c.url.path == '/api/stores/delete'), hasLength(1));
     expect(find.byKey(const Key('openStore')), findsOneWidget);

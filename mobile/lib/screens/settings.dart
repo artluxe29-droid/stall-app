@@ -200,7 +200,14 @@ class DeleteAccountScreen extends StatefulWidget {
 class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   final _pw = TextEditingController();
   bool _busy = false;
-  String? _err;
+  String? _err, _why;
+
+  static const _reasons = {
+    'problem': 'I had a problem with an order or payment',
+    'unused': 'I don\'t use Stall anymore',
+    'privacy': 'Privacy concerns',
+    'other': 'Something else',
+  };
 
   @override
   void dispose() {
@@ -209,6 +216,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   }
 
   Future<void> _delete() async {
+    if (_why == null) return setState(() => _err = 'Choose why you\'re leaving.');
     if (_pw.text.isEmpty) return setState(() => _err = 'Type your password to confirm.');
     setState(() {
       _busy = true;
@@ -216,7 +224,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
     });
     final s = SessionScope.of(context);
     try {
-      await s.api.post('me/delete', {'password': _pw.text});
+      await s.api.post('me/delete', {'password': _pw.text, 'why': _why});
       if (!mounted) return;
       Navigator.of(context).popUntil((r) => r.isFirst);
       await s.signOut();
@@ -239,6 +247,26 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
             'Past orders and payments stay on record, as the law requires, but your name, phone and address are removed from them. '
             'Orders still in progress must be finished or cancelled first, so nobody loses money.'),
         const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          key: const Key('delWhy'),
+          initialValue: _why,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Why are you leaving?'),
+          items: [for (final e in _reasons.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
+          onChanged: (v) => setState(() => _why = v),
+        ),
+        if (_why == 'problem')
+          Card(
+            key: const Key('delFix'),
+            margin: const EdgeInsets.only(top: 10),
+            color: StallColors.amberTint,
+            child: ListTile(
+              title: const Text('Most order and payment problems are fixed within a day, and your money stays protected while we sort it.'),
+              subtitle: const Text('Get help instead'),
+              onTap: () => Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HelpScreen())),
+            ),
+          ),
+        const SizedBox(height: 12),
         TextField(
           key: const Key('delPw'),
           controller: _pw,
@@ -394,6 +422,73 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 12),
             child: Text('To turn them off, use Settings → Apps → Stall → Notifications on your phone.', style: t.bodySmall),
+          ),
+      ]),
+    );
+  }
+}
+
+/// Account → Manage account: help and a break first, then deleting the account.
+class ManageAccountScreen extends StatelessWidget {
+  const ManageAccountScreen({super.key, this.hasStore = false});
+  final bool hasStore;
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final u = SessionScope.of(context).user;
+    Widget card(String title, String text, List<Widget> acts) => Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: t.titleMedium),
+              const SizedBox(height: 4),
+              Text(text, style: t.bodyMedium?.copyWith(color: StallColors.muted)),
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, runSpacing: 8, children: acts),
+            ]),
+          ),
+        );
+    return Scaffold(
+      appBar: AppBar(title: const Text('Manage account')),
+      body: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 32), children: [
+        card('Problem with an order or payment?',
+            'Your money is protected until it\'s sorted. Report it on the order and we\'ll sort it, usually within a day.', [
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpScreen())),
+            child: const Text('Get help'),
+          ),
+        ]),
+        card(
+          'Need a break?',
+          hasStore
+              ? 'Close your store for a while from Your store. Buyers just see it as closed, and your items and reviews stay.'
+              : 'You can turn off emails and come back whenever you like.',
+          [
+            if (u != null && u.email.isNotEmpty)
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
+                onPressed: () => Navigator.of(context).pop('email'),
+                child: const Text('Email settings'),
+              ),
+            if (hasStore)
+              OutlinedButton(
+                key: const Key('mngStore'),
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
+                onPressed: () => Navigator.of(context).pop('store'),
+                child: const Text('Go to my store'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (u != null && !u.isAdmin)
+          Center(
+            child: TextButton(
+              key: const Key('deleteAccount'),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DeleteAccountScreen())),
+              child: Text('Delete my account', style: TextStyle(color: StallColors.muted, decoration: TextDecoration.underline)),
+            ),
           ),
       ]),
     );

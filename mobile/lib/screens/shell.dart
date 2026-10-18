@@ -14,7 +14,7 @@ import 'chat.dart';
 import 'collections.dart';
 import 'extras.dart';
 import 'item.dart' show showReviews;
-import 'my_store.dart' show MyStoreScreen;
+import 'my_store.dart' show MyStoreScreen, loadMyStore;
 import 'orders.dart';
 import 'settings.dart';
 import 'sell.dart';
@@ -416,12 +416,18 @@ class AccountTab extends StatelessWidget {
         ]),
         const SizedBox(height: 24),
         OutlinedButton.icon(key: const Key('signOut'), onPressed: s.signOut, icon: const Icon(Icons.logout_rounded), label: const Text('Sign out')),
-        if (u != null && !u.isAdmin)
-          TextButton(
-            key: const Key('deleteAccount'),
-            onPressed: () => _open(context, const DeleteAccountScreen()),
-            child: Text('Delete my account', style: TextStyle(color: StallColors.muted, fontSize: 13.5)),
-          ),
+        TextButton(
+          key: const Key('manageAccount'),
+          onPressed: () async {
+            final hasStore = await loadMyStore(s.api).then((x) => x != null).catchError((_) => false);
+            if (!context.mounted) return;
+            final go = await Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => ManageAccountScreen(hasStore: hasStore)));
+            if (!context.mounted) return;
+            if (go == 'store') _open(context, const MyStoreScreen());
+            if (go == 'email') _open(context, const EmailScreen());
+          },
+          child: Text('Manage account', style: TextStyle(color: StallColors.muted, fontSize: 13.5)),
+        ),
       ],
     );
   }

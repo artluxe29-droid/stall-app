@@ -3,6 +3,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../api.dart';
 import '../bank.dart';
+import '../collect_export.dart';
 import '../main.dart';
 import '../models.dart';
 import '../theme.dart';
@@ -248,6 +249,43 @@ class CollectionScreen extends StatefulWidget {
 }
 
 class _CollectionScreenState extends State<CollectionScreen> {
+  /// The class rep's list of who paid, A to Z: a PDF to print or send, or a spreadsheet.
+  Future<void> _download(Map<String, dynamic> c, List<Map<String, dynamic>> paid) async {
+    final kind = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: StallColors.cream,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text('A branded list, A to Z, with page numbers. Long lists continue onto more pages.'),
+          ),
+          ListTile(
+              key: const Key('coPdf'),
+              leading: Icon(Icons.picture_as_pdf_outlined, color: StallColors.indigo),
+              title: const Text('PDF'),
+              onTap: () => Navigator.pop(ctx, 'pdf')),
+          ListTile(
+              key: const Key('coCsv'),
+              leading: Icon(Icons.table_chart_outlined, color: StallColors.indigo),
+              title: const Text('Spreadsheet (CSV)'),
+              onTap: () => Navigator.pop(ctx, 'csv')),
+        ]),
+      ),
+    );
+    if (kind == null) return;
+    final name = collectionFileName(c);
+    try {
+      final file = kind == 'pdf'
+          ? XFile.fromData(await paidPdf(c, paid, host: Uri.parse(apiBase).host), mimeType: 'application/pdf', name: '$name.pdf')
+          : XFile.fromData(paidCsv(paid), mimeType: 'text/csv', name: '$name.csv');
+      await SharePlus.instance.share(ShareParams(files: [file], subject: '${c['title']}: who has paid'));
+    } catch (_) {
+      if (mounted) toast(context, 'Couldn\'t make the file. Try again.');
+    }
+  }
+
   Future<Map<String, dynamic>>? _f;
   bool _busy = false;
 
@@ -390,6 +428,15 @@ class _CollectionScreenState extends State<CollectionScreen> {
                     subtitle: Text('${when((p['t'] as num?)?.toInt() ?? 0)} · ${p['ref']}'),
                   ),
                 if (paid.isNotEmpty) Text('Tick people off as they collect, so you know who\'s had theirs.', style: t.bodySmall),
+                if (paid.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    key: const Key('coDownload'),
+                    onPressed: () => _download(c, paid),
+                    icon: const Icon(Icons.download_rounded),
+                    label: const Text('Download the list'),
+                  ),
+                ],
               ] else ...[
                 if (d['mine'] != null)
                   Container(

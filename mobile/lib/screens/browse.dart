@@ -205,9 +205,35 @@ class _HomeTabState extends State<HomeTab> {
   bool _guide = false;
   static const _guideKey = 'home:guideSeen';
 
+  /// Like the website, look for new or changed items every minute while Home is showing, and on coming back to it.
+  Timer? _poll;
+  int? _ver;
+
+  Future<void> _checkNew() async {
+    if (!mounted || shellTab.value != 0 || _pager == null) return;
+    try {
+      final v = (await SessionScope.of(context).api.get('listings/ver'))['v'];
+      if (v is! num || !mounted) return;
+      final changed = _ver != null && _ver != v.toInt();
+      _ver = v.toInt();
+      if (changed && !_pager!.loading) _load(); // the feed stays on screen while it refreshes
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    shellTab.removeListener(_checkNew);
+    _pager?.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    _poll = Timer.periodic(const Duration(minutes: 1), (_) => _checkNew());
+    shellTab.addListener(_checkNew);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkNew());
     () async {
       try {
         final seen = (await SharedPreferences.getInstance()).getBool(_guideKey) ?? false;
@@ -232,12 +258,6 @@ class _HomeTabState extends State<HomeTab> {
       _scope = Scope.initial(s.user);
       _load();
     }
-  }
-
-  @override
-  void dispose() {
-    _pager?.dispose();
-    super.dispose();
   }
 
   Future<void> _load() => _pager!.reset({'scope': _scope!, if (_cat != 'all') 'cat': _cat});
@@ -336,6 +356,44 @@ class _HomeTabState extends State<HomeTab> {
           sliver: SliverList.list(children: [
             SearchBox(onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SearchScreen()))),
             const SizedBox(height: 20),
+          ]),
+        ),
+        // Featured · Promoted, as on the website: paid-for items, when no category is picked.
+        if (_cat == 'all')
+          SliverToBoxAdapter(
+            child: ListenableBuilder(
+              listenable: _pager!,
+              builder: (context, _) {
+                final f = _pager!.items.where((i) => i.featured && i.status == null).toList();
+                if (f.isEmpty) return const SizedBox.shrink();
+                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    child: Row(children: [
+                      Text('Featured', style: t.headlineSmall),
+                      const SizedBox(width: 8),
+                      Tag('Promoted', bg: StallColors.lime, fg: StallColors.limeInk),
+                    ]),
+                  ),
+                  SizedBox(
+                    key: const Key('featRow'),
+                    height: 250,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: f.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
+                      itemBuilder: (_, i) => SizedBox(width: 170, child: ItemCard(item: f[i], heroTag: 'feat-')),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ]);
+              },
+            ),
+          ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+          sliver: SliverList.list(children: [
             Text('Just in', key: _feed, style: t.headlineSmall),
             const SizedBox(height: 2),
             Text(
@@ -664,8 +722,11 @@ class Tag extends StatelessWidget {
 }
 
 class ItemCard extends StatelessWidget {
-  const ItemCard({super.key, required this.item});
+  const ItemCard({super.key, required this.item, this.heroTag = ''});
   final Listing item;
+
+  /// Prefix for the photo's hero tag, when the same item shows twice on a screen (the Featured row and the feed).
+  final String heroTag;
   @override
   Widget build(BuildContext context) {
     final st = item.status;
@@ -677,7 +738,7 @@ class ItemCard extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Expanded(
             child: Stack(fit: StackFit.expand, children: [
-              Hero(tag: 'img-${item.id}', child: Photo(path: item.imgs.firstOrNull, cat: item.cat)),
+              Hero(tag: '${heroTag}img-${item.id}', child: Photo(path: item.imgs.firstOrNull, cat: item.cat)),
               Positioned(
                 left: 8,
                 top: 8,

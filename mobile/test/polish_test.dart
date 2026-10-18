@@ -172,4 +172,38 @@ void main() {
     expect(find.text('Featured for 3 days'), findsOneWidget);
     await t.pump(const Duration(seconds: 5));
   });
+
+  testWidgets('Home shows a Featured row for promoted items, and refreshes when listings change', (t) async {
+    var v = 1;
+    var items = [listing(1, extra: {'featured': true}), listing(2, title: 'Desk lamp')];
+    final f = await start(t, {
+      'GET listings/ver': (_) => (200, {'v': v}),
+      'GET listings': (_) => (200, {'listings': items, 'total': items.length}),
+    });
+    await reveal(t, find.byKey(const Key('featRow')));
+    expect(find.text('Promoted'), findsOneWidget);
+    final before = f.calls.where((c) => c.url.path == '/api/listings').length;
+    v = 2; // someone posted something
+    items = [listing(3, title: 'New kettle'), ...items];
+    await t.pump(const Duration(minutes: 1));
+    await settle(t);
+    expect(f.calls.where((c) => c.url.path == '/api/listings').length, greaterThan(before));
+  });
+
+  testWidgets('when students can\'t sell at their school, Sell says so instead of opening the form', (t) async {
+    await start(t, {
+      'GET me': (_) => (200, {
+            'user': {
+              ...user(),
+              'schoolInfo': {'id': 1, 'name': 'Ajayi Crowther University', 'short': 'ACU', 'state': 'Oyo', 'stu_sell': 0}
+            }
+          }),
+    });
+    await t.tap(find.text('Sell'));
+    await settle(t);
+    expect(find.byKey(const Key('stuOff')), findsOneWidget);
+    await tap(t, 'sellItem');
+    expect(find.textContaining('Students can\'t sell on Stall at ACU right now'), findsWidgets);
+    await t.pump(const Duration(seconds: 5));
+  });
 }

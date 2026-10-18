@@ -107,6 +107,11 @@ void main() {
     await tap(t, 'coOpen');
     expect(body(f, 'collect/status'), {'code': 'AB12CD', 'open': false});
     expect(find.text('Closed: no more payments.'), findsOneWidget);
+
+    // The rep can download who paid, as a PDF or a spreadsheet.
+    await tap(t, 'coDownload');
+    expect(find.byKey(const Key('coPdf')), findsOneWidget);
+    expect(find.byKey(const Key('coCsv')), findsOneWidget);
   });
 
   testWidgets('a classmate pays into a collection with its code', (t) async {

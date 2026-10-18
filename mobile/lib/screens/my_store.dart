@@ -518,6 +518,8 @@ class _MyStoreViewState extends State<MyStoreView> {
         FilledButton.icon(
           key: const Key('openStore'),
           onPressed: () async {
+            final u = SessionScope.of(context).user;
+            if (u != null && u.stuOff) return toast(context, u.stuOffMsg);
             final opened = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const OpenStoreScreen()));
             if (!mounted) return;
             await _reload();
@@ -719,15 +721,32 @@ class _MyStoreViewState extends State<MyStoreView> {
           onPressed: _busy
               ? null
               : () async {
-                  if (await confirm(
-                    context,
-                    'Delete your store?',
-                    'Your store and all its items are removed for good. Orders already placed carry on as normal. The store fee isn\'t refunded.',
-                    yes: 'Delete store',
-                    no: 'Keep it',
-                  )) {
-                    await _post('stores/delete', {}, 'Store deleted');
-                  }
+                  // Like the website: type the store's name, so it can't be deleted by a slip. Taking a break? Close it instead.
+                  var typed = '';
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => StatefulBuilder(
+                      builder: (ctx, set) => AlertDialog(
+                        title: const Text('Delete your store?'),
+                        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const Text('Your store and all its items are removed for good. Orders already placed carry on as normal. '
+                              'The store fee isn\'t refunded.\n\nTaking a break? Close the store instead: buyers can look but not order.'),
+                          const SizedBox(height: 12),
+                          Text('Type ${st.name} to confirm.', style: const TextStyle(fontWeight: FontWeight.w700)),
+                          TextField(key: const Key('delStoreName'), autofocus: true, onChanged: (v) => set(() => typed = v)),
+                        ]),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep it')),
+                          TextButton(
+                            key: const Key('delStoreGo'),
+                            onPressed: typed.trim().toLowerCase() == st.name.trim().toLowerCase() ? () => Navigator.pop(ctx, true) : null,
+                            child: const Text('Delete store', style: TextStyle(color: StallColors.red)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                  if (ok == true) await _post('stores/delete', {}, 'Store deleted');
                 },
           child: const Text('Delete store', style: TextStyle(color: StallColors.red)),
         ),
