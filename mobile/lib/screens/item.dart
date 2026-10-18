@@ -9,6 +9,7 @@ import '../widgets.dart';
 import 'browse.dart';
 import 'chat.dart';
 import 'checkout.dart';
+import 'selling.dart' show askNote;
 
 /// Swipeable photos with dots.
 class Gallery extends StatefulWidget {
@@ -117,7 +118,7 @@ class ItemScreen extends StatelessWidget {
           actions: [
             Container(
               margin: const EdgeInsets.only(right: 4),
-              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: StallColors.card, shape: BoxShape.circle),
               child: const BagButton(),
             ),
             Padding(
@@ -125,7 +126,7 @@ class ItemScreen extends StatelessWidget {
               child: IconButton.filledTonal(
                 key: const Key('share'),
                 tooltip: 'Share',
-                style: IconButton.styleFrom(backgroundColor: Colors.white),
+                style: IconButton.styleFrom(backgroundColor: StallColors.card),
                 onPressed: () => shareThing(context, id: item.id, text: '${item.title} for ${naira(item.price)} on Stall'),
                 icon: const Icon(Icons.ios_share_rounded),
               ),
@@ -162,7 +163,14 @@ class ItemScreen extends StatelessWidget {
               verified: item.verified,
               vlevel: item.vlevel,
             ),
-            if (!item.mine) ...[const SizedBox(height: 10), Align(alignment: Alignment.centerLeft, child: MessageButton(ref: item.id, label: 'Message seller'))],
+            if (!item.mine) ...[
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(child: MessageButton(ref: item.id, label: 'Message seller')),
+                const SizedBox(width: 8),
+                ReportButton(kind: 'listing', target: item.id),
+              ]),
+            ],
             const SizedBox(height: 16),
           ]),
         ),
@@ -178,7 +186,7 @@ class _RoundBack extends StatelessWidget {
         padding: const EdgeInsets.all(8),
         child: IconButton.filledTonal(
           tooltip: 'Back',
-          style: IconButton.styleFrom(backgroundColor: Colors.white),
+          style: IconButton.styleFrom(backgroundColor: StallColors.card),
           onPressed: () => Navigator.maybePop(context),
           icon: const Icon(Icons.arrow_back_rounded),
         ),
@@ -397,4 +405,37 @@ class _ReviewsViewState extends State<ReviewsView> {
       },
     );
   }
+}
+
+/// "Report" on a listing or store someone else runs: tells the Stall team what's wrong (fake, scam, banned item, offensive).
+class ReportButton extends StatelessWidget {
+  const ReportButton({super.key, required this.kind, required this.target, this.color});
+  final String kind; // listing or store
+  final String target;
+  final Color? color;
+
+  Future<void> _report(BuildContext context) async {
+    final api = SessionScope.of(context).api;
+    final r = await askNote(context,
+        title: 'Report this $kind',
+        text: 'Tell the Stall team what\'s wrong. Only they see it.',
+        hint: 'e.g. fake, scam, banned item, offensive',
+        button: 'Send report');
+    if (r == null || !context.mounted) return;
+    try {
+      await api.post('report', {'kind': kind, 'target': target, 'reason': r.$1});
+      if (context.mounted) toast(context, 'Thanks. The Stall team will look at it.');
+    } on ApiError catch (e) {
+      if (context.mounted) toast(context, e.message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => TextButton.icon(
+        key: Key('report-$kind'),
+        onPressed: () => _report(context),
+        style: TextButton.styleFrom(foregroundColor: color ?? StallColors.muted),
+        icon: const Icon(Icons.flag_outlined, size: 18),
+        label: const Text('Report'),
+      );
 }

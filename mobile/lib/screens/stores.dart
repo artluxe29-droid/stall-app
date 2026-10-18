@@ -369,6 +369,7 @@ class _StoreBodyState extends State<_StoreBody> {
                   icon: const Icon(Icons.ios_share_rounded, size: 18),
                   label: const Text('Share store'),
                 ),
+                ReportButton(kind: 'store', target: s.id, color: const Color(0xFFCBD5E1)),
               ]),
           ]),
         ),

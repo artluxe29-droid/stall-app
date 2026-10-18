@@ -34,6 +34,30 @@ class Push {
 
   static bool get configured => !kIsWeb && _fcm.apiKey.isNotEmpty && _fcm.appId.isNotEmpty && !Platform.environment.containsKey('FLUTTER_TEST');
 
+  /// This phone: 'on', 'off' (not asked or not yet on), 'blocked' (refused in the phone's settings) or 'unsupported'.
+  static Future<String> status() async {
+    if (!configured) return 'unsupported';
+    try {
+      if (Firebase.apps.isEmpty) return 'off';
+      final st = (await FirebaseMessaging.instance.getNotificationSettings()).authorizationStatus;
+      return switch (st) {
+        AuthorizationStatus.authorized || AuthorizationStatus.provisional => _token != null ? 'on' : 'off',
+        AuthorizationStatus.denied => 'blocked',
+        _ => 'off',
+      };
+    } catch (_) {
+      return 'off';
+    }
+  }
+
+  static String label(String? status) => switch (status) {
+        'on' => 'On for this phone',
+        'blocked' => 'Off in your phone\'s settings',
+        'unsupported' => 'Not available in this version',
+        null => 'Checking…',
+        _ => 'Off · tap to turn on',
+      };
+
   /// After sign-in: ask permission (Android 13+), send this phone's token to Stall, and listen.
   static Future<void> start(Session s) async {
     if (!configured || _started) return;
