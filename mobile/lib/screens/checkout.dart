@@ -392,7 +392,7 @@ class _PayScreenState extends State<PayScreen> {
         Text.rich(
             TextSpan(children: [const TextSpan(text: 'Complete payment within '), TextSpan(text: clock(left), style: const TextStyle(fontWeight: FontWeight.w700)), const TextSpan(text: '.')]),
             textAlign: TextAlign.center),
-        TextButton(onPressed: _busy ? null : _cancel, child: Text(p.length > 1 ? 'Cancel these orders' : 'Cancel this order', style: const TextStyle(color: StallColors.muted))),
+        TextButton(onPressed: _busy ? null : _cancel, child: Text(p.length > 1 ? 'Cancel these orders' : 'Cancel this order', style: TextStyle(color: StallColors.muted))),
       ]),
     );
   }

@@ -177,7 +177,7 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
         margin: const EdgeInsets.only(top: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-            color: bad ? const Color(0xFFFDE2E4) : (good ? const Color(0xFFDCF7E6) : StallColors.cream2), borderRadius: BorderRadius.circular(14)),
+            color: bad ? StallColors.redTint : (good ? StallColors.greenTint : StallColors.cream2), borderRadius: BorderRadius.circular(14)),
         child: Text(text),
       );
 
@@ -199,7 +199,7 @@ class _SellingOrderScreenState extends State<SellingOrderScreen> {
           Card(
             margin: EdgeInsets.zero,
             child: ListTile(
-              leading: const Icon(Icons.person_outline, color: StallColors.indigo),
+              leading: Icon(Icons.person_outline, color: StallColors.indigo),
               title: Text(o.buyerName),
               subtitle: o.buyerRating.n > 0 ? StarText('Buyer ${o.buyerRating.label}') : const Text('New buyer'),
               trailing: Row(mainAxisSize: MainAxisSize.min, children: [

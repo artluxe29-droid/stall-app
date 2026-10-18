@@ -18,7 +18,7 @@ class Wordmark extends StatelessWidget {
   final bool light;
   @override
   Widget build(BuildContext context) => SvgPicture.asset(
-        light ? 'assets/brand/wordmark-cream.svg' : 'assets/brand/wordmark-indigo.svg',
+        light || StallColors.dark ? 'assets/brand/wordmark-cream.svg' : 'assets/brand/wordmark-indigo.svg',
         height: height,
         semanticsLabel: 'Stall',
       );
@@ -53,7 +53,7 @@ class BreakCard extends StatelessWidget {
               decoration: const BoxDecoration(color: StallColors.lime, shape: BoxShape.circle)),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Stall is taking a short break',
+              Text('Stall is taking a short break',
                   style: TextStyle(color: StallColors.cream, fontWeight: FontWeight.w700, fontSize: 15)),
               const SizedBox(height: 2),
               Text(message, style: TextStyle(color: StallColors.cream.withValues(alpha: .85), fontSize: 14, height: 1.45)),
@@ -121,7 +121,7 @@ class PausedCard extends StatelessWidget {
         key: const Key('paused'),
         width: double.infinity,
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: const Color(0xFFFDE2E4), borderRadius: BorderRadius.circular(14)),
+        decoration: BoxDecoration(color: StallColors.redTint, borderRadius: BorderRadius.circular(14)),
         child: Text(
             'Your account is paused until ${when(until)} because of strikes (late cancels, no-shows, or problem reports lost or not answered). '
             'You can still see your orders and finish the ones you have.'),

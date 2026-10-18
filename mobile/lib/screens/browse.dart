@@ -53,11 +53,11 @@ class ChipRow extends StatelessWidget {
             return ChoiceChip(
               key: Key('chip-$id'),
               label: Text(label),
-              avatar: leading[id] ?? (icons[id] == null ? null : Icon(icons[id], size: 18, color: on ? Colors.white : StallColors.indigo)),
+              avatar: leading[id] ?? (icons[id] == null ? null : Icon(icons[id], size: 18, color: on ? StallColors.onBrand : StallColors.indigo)),
               showCheckmark: false,
               selected: on,
               onSelected: (_) => onPick(id),
-              labelStyle: TextStyle(fontWeight: FontWeight.w600, color: on ? Colors.white : StallColors.ink),
+              labelStyle: TextStyle(fontWeight: FontWeight.w600, color: on ? StallColors.onBrand : StallColors.ink),
               selectedColor: StallColors.indigo,
               backgroundColor: StallColors.card,
               side: BorderSide(color: on ? StallColors.indigo : StallColors.line),
@@ -554,10 +554,10 @@ class _GuideCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(color: StallColors.cream2, borderRadius: BorderRadius.circular(13)),
-            child: const Icon(Icons.auto_awesome_rounded, color: StallColors.indigo, size: 22),
+            child: Icon(Icons.auto_awesome_rounded, color: StallColors.indigo, size: 22),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('New to Stall?', style: TextStyle(fontFamily: 'Bricolage', fontWeight: FontWeight.w800, fontSize: 16)),
               Text('How buying, selling and payments work', style: TextStyle(color: StallColors.muted, fontSize: 12.5)),
@@ -600,12 +600,12 @@ class SearchBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
         color: StallColors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: StallColors.line)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: StallColors.line)),
         child: InkWell(
           key: const Key('searchBox'),
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
-          child: const Padding(
+          child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
             child: Row(children: [
               Icon(Icons.search_rounded, color: StallColors.muted),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'api.dart';
+import 'appearance.dart';
 import 'push.dart';
 import 'screens/account_setup.dart';
 import 'screens/closed.dart';
@@ -11,9 +12,10 @@ import 'screens/splash.dart';
 import 'session.dart';
 import 'theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  await appearance.load();
   final session = Session(Api())..restore();
   runApp(StallApp(session: session));
 }
@@ -31,13 +33,16 @@ class StallApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SessionScope(
         session: session,
-        child: MaterialApp(
-          title: 'Stall',
-          navigatorKey: navKey,
-          scaffoldMessengerKey: messengerKey,
-          debugShowCheckedModeBanner: false,
-          theme: stallTheme(),
-          home: const _Gate(),
+        child: ListenableBuilder(
+          listenable: appearance,
+          builder: (context, _) => MaterialApp(
+            title: 'Stall',
+            navigatorKey: navKey,
+            scaffoldMessengerKey: messengerKey,
+            debugShowCheckedModeBanner: false,
+            theme: stallTheme(),
+            home: const _Gate(),
+          ),
         ),
       );
 }

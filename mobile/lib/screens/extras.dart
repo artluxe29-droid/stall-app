@@ -207,7 +207,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           ..loadHtmlString('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">'
               // The website's fonts and frame, so it looks the same as there.
               '<link rel="stylesheet" href="$apiBase/brand/fonts.css">'
-              '<style>body{margin:0;background:#F6F1E7;font-family:Figtree,sans-serif}.rcpt{padding:22px 14px 16px;display:flex;justify-content:center}'
+              '<style>body{margin:0;background:${StallColors.dark ? '#0F1330' : '#F6F1E7'};font-family:Figtree,sans-serif}.rcpt{padding:22px 14px 16px;display:flex;justify-content:center}'
               '.rcpt .rc{filter:drop-shadow(0 18px 26px rgba(22,26,51,.22))}</style>'
               '<body><div class="rcpt">${r['html'] ?? ''}</div></body>', baseUrl: apiBase);
       }
@@ -330,7 +330,7 @@ class _PartnerBannerState extends State<PartnerBanner> {
                 if (url.isNotEmpty && (p['cta'] ?? '').toString().isNotEmpty)
                   Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text('${p['cta']} →', style: const TextStyle(color: StallColors.indigo, fontWeight: FontWeight.w700))),
+                      child: Text('${p['cta']} →', style: TextStyle(color: StallColors.indigo, fontWeight: FontWeight.w700))),
               ]),
             ),
           ]),
@@ -393,8 +393,8 @@ class _StoreQrScreenState extends State<StoreQrScreen> {
                     key: const Key('qr'),
                     data: _link,
                     size: 200,
-                    eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: StallColors.indigo),
-                    dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: StallColors.indigo),
+                    eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.square, color: StallColors.indigo),
+                    dataModuleStyle: QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: StallColors.indigo),
                   ),
                 ),
                 const SizedBox(height: 12),

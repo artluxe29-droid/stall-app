@@ -168,7 +168,7 @@ class _BulkAddScreenState extends State<BulkAddScreen> {
                       decoration: BoxDecoration(color: StallColors.cream2, borderRadius: BorderRadius.circular(12)),
                       clipBehavior: Clip.antiAlias,
                       child: r.photo == null
-                          ? const Icon(Icons.add_a_photo_outlined, color: StallColors.indigo)
+                          ? Icon(Icons.add_a_photo_outlined, color: StallColors.indigo)
                           : Image.memory(base64Decode(r.photo!.split(',').last), fit: BoxFit.cover),
                     ),
                   ),

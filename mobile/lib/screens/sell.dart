@@ -87,7 +87,7 @@ class _SellerRulesSheetState extends State<_SellerRulesSheet> {
     Widget li(String x) => Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Padding(padding: EdgeInsets.only(top: 7, right: 10), child: Icon(Icons.circle, size: 6, color: StallColors.indigo)),
+            Padding(padding: EdgeInsets.only(top: 7, right: 10), child: Icon(Icons.circle, size: 6, color: StallColors.indigo)),
             Expanded(child: Text(x)),
           ]),
         );
@@ -217,7 +217,7 @@ class _SellTabState extends State<SellTab> {
           child: Column(children: [
             ListTile(
               key: const Key('deliveryTile'),
-              leading: const Icon(Icons.local_shipping_outlined, color: StallColors.indigo),
+              leading: Icon(Icons.local_shipping_outlined, color: StallColors.indigo),
               title: const Text('Delivery'),
               subtitle: Text(u?.deliv['on'] == true
                   ? 'You deliver${((u!.deliv['fee'] as num?) ?? 0) > 0 ? ' for ${naira(u.deliv['fee'] as num)}' : ' for free'}'
@@ -228,7 +228,7 @@ class _SellTabState extends State<SellTab> {
             const Divider(height: 1),
             ListTile(
               key: const Key('storeTile'),
-              leading: const Icon(Icons.storefront_outlined, color: StallColors.indigo),
+              leading: Icon(Icons.storefront_outlined, color: StallColors.indigo),
               title: const Text('Your store'),
               subtitle: const Text('A page for a business: a menu of items, logo, open and closed'),
               trailing: const Icon(Icons.chevron_right_rounded),
@@ -237,7 +237,7 @@ class _SellTabState extends State<SellTab> {
             const Divider(height: 1),
             ListTile(
               key: const Key('weeklyTile'),
-              leading: const Icon(Icons.bar_chart_rounded, color: StallColors.indigo),
+              leading: Icon(Icons.bar_chart_rounded, color: StallColors.indigo),
               title: const Text('Weekly statement'),
               subtitle: const Text('What you sold and were paid this week'),
               trailing: const Icon(Icons.chevron_right_rounded),
@@ -331,8 +331,8 @@ class MyListingRow extends StatelessWidget {
                 Text(naira(item.price), style: const TextStyle(fontFamily: 'Bricolage', fontWeight: FontWeight.w800)),
                 Wrap(spacing: 6, runSpacing: 4, children: [
                   if (st != null) Tag(st),
-                  if (st == null && rv == null) const Tag('Live', bg: Color(0xFFDCF7E6), fg: StallColors.green),
-                  if (rv != null) Tag(rv, bg: rejected ? const Color(0xFFFDE2E4) : const Color(0xFFFEF3C7), fg: rejected ? StallColors.red : StallColors.amber),
+                  if (st == null && rv == null) Tag('Live', bg: StallColors.greenTint, fg: StallColors.green),
+                  if (rv != null) Tag(rv, bg: rejected ? StallColors.redTint : StallColors.amberTint, fg: rejected ? StallColors.red : StallColors.amber),
                   if (item.stockLine != null) Tag(item.stockLine!, bg: StallColors.cream2, fg: StallColors.ink),
                 ]),
               ]),
@@ -440,7 +440,7 @@ class _SellScreenState extends State<SellScreen> {
       key: const Key('earn'),
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: p > 0 && p < 500 ? const Color(0xFFFDE2E4) : const Color(0xFFEEF8C8), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: p > 0 && p < 500 ? StallColors.redTint : StallColors.limeTint, borderRadius: BorderRadius.circular(12)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(head, style: const TextStyle(fontWeight: FontWeight.w800)),
         if (more.isNotEmpty) Text(more, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: StallColors.ink)),
@@ -560,7 +560,7 @@ class _SellScreenState extends State<SellScreen> {
                   child: Container(
                     width: 92,
                     decoration: BoxDecoration(color: StallColors.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: StallColors.line)),
-                    child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_a_photo_outlined, color: StallColors.indigo), Text('Add', style: TextStyle(fontSize: 13))]),
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_a_photo_outlined, color: StallColors.indigo), Text('Add', style: TextStyle(fontSize: 13))]),
                   ),
                 ),
             ]),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../appearance.dart';
 import '../main.dart';
 import '../news.dart';
 import '../place.dart';
@@ -13,6 +14,7 @@ import 'chat.dart';
 import 'collections.dart';
 import 'extras.dart';
 import 'item.dart' show showReviews;
+import 'my_store.dart' show MyStoreScreen;
 import 'orders.dart';
 import 'settings.dart';
 import 'sell.dart';
@@ -255,6 +257,13 @@ class AccountTab extends StatelessWidget {
         if (u != null) ...[
           _Section(title: 'Selling', rows: [
             _Row(
+              key: const Key('accStore'),
+              icon: Icons.storefront_outlined,
+              title: 'Your store',
+              sub: 'Items, logo, open and closed, reach',
+              onTap: () => _open(context, const MyStoreScreen()),
+            ),
+            _Row(
               key: const Key('accDelivery'),
               icon: Icons.local_shipping_outlined,
               title: 'Delivery',
@@ -331,7 +340,32 @@ class AccountTab extends StatelessWidget {
               ),
           ]),
         ],
-        _Section(title: 'Help', rows: [
+        _Section(title: 'App & preferences', rows: [
+          ListenableBuilder(
+            listenable: appearance,
+            builder: (context, _) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                const Row(children: [
+                  _RowIcon(Icons.contrast_rounded),
+                  SizedBox(width: 12),
+                  Text('Theme', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                ]),
+                const SizedBox(height: 10),
+                SegmentedButton<String>(
+                  key: const Key('themeMode'),
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: 'auto', label: Text('Auto')),
+                    ButtonSegment(value: 'light', label: Text('Light')),
+                    ButtonSegment(value: 'dark', label: Text('Dark')),
+                  ],
+                  selected: {appearance.mode},
+                  onSelectionChanged: (v) => appearance.set(v.first),
+                ),
+              ]),
+            ),
+          ),
           _Row(
             key: const Key('guideTile'),
             icon: Icons.menu_book_outlined,
@@ -339,6 +373,8 @@ class AccountTab extends StatelessWidget {
             sub: 'Buying, selling, collections and staying safe',
             onTap: () => _open(context, GuideScreen(selling: u?.isVendor ?? false)),
           ),
+        ]),
+        _Section(title: 'Help', rows: [
           _Row(
             key: const Key('helpTile'),
             icon: Icons.help_outline_rounded,
@@ -353,7 +389,7 @@ class AccountTab extends StatelessWidget {
           TextButton(
             key: const Key('deleteAccount'),
             onPressed: () => _open(context, const DeleteAccountScreen()),
-            child: const Text('Delete my account', style: TextStyle(color: StallColors.muted, fontSize: 13.5)),
+            child: Text('Delete my account', style: TextStyle(color: StallColors.muted, fontSize: 13.5)),
           ),
       ],
     );
@@ -386,7 +422,7 @@ class _Tile extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                 const SizedBox(height: 2),
-                Text(sub, style: const TextStyle(color: StallColors.muted, fontSize: 12.5, height: 1.3)),
+                Text(sub, style: TextStyle(color: StallColors.muted, fontSize: 12.5, height: 1.3)),
               ]),
               if (n > 0)
                 Positioned(
@@ -420,12 +456,12 @@ class _Section extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
               child: Text(title!.toUpperCase(),
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: .9, color: StallColors.muted)),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: .9, color: StallColors.muted)),
             ),
           Card(
             clipBehavior: Clip.antiAlias,
             child: Column(children: [
-              for (var i = 0; i < rows.length; i++) ...[if (i > 0) const Divider(height: 1, color: StallColors.line), rows[i]],
+              for (var i = 0; i < rows.length; i++) ...[if (i > 0) Divider(height: 1, color: StallColors.line), rows[i]],
             ]),
           ),
         ]),
@@ -461,11 +497,11 @@ class _Row extends StatelessWidget {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                   Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                   if (sub != null && sub!.isNotEmpty)
-                    Text(sub!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: StallColors.muted, fontSize: 13)),
+                    Text(sub!, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: StallColors.muted, fontSize: 13)),
                 ]),
               ),
               if (trailing != null) ...[const SizedBox(width: 8), trailing!],
-              if (arrow && onTap != null) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.chevron_right_rounded, color: StallColors.muted)),
+              if (arrow && onTap != null) Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.chevron_right_rounded, color: StallColors.muted)),
             ]),
           ),
         ),
@@ -486,7 +522,7 @@ class _SwitchRow extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         secondary: _RowIcon(icon),
         title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-        subtitle: Text(sub, style: const TextStyle(color: StallColors.muted, fontSize: 13)),
+        subtitle: Text(sub, style: TextStyle(color: StallColors.muted, fontSize: 13)),
         value: value,
         onChanged: onChanged,
       );

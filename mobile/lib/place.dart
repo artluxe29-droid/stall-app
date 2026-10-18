@@ -175,7 +175,7 @@ class _PlaceScreenState extends State<PlaceScreen> {
               key: const Key('pl-save'),
               onPressed: _busy ? null : _save,
               child: _busy
-                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                  ? SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: StallColors.onBrand))
                   : const Text('Save'),
             ),
             if (widget.prompt) TextButton(key: const Key('pl-later'), onPressed: () => Navigator.pop(context, false), child: const Text('Not now')),
@@ -201,7 +201,7 @@ Future<void> openStudentSettings(BuildContext context) async {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         ListTile(
           key: const Key('st-pick'),
-          leading: const Icon(Icons.school_outlined, color: StallColors.indigo),
+          leading: Icon(Icons.school_outlined, color: StallColors.indigo),
           title: Text(hasSchool ? 'Change school' : (u.isVendor ? 'We\'re on or near a campus' : 'I\'m a student')),
           subtitle: Text(u.isVendor ? 'Students there see your business in their campus feed.' : 'Get your campus feed and the Student badge.'),
           onTap: () => Navigator.pop(ctx, 'pick'),

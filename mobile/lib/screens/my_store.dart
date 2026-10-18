@@ -271,7 +271,7 @@ class _OpenStoreScreenState extends State<OpenStoreScreen> {
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: _free ? StallColors.cream2 : const Color(0xFFEEF8C8), borderRadius: BorderRadius.circular(14)),
+                decoration: BoxDecoration(color: _free ? StallColors.cream2 : StallColors.limeTint, borderRadius: BorderRadius.circular(14)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -498,7 +498,7 @@ class _MyStoreViewState extends State<MyStoreView> {
       children: [
         if (widget.heading) Text('Your store', style: t.headlineMedium),
         const SizedBox(height: 24),
-        const Icon(Icons.storefront_rounded, size: 64, color: StallColors.indigo),
+        Icon(Icons.storefront_rounded, size: 64, color: StallColors.indigo),
         const SizedBox(height: 12),
         Text('Open your store', style: t.headlineSmall, textAlign: TextAlign.center),
         const SizedBox(height: 6),
@@ -636,7 +636,7 @@ class _MyStoreViewState extends State<MyStoreView> {
           ListTile(
             key: const Key('storeLook'),
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.palette_outlined, color: StallColors.indigo),
+            leading: Icon(Icons.palette_outlined, color: StallColors.indigo),
             title: const Text('Logo and icon'),
             subtitle: Text(st.logo != null ? 'Your logo shows on your store' : 'Showing an icon. Add a logo to stand out.'),
             trailing: const Icon(Icons.chevron_right_rounded),
@@ -645,7 +645,7 @@ class _MyStoreViewState extends State<MyStoreView> {
           ListTile(
             key: const Key('storeDelivery'),
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.local_shipping_outlined, color: StallColors.indigo),
+            leading: Icon(Icons.local_shipping_outlined, color: StallColors.indigo),
             title: const Text('Delivery'),
             subtitle: Text(st.deliv.on ? 'You deliver${st.deliv.fee > 0 ? ' for ${naira(st.deliv.fee)}' : ' for free'}' : 'Off: buyers collect at ${st.spot}'),
             trailing: const Icon(Icons.chevron_right_rounded),
@@ -895,7 +895,7 @@ class _StoreItemScreenState extends State<StoreItemScreen> {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: StallColors.line),
                         ),
-                        child: const Icon(Icons.add_a_photo_outlined, color: StallColors.indigo),
+                        child: Icon(Icons.add_a_photo_outlined, color: StallColors.indigo),
                       ),
                     ),
                 ],
