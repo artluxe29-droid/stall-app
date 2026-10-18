@@ -338,6 +338,12 @@ class AccountTab extends StatelessWidget {
                   }
                 },
               ),
+            _Row(
+              key: const Key('accPw'),
+              icon: Icons.lock_outline_rounded,
+              title: 'Change password',
+              onTap: () => _open(context, const ChangePasswordScreen()),
+            ),
           ]),
         ],
         _Section(title: 'App & preferences', rows: [
@@ -364,6 +370,16 @@ class AccountTab extends StatelessWidget {
                   onSelectionChanged: (v) => appearance.set(v.first),
                 ),
               ]),
+            ),
+          ),
+          FutureBuilder<String>(
+            future: Push.status(),
+            builder: (context, snap) => _Row(
+              key: const Key('accPush'),
+              icon: Icons.notifications_outlined,
+              title: 'Notifications',
+              sub: Push.label(snap.data),
+              onTap: () => _open(context, const NotificationsScreen()),
             ),
           ),
           _Row(

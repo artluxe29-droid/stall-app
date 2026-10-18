@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../main.dart';
+import '../push.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'account_setup.dart' show openLink;
@@ -251,6 +252,149 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
           onPressed: _busy ? null : _delete,
           child: Text(_busy ? 'Deleting…' : 'Delete my account'),
         ),
+      ]),
+    );
+  }
+}
+
+/// Account → Change password: the current one, then a new one (8 or more characters). Other phones are signed out.
+class ChangePasswordScreen extends StatefulWidget {
+  const ChangePasswordScreen({super.key});
+  @override
+  State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
+}
+
+class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
+  final _old = TextEditingController(), _new = TextEditingController();
+  bool _busy = false, _show = false;
+  String? _err;
+
+  @override
+  void dispose() {
+    _old.dispose();
+    _new.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_old.text.isEmpty) return setState(() => _err = 'Type your current password.');
+    if (_new.text.length < 8) return setState(() => _err = 'Use at least 8 characters for the new one.');
+    setState(() {
+      _busy = true;
+      _err = null;
+    });
+    try {
+      await SessionScope.of(context).api.post('password', {'old': _old.text, 'password': _new.text});
+      if (!mounted) return;
+      toast(context, 'Password changed. Any other phones signed in to your account are signed out.');
+      Navigator.of(context).pop();
+    } on ApiError catch (e) {
+      if (mounted) setState(() => _err = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Change password')),
+        body: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 32), children: [
+          TextField(
+            key: const Key('pwOld'),
+            controller: _old,
+            obscureText: !_show,
+            autofillHints: const [AutofillHints.password],
+            decoration: const InputDecoration(labelText: 'Current password'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('pwNew'),
+            controller: _new,
+            obscureText: !_show,
+            autofillHints: const [AutofillHints.newPassword],
+            decoration: InputDecoration(
+              labelText: 'New password',
+              helperText: 'At least 8 characters',
+              errorText: _err,
+              errorMaxLines: 3,
+              suffixIcon: IconButton(
+                tooltip: _show ? 'Hide' : 'Show',
+                onPressed: () => setState(() => _show = !_show),
+                icon: Icon(_show ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(key: const Key('pwSave'), onPressed: _busy ? null : _save, child: Text(_busy ? 'Saving…' : 'Change password')),
+        ]),
+      );
+}
+
+/// Account → Notifications: whether this phone gets Stall's notifications, a way to turn them on, and a test one.
+class NotificationsScreen extends StatefulWidget {
+  const NotificationsScreen({super.key});
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  String? _status;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    final st = await Push.status();
+    if (mounted) setState(() => _status = st);
+  }
+
+  Future<void> _on() async {
+    setState(() => _busy = true);
+    await Push.start(SessionScope.of(context));
+    await _check();
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _test() async {
+    try {
+      await SessionScope.of(context).api.post('push/test');
+      if (mounted) toast(context, 'Sent. It should arrive in a few seconds.');
+    } on ApiError catch (e) {
+      if (mounted) toast(context, e.message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final st = _status;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Notifications')),
+      body: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 32), children: [
+        Text(Push.label(st), key: const Key('pushStatus'), style: t.headlineSmall),
+        const SizedBox(height: 8),
+        Text(
+          switch (st) {
+            'on' => 'You\'ll hear from Stall when you sell something, get a message, or your order moves, even when the app is closed.',
+            'blocked' => 'Notifications for Stall are turned off in your phone\'s settings. Turn them on in Settings → Apps → Stall → Notifications.',
+            'unsupported' => 'This version of the app can\'t get notifications yet. You\'ll still see updates on the Orders tab and in Messages.',
+            null => '',
+            _ => 'Turn them on to hear when you sell something, get a message, or your order moves.',
+          },
+          style: t.bodyLarge?.copyWith(color: StallColors.muted),
+        ),
+        const SizedBox(height: 20),
+        if (st == 'off') FilledButton(key: const Key('pushOn'), onPressed: _busy ? null : _on, child: const Text('Turn on notifications')),
+        if (st == 'on') OutlinedButton(key: const Key('pushTest'), onPressed: _test, child: const Text('Send me a test notification')),
+        if (st == 'on')
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text('To turn them off, use Settings → Apps → Stall → Notifications on your phone.', style: t.bodySmall),
+          ),
       ]),
     );
   }

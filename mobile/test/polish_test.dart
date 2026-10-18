@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,6 +7,7 @@ import 'package:stall/appearance.dart';
 import 'package:stall/main.dart';
 import 'package:stall/theme.dart';
 
+import 'browse_test.dart' show listing;
 import 'helpers.dart';
 import 'store_test.dart' show myStore;
 
@@ -75,5 +78,59 @@ void main() {
     expect(find.byKey(const Key('logoNudge')), findsOneWidget); // no logo yet
     await tap(t, 'ownerAddItem');
     expect(find.byType(TextField), findsWidgets); // the add-item form
+  });
+
+  Map<String, dynamic> body(FakeApi f, String path) =>
+      jsonDecode(f.calls.lastWhere((c) => c.url.path == '/api/$path' && c.method == 'POST').body) as Map<String, dynamic>;
+
+  testWidgets('change password from Account; a wrong current password is explained', (t) async {
+    var ok = false;
+    final f = await start(t, {
+      'POST password': (r) {
+        final b = jsonDecode(r.body) as Map<String, dynamic>;
+        if (b['old'] != 'password123') return (400, {'error': 'Your current password is wrong.'});
+        ok = true;
+        return (200, {'ok': true});
+      },
+    });
+    await t.tap(find.text('Account'));
+    await settle(t);
+    await tap(t, 'accPw');
+    await t.enterText(find.byKey(const Key('pwOld')), 'nope');
+    await t.enterText(find.byKey(const Key('pwNew')), 'newpass99');
+    await tap(t, 'pwSave');
+    expect(find.text('Your current password is wrong.'), findsOneWidget);
+    await t.enterText(find.byKey(const Key('pwOld')), 'password123');
+    await tap(t, 'pwSave');
+    expect(ok, isTrue);
+    expect(body(f, 'password'), {'old': 'password123', 'password': 'newpass99'});
+    await t.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('Account shows whether this phone gets notifications', (t) async {
+    await start(t, {});
+    await t.tap(find.text('Account'));
+    await settle(t);
+    await reveal(t, find.byKey(const Key('accPush')));
+    expect(find.text('Not available in this version'), findsOneWidget); // tests have no Firebase
+    await tap(t, 'accPush');
+    expect(find.byKey(const Key('pushStatus')), findsOneWidget);
+  });
+
+  testWidgets('a listing can be reported to the Stall team', (t) async {
+    final f = await start(t, {
+      'GET listings': (_) => (200, {'listings': [listing(1)], 'total': 1}),
+      'GET reviews': (_) => (200, {'rating': {'avg': 0, 'n': 0}, 'reviews': []}),
+      'POST report': (_) => (200, {'ok': true}),
+    });
+    await reveal(t, find.byKey(const Key('item-L1')));
+    await t.tap(find.byKey(const Key('item-L1')));
+    await settle(t);
+    await tap(t, 'report-listing');
+    await t.enterText(find.byKey(const Key('noteText')), 'Looks like a scam');
+    await t.tap(find.text('Send report'));
+    await settle(t);
+    expect(body(f, 'report'), {'kind': 'listing', 'target': 'L1', 'reason': 'Looks like a scam'});
+    await t.pump(const Duration(seconds: 5));
   });
 }
