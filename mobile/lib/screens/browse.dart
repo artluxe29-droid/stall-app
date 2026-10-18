@@ -304,7 +304,9 @@ class _HomeTabState extends State<HomeTab> {
           ]),
         ),
         SliverToBoxAdapter(
-          child: CatTiles(
+          child: ChipRow(
+            options: [('all', 'All'), for (final c in Category.all) (c.id, c.name)],
+            icons: {for (final c in Category.all) c.id: c.icon},
             value: _cat,
             onPick: (v) {
               setState(() => _cat = v);
@@ -518,8 +520,8 @@ class TrustTiles extends StatelessWidget {
               Container(
                 width: 34,
                 height: 34,
-                decoration: BoxDecoration(color: const Color(0xFFF1F9DC), borderRadius: BorderRadius.circular(11)),
-                child: Icon(i, size: 18, color: StallColors.ink),
+                decoration: BoxDecoration(color: StallColors.cream2, borderRadius: BorderRadius.circular(11)),
+                child: Icon(i, size: 18, color: StallColors.indigo),
               ),
               const SizedBox(height: 10),
               Text(text, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, height: 1.25)),
@@ -551,10 +553,8 @@ class _GuideCard extends StatelessWidget {
           Container(
             width: 44,
             height: 44,
-            decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(13),
-                gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [StallColors.lime, Color(0xFF9BD12A)])),
-            child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 22),
+            decoration: BoxDecoration(color: StallColors.cream2, borderRadius: BorderRadius.circular(13)),
+            child: const Icon(Icons.auto_awesome_rounded, color: StallColors.indigo, size: 22),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -572,54 +572,6 @@ class _GuideCard extends StatelessWidget {
           IconButton(key: const Key('guideX'), tooltip: 'Hide', onPressed: onClose, icon: const Icon(Icons.close_rounded, size: 20)),
         ]),
       );
-}
-
-/// Category tiles on Home: a coloured icon square over the name, like the website's.
-class CatTiles extends StatelessWidget {
-  const CatTiles({super.key, required this.value, required this.onPick});
-  final String value;
-  final ValueChanged<String> onPick;
-  @override
-  Widget build(BuildContext context) {
-    final opts = [('all', 'All', Icons.auto_awesome_rounded, StallColors.card, const Color(0xFF9BD12A)), for (final c in Category.all) (c.id, c.name, c.icon, c.bg, c.fg)];
-    return SizedBox(
-      height: 96,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: opts.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final (id, name, icon, bg, fg) = opts[i];
-          final on = id == value;
-          return Material(
-            color: StallColors.card,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18), side: BorderSide(color: on ? StallColors.ink : StallColors.line, width: on ? 2 : 1)),
-            child: InkWell(
-              key: Key('chip-$id'),
-              borderRadius: BorderRadius.circular(18),
-              onTap: () => onPick(id),
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 76),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14)),
-                    child: Icon(icon, color: fg, size: 22),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(name, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                ]),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 }
 
 /// A small Nigerian flag, for "All Nigeria".

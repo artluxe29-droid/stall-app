@@ -140,7 +140,7 @@ class _ShellState extends State<Shell> {
   }
 }
 
-/// Account, laid out like the website's: who you are, shortcuts as tiles, then Selling, Your profile and Help.
+/// Account, arranged like the website's (shortcut tiles, then Selling, Your profile and Help) in the app's own style.
 class AccountTab extends StatelessWidget {
   const AccountTab({super.key});
 
@@ -156,16 +156,11 @@ class AccountTab extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
         Row(children: [
-          Container(
-            width: 64,
-            height: 64,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [StallColors.lime, Color(0xFF9ED11F)]),
-            ),
-            child: Text((u?.name.isNotEmpty ?? false) ? u!.name[0].toUpperCase() : '?',
-                style: const TextStyle(fontSize: 28, color: StallColors.limeInk, fontWeight: FontWeight.w500)),
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: StallColors.indigo,
+            foregroundColor: StallColors.cream,
+            child: Text((u?.name.isNotEmpty ?? false) ? u!.name[0].toUpperCase() : '?', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -374,11 +369,9 @@ class _Tile extends StatelessWidget {
   final VoidCallback onTap;
   final int n;
   @override
-  Widget build(BuildContext context) => Material(
-        color: StallColors.cream2,
-        borderRadius: BorderRadius.circular(18),
+  Widget build(BuildContext context) => Card(
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -387,8 +380,8 @@ class _Tile extends StatelessWidget {
                 Container(
                   width: 38,
                   height: 38,
-                  decoration: BoxDecoration(color: StallColors.card, borderRadius: BorderRadius.circular(12)),
-                  child: Icon(icon, size: 20, color: const Color(0xFF9BC62A)),
+                  decoration: BoxDecoration(color: StallColors.cream2, borderRadius: BorderRadius.circular(12)),
+                  child: Icon(icon, size: 20, color: StallColors.indigo),
                 ),
                 const SizedBox(height: 10),
                 Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
@@ -414,7 +407,7 @@ class _Tile extends StatelessWidget {
       );
 }
 
-/// A titled group of rows ("SELLING", "YOUR PROFILE"), on the beige card the website uses.
+/// A titled group of rows ("SELLING", "YOUR PROFILE"), as on the website, on the app's white card.
 class _Section extends StatelessWidget {
   const _Section({this.title, required this.rows});
   final String? title;
@@ -429,9 +422,7 @@ class _Section extends StatelessWidget {
               child: Text(title!.toUpperCase(),
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: .9, color: StallColors.muted)),
             ),
-          Material(
-            color: StallColors.cream2,
-            borderRadius: BorderRadius.circular(18),
+          Card(
             clipBehavior: Clip.antiAlias,
             child: Column(children: [
               for (var i = 0; i < rows.length; i++) ...[if (i > 0) const Divider(height: 1, color: StallColors.line), rows[i]],
@@ -445,12 +436,7 @@ class _RowIcon extends StatelessWidget {
   const _RowIcon(this.icon);
   final IconData icon;
   @override
-  Widget build(BuildContext context) => Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(color: StallColors.card, borderRadius: BorderRadius.circular(11)),
-        child: Icon(icon, size: 19, color: StallColors.ink),
-      );
+  Widget build(BuildContext context) => SizedBox(width: 28, child: Icon(icon, color: StallColors.indigo));
 }
 
 class _Row extends StatelessWidget {
@@ -513,7 +499,7 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(color: hot ? StallColors.lime : StallColors.card, borderRadius: BorderRadius.circular(99)),
+        decoration: BoxDecoration(color: hot ? StallColors.lime : StallColors.cream2, borderRadius: BorderRadius.circular(99)),
         child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: hot ? StallColors.limeInk : StallColors.muted)),
       );
 }
